@@ -115,7 +115,7 @@ void compile(VM *vm, const char *source)
     /*for (int i = 0; i < vm->analyzer->num_statements; i++)
         compile_statement(instructs, &vm->analyzer->statements[i]);*/
 
-    init_parser(&vm->analyzer);
-    init_scanner(&vm->analyzer.scan);
+    reset_parser(&vm->analyzer);
+    reset_scanner(&vm->analyzer.scan);
     /*return instructs;*/
 }

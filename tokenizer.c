@@ -7,17 +7,19 @@
 #include "tokenizer.h"
 #include "token.h"
 
-void init_scanner(scanner *scan)
+void reset_scanner(scanner *scan)
 {
-    // Tokens are owned by the scanner
     if (scan->tokens) {
         for (int i = 0; i < scan->capacity; ++i) {
-            printf("freeing token %d\n", i);
             free(scan->tokens[i]);
         }
         free(scan->tokens);
     }
+    init_scanner(scan);
+}
 
+void init_scanner(scanner *scan)
+{
     scan->start = NULL;
     scan->current = NULL;
     scan->line = 1;
@@ -30,11 +32,12 @@ void init_scanner(scanner *scan)
 
 static void check_scanner_capacity(scanner *scan)
 {
-    printf("Entering check_scanner_capacity()...\n");
     int oldcapacity = scan->capacity;
     scan->capacity = GROW_CAPACITY(scan->capacity);
     scan->tokens = GROW_ARRAY(scan->tokens, token*, oldcapacity, scan->capacity);
-    printf("exiting check_scanner_capacity()...\n");
+
+    for (int i = oldcapacity; i < scan->capacity; ++i)
+        scan->tokens[i] = NULL;
 }
 
 static inline bool is_at_end(scanner *scan)
@@ -262,11 +265,7 @@ static void scan_token(scanner *scan)
 
 void scan_tokens(scanner *scan, const char *source)
 {
-    scan->capacity = GROW_CAPACITY(scan->capacity);
-    scan->tokens = GROW_ARRAY(scan->tokens, token*, 0, 8);
-    for (int i = 0; i < scan->capacity; ++i)
-        scan->tokens[i] = NULL;
-
+    check_scanner_capacity(scan);
     scan->source = source;
 
     scan->length = strlen(scan->source);

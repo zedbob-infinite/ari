@@ -26,5 +26,6 @@ typedef struct parser_t
 
 void parse(parser *analyzer, const char *source);
 void init_parser(parser *analyzer);
+void reset_parser(parser *analyzer);
 
 #endif

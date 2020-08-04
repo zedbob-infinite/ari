@@ -14,6 +14,38 @@ static stmt *statement(parser *analyzer);
 static expr *expression(parser *analyzer);
 static token *advance(parser *analyzer);
 
+static expr *init_expr(void)
+{
+    expr *new_expr = ALLOCATE(expr, 1);
+    new_expr->type = 0;
+    new_expr->name = NULL;
+    new_expr->operator = NULL;
+    new_expr->literal = NULL;
+    new_expr->expression= NULL;
+    new_expr->value = NULL;
+    new_expr->left = NULL;
+    new_expr->right = NULL;
+    return new_expr;
+}
+
+static stmt *init_stmt(void)
+{
+    stmt *new_stmt = ALLOCATE(stmt, 1);
+    new_stmt->type = 0;
+    new_stmt->name = NULL;
+    new_stmt->initializer = NULL;
+    new_stmt->expression = NULL;
+    new_stmt->condition = NULL;
+    new_stmt->value = NULL;
+    new_stmt->loopbody = NULL;
+    new_stmt->thenbranch = NULL;
+    new_stmt->elsebranch = NULL;
+    new_stmt->count = 0;
+    new_stmt->capacity = 0;
+    new_stmt->stmts = NULL;
+    return new_stmt;
+}
+
 static void delete_expression(expr *pexpr)
 {
     if (pexpr->expression)
@@ -30,34 +62,27 @@ static void delete_expression(expr *pexpr)
 
 static void delete_statements(stmt *pstmt)
 {
-    printf("Deleting statement type %d...\n", pstmt->type);
     switch (pstmt->type) {
         case STMT_BLOCK:
-            printf("Deleting STMT_BLOCK...\n");
             for (int i = 0; i < pstmt->count; i++)
                 delete_statements(pstmt->stmts[i]);
             break;
         case STMT_EXPR:
-            printf("Deleting STMT_EXPR...\n");
             break;
         case STMT_IF:
-            printf("Deleting STMT_IF...\n");
             delete_statements(pstmt->thenbranch);
             if (pstmt->elsebranch)
                 delete_statements(pstmt->elsebranch);
             break;
         case STMT_WHILE:
-            printf("Deleting STMT_WHILE...\n");
             delete_statements(pstmt->loopbody);
             break;
         case STMT_FOR:
-            printf("Deleting STMT_FOR...\n");
             for (int i = 0; i < 3; i++)
                 delete_statements(pstmt->stmts[i]);
             delete_statements(pstmt->loopbody);
             break;
         case STMT_VAR:
-            printf("Deleting STMT_VAR...\n");
             delete_statements(pstmt->initializer);
             break;
     }
@@ -68,7 +93,6 @@ static void delete_statements(stmt *pstmt)
     if (pstmt->value)
         delete_expression(pstmt->value);
     free(pstmt);
-    printf("exiting delete_statements()...\n");
 }
 
 static void synchronize(parser *analyzer)
@@ -181,7 +205,7 @@ static bool match(parser *analyzer, tokentype type)
 
 static stmt *get_variable_statement(token *name, stmt *initializer)
 {
-    stmt *new_stmt = ALLOCATE(stmt, 1);
+    stmt *new_stmt = init_stmt();
     new_stmt->type = STMT_VAR;
     new_stmt->name = name;
     new_stmt->initializer = initializer;
@@ -190,7 +214,7 @@ static stmt *get_variable_statement(token *name, stmt *initializer)
 
 static stmt *get_expression_statement(expr *new_expr)
 {
-    stmt *new_stmt = ALLOCATE(stmt, 1);
+    stmt *new_stmt = init_stmt();
     new_stmt->type = STMT_EXPR;
     new_stmt->expression = new_expr;
     return new_stmt;
@@ -199,8 +223,8 @@ static stmt *get_expression_statement(expr *new_expr)
 static stmt *get_for_statement(stmt *initializer, stmt *condition,
         stmt *iterator, stmt *loopbody)
 {
-    stmt *new_stmt = ALLOCATE(stmt, 1);
-    new_stmt->stmts = malloc(sizeof(stmt) * 3);
+    stmt *new_stmt = init_stmt();
+    new_stmt->stmts = ALLOCATE(stmt*, 3);
     new_stmt->capacity = 3;
     new_stmt->stmts[0] = initializer;
     new_stmt->stmts[1] = condition;
@@ -213,7 +237,7 @@ static stmt *get_for_statement(stmt *initializer, stmt *condition,
 
 static stmt *get_while_statement(expr *condition, stmt *loopbody)
 {
-    stmt *new_stmt = ALLOCATE(stmt, 1);
+    stmt *new_stmt = init_stmt();
     new_stmt->type = STMT_WHILE;
     new_stmt->condition = condition;
     new_stmt->loopbody = loopbody;
@@ -223,7 +247,7 @@ static stmt *get_while_statement(expr *condition, stmt *loopbody)
 static stmt *get_if_statement(expr *condition, stmt *thenbranch, 
         stmt *elsebranch)
 {
-    stmt *new_stmt = ALLOCATE(stmt, 1);
+    stmt *new_stmt = init_stmt();
     new_stmt->type = STMT_IF;
     new_stmt->condition = condition;
     new_stmt->thenbranch = thenbranch;
@@ -233,7 +257,7 @@ static stmt *get_if_statement(expr *condition, stmt *thenbranch,
 
 static expr *get_binary_expr(token *operator, expr *left, expr *right)
 {
-    expr *new_expr = malloc(sizeof(expr));
+    expr *new_expr = init_expr();
     new_expr->type = EXPR_BINARY;
     new_expr->left = left;
     new_expr->right = right;
@@ -243,7 +267,7 @@ static expr *get_binary_expr(token *operator, expr *left, expr *right)
 
 static expr *get_unary_expr(token *opcode, expr *right)
 {
-    expr *new_expr = malloc(sizeof(expr));
+    expr *new_expr = init_expr();
     new_expr->type = EXPR_UNARY;
     new_expr->operator = opcode;
     new_expr->right = right;
@@ -252,7 +276,7 @@ static expr *get_unary_expr(token *opcode, expr *right)
 
 static expr *get_variable_expr(token *name)
 {
-    expr *new_expr = malloc(sizeof(expr));
+    expr *new_expr = init_expr();
     new_expr->type = EXPR_VARIABLE;
     new_expr->name = name;
     return new_expr;
@@ -260,7 +284,7 @@ static expr *get_variable_expr(token *name)
 
 static expr *get_literal_expr(char *value, exprtype type)
 {
-    expr *new_expr = malloc(sizeof(expr));
+    expr *new_expr = init_expr();
     new_expr->type = type;
     new_expr->literal = value;
     return new_expr;
@@ -268,7 +292,7 @@ static expr *get_literal_expr(char *value, exprtype type)
 
 static expr *get_grouping_expr(expr *group_expr)
 {
-    expr *new_expr = malloc(sizeof(expr));
+    expr *new_expr = init_expr();
     new_expr->type = EXPR_GROUPING;
     new_expr->expression = group_expr;
     return new_expr;
@@ -276,7 +300,7 @@ static expr *get_grouping_expr(expr *group_expr)
 
 static expr *get_assign_expr(token *name, expr *value)
 {
-    expr *new_expr = malloc(sizeof(expr));
+    expr *new_expr = init_expr();
     new_expr->name = name;
     new_expr->value = value;
     new_expr->type = EXPR_ASSIGN;
@@ -502,15 +526,20 @@ static stmt *statement(parser *analyzer)
     return expression_statement(analyzer);
 }
 
-void init_parser(parser *analyzer)
+void reset_parser(parser *analyzer)
 {
     if (analyzer->statements) {
         stmt **statements = analyzer->statements;
         for (int i = 0; i < analyzer->num_statements; ++i) {
             delete_statements(statements[i]);
         }
+        free(analyzer->statements);
     }
-    free(analyzer->statements);
+    init_parser(analyzer);
+}
+
+void init_parser(parser *analyzer)
+{
     analyzer->num_statements = 0;
     analyzer->capacity = 0;
     analyzer->statements = NULL;
