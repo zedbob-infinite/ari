@@ -24,4 +24,5 @@ void repl(void)
         }
         interpret_line(vm, line);
     }
+    free(vm);
 }

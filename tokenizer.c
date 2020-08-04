@@ -3,15 +3,20 @@
 #include <string.h>
 #include <stdbool.h>
 
+#include "memory.h"
 #include "tokenizer.h"
 #include "token.h"
 
 void init_scanner(scanner *scan)
 {
     // Tokens are owned by the scanner
-    if (scan->tokens)
-        for (int i = 0; i < scan->num_tokens; ++i)
+    if (scan->tokens) {
+        for (int i = 0; i < scan->capacity; ++i) {
+            printf("freeing token %d\n", i);
             free(scan->tokens[i]);
+        }
+        free(scan->tokens);
+    }
 
     scan->start = NULL;
     scan->current = NULL;
@@ -25,12 +30,11 @@ void init_scanner(scanner *scan)
 
 static void check_scanner_capacity(scanner *scan)
 {
-    // Ensure enough token capacity
-    if (scan->num_tokens == scan->capacity - 1) {
-        scan->capacity = scan->capacity * 2;
-        scan->tokens = realloc(scan->tokens, 
-                sizeof(token) * scan->capacity);
-    }
+    printf("Entering check_scanner_capacity()...\n");
+    int oldcapacity = scan->capacity;
+    scan->capacity = GROW_CAPACITY(scan->capacity);
+    scan->tokens = GROW_ARRAY(scan->tokens, token*, oldcapacity, scan->capacity);
+    printf("exiting check_scanner_capacity()...\n");
 }
 
 static inline bool is_at_end(scanner *scan)
@@ -69,8 +73,9 @@ static inline char advance(scanner *scan)
 
 static void add_token(scanner *scan, tokentype type)
 {
-    check_scanner_capacity(scan);
-    token *tok = malloc(sizeof(token));
+    if (scan->capacity < scan->num_tokens + 1)
+        check_scanner_capacity(scan);
+    token *tok = ALLOCATE(token, 1);
 
     tok->type = type;
     tok->start = scan->start;
@@ -97,7 +102,17 @@ static inline void identifier(scanner *scan)
     switch (scan->start[0]) {
         case 'a': type = check_keyword(scan, 1, 2, "nd", TOKEN_AND); break;
         case 'c': type = check_keyword(scan, 1, 4, "lass", TOKEN_CLASS); break;
-        case 'e': type = check_keyword(scan, 1, 3, "lse", TOKEN_ELSE); break;
+        case 'e': 
+                  if (scan->current - scan->start > 1)
+                      switch(scan->start[1]) {
+                          case 'l':
+                              type = check_keyword(scan, 2, 2, "se", TOKEN_ELSE); 
+                              break;
+                          case 'x':
+                              type = check_keyword(scan, 2, 2, "it", TOKEN_EXIT);
+                              break;
+                      }
+                  break;
         case 'f':
                   if (scan->current - scan->start > 1)
                       switch(scan->start[1]) {
@@ -151,7 +166,7 @@ static inline void number(scanner *scan)
 static void error_token(scanner *scan, const char *msg)
 {
     check_scanner_capacity(scan);
-    token *tok = malloc(sizeof(token));
+    token *tok = ALLOCATE(token, 1);
 
     tok->type = TOKEN_ERROR;
     tok->start = msg;
@@ -245,10 +260,14 @@ static void scan_token(scanner *scan)
     }
 }
 
-void scan_tokens(scanner *scan)
+void scan_tokens(scanner *scan, const char *source)
 {
-    scan->capacity = 8;
-    scan->tokens = malloc(sizeof(token) * scan->capacity);
+    scan->capacity = GROW_CAPACITY(scan->capacity);
+    scan->tokens = GROW_ARRAY(scan->tokens, token*, 0, 8);
+    for (int i = 0; i < scan->capacity; ++i)
+        scan->tokens[i] = NULL;
+
+    scan->source = source;
 
     scan->length = strlen(scan->source);
     scan->start = scan->current = scan->source;

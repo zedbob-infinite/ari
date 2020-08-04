@@ -126,12 +126,18 @@ void interpet(VM *vm, instruct *instructs)
 
 }*/
 
+void free_vm(VM *vm)
+{
+    init_scanner(&vm->analyzer.scan);
+    init_parser(&vm->analyzer);
+    free(vm);
+}
 
 VM *init_vm(void)
 {
     VM *vm = malloc(sizeof(VM));
-    init_scanner(&vm->lexer);
     init_parser(&vm->analyzer);
+    init_scanner(&vm->analyzer.scan);
     init_valstack(&vm->evalstack);
 
     return vm;

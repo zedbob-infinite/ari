@@ -5,21 +5,26 @@
 
 #include "stmt.h"
 #include "token.h"
+#include "tokenizer.h"
 
 typedef struct parser_t
 {
+    // statements
     int num_statements;
     int capacity;
-    stmt *statements;
+    stmt **statements;
+    // tokens 
     int current;
+    int num_tokens;
     token **tokens;
-    int num_of_tokens;
+    // flags
     bool panicmode;
     bool haderror;
+    // parser struct has the scanner
+    scanner scan;
 } parser;
 
-void parse(parser *analyzer);
+void parse(parser *analyzer, const char *source);
 void init_parser(parser *analyzer);
-void reset_parser(parser *analyzer);
 
 #endif

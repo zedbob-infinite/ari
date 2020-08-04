@@ -107,28 +107,15 @@
 
 void compile(VM *vm, const char *source)
 {
-    //instruct *instructs = init_instruct();
-    // Tokenize character stream
-    vm->lexer.source = source;
-    scan_tokens(&vm->lexer);
-    /*scanner *scan = &vm->lexer;
+    // initialize parser
+    init_parser(&vm->analyzer);
+    parse(&vm->analyzer, source);
 
-    token *tok;
-    for (int i = 0; i < scan->num_tokens; ++i) {
-        tok = scan->tokens[i];
-        printf("%2d '%.*s'\n", tok->type, tok->length, tok->start);
-
-        if (tok->type == TOKEN_EOF) break;
-    }*/
-
-    // Form AST trees from token stream
-    vm->analyzer.tokens = vm->lexer.tokens;
-    parse(&vm->analyzer);
     // Compile parse trees into bytecode
     /*for (int i = 0; i < vm->analyzer->num_statements; i++)
         compile_statement(instructs, &vm->analyzer->statements[i]);*/
 
-    init_scanner(&vm->lexer);
-    reset_parser(&vm->analyzer);
+    init_parser(&vm->analyzer);
+    init_scanner(&vm->analyzer.scan);
     /*return instructs;*/
 }

@@ -23,6 +23,7 @@ typedef enum tokentype_t
     TOKEN_IF, TOKEN_NULL, TOKEN_OR, TOKEN_RETURN, TOKEN_SUPER, TOKEN_THIS,
     TOKEN_TRUE, TOKEN_VAR, TOKEN_WHILE,
 
+    TOKEN_EXIT,
     TOKEN_ERROR,
     TOKEN_EOF
 } tokentype;

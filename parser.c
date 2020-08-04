@@ -4,64 +4,82 @@
 #include <string.h>
 
 #include "expr.h"
+#include "memory.h"
 #include "parser.h"
 #include "stmt.h"
 #include "token.h"
+#include "tokenizer.h"
 
 static stmt *statement(parser *analyzer);
 static expr *expression(parser *analyzer);
 static token *advance(parser *analyzer);
 
+static void delete_expression(expr *pexpr)
+{
+    if (pexpr->expression)
+        delete_expression(pexpr->expression);
+    if (pexpr->value)
+        delete_expression(pexpr->value);
+    if (pexpr->left)
+        delete_expression(pexpr->left);
+    if (pexpr->right)
+        delete_expression(pexpr->right);
+    free(pexpr->literal);
+    free(pexpr);
+}
+
 static void delete_statements(stmt *pstmt)
 {
+    printf("Deleting statement type %d...\n", pstmt->type);
     switch (pstmt->type) {
         case STMT_BLOCK:
+            printf("Deleting STMT_BLOCK...\n");
             for (int i = 0; i < pstmt->count; i++)
                 delete_statements(pstmt->stmts[i]);
             break;
         case STMT_EXPR:
+            printf("Deleting STMT_EXPR...\n");
             break;
         case STMT_IF:
+            printf("Deleting STMT_IF...\n");
             delete_statements(pstmt->thenbranch);
             if (pstmt->elsebranch)
                 delete_statements(pstmt->elsebranch);
             break;
         case STMT_WHILE:
+            printf("Deleting STMT_WHILE...\n");
             delete_statements(pstmt->loopbody);
             break;
         case STMT_FOR:
+            printf("Deleting STMT_FOR...\n");
             for (int i = 0; i < 3; i++)
                 delete_statements(pstmt->stmts[i]);
             delete_statements(pstmt->loopbody);
             break;
         case STMT_VAR:
+            printf("Deleting STMT_VAR...\n");
             delete_statements(pstmt->initializer);
             break;
     }
+    if (pstmt->expression)
+        delete_expression(pstmt->expression);
+    if (pstmt->condition)
+        delete_expression(pstmt->condition);
+    if (pstmt->value)
+        delete_expression(pstmt->value);
     free(pstmt);
-}
-
-void reset_parser(parser *analyzer)
-{
-    for (int i = 0; i < analyzer->num_statements; ++i)
-        delete_statements(&analyzer->statements[i]);
-    analyzer->num_statements = 0;
-    analyzer->capacity = 0;
-    analyzer->current = 0;
-    analyzer->tokens = NULL;
-    analyzer->num_of_tokens = 0;
-    analyzer->panicmode = false;
-    analyzer->haderror = false;
+    printf("exiting delete_statements()...\n");
 }
 
 static void synchronize(parser *analyzer)
 {
     analyzer->panicmode = false;
 
-    while (analyzer->tokens[analyzer->current]->type != TOKEN_EOF) {
-        if (analyzer->tokens[analyzer->current]->type == TOKEN_SEMICOLON) return;
+    token **tokens =  analyzer->scan.tokens;
+    while (tokens[analyzer->current]->type != TOKEN_EOF) {
+        if (tokens[analyzer->current]->type == TOKEN_SEMICOLON) return;
 
-        switch (analyzer->tokens[analyzer->current]->type) {
+        switch (tokens[analyzer->current]->type) {
             case TOKEN_CLASS:
             case TOKEN_FUN:
             case TOKEN_VAR:
@@ -97,12 +115,12 @@ static void error_at(parser *analyzer, token *tok, const char *msg)
 
 static void error(parser *analyzer, const char *msg)
 {
-    error_at(analyzer, analyzer->tokens[analyzer->current - 1], msg);
+    error_at(analyzer, analyzer->scan.tokens[analyzer->current - 1], msg);
 }
 
 static void error_at_current(parser *analyzer, const char *msg)
 {
-    error_at(analyzer, analyzer->tokens[analyzer->current], msg);
+    error_at(analyzer, analyzer->scan.tokens[analyzer->current], msg);
 }
 
 static char *take_string(token *tok)
@@ -114,19 +132,9 @@ static char *take_string(token *tok)
     return buffer;
 }
 
-static inline void check_analyzer_capacity(parser *analyzer)
-{
-    // Ensure enough token capacity
-    if (analyzer->num_statements == analyzer->capacity - 1) {
-        analyzer->capacity = analyzer->capacity * 2;
-        analyzer->statements = realloc(analyzer->statements, 
-                sizeof(stmt) * analyzer->capacity);
-    }
-}
-
 static token *peek(parser *analyzer)
 {
-    return analyzer->tokens[analyzer->current];
+    return analyzer->scan.tokens[analyzer->current];
 }
 
 static bool is_at_end(parser *analyzer)
@@ -143,7 +151,7 @@ static bool check(parser *analyzer, tokentype type)
 
 static token *previous(parser *analyzer)
 {
-    return analyzer->tokens[analyzer->current - 1];
+    return analyzer->scan.tokens[analyzer->current - 1];
 }
 
 static token *advance(parser *analyzer)
@@ -173,7 +181,7 @@ static bool match(parser *analyzer, tokentype type)
 
 static stmt *get_variable_statement(token *name, stmt *initializer)
 {
-    stmt *new_stmt = malloc(sizeof(stmt));
+    stmt *new_stmt = ALLOCATE(stmt, 1);
     new_stmt->type = STMT_VAR;
     new_stmt->name = name;
     new_stmt->initializer = initializer;
@@ -182,7 +190,7 @@ static stmt *get_variable_statement(token *name, stmt *initializer)
 
 static stmt *get_expression_statement(expr *new_expr)
 {
-    stmt *new_stmt = malloc(sizeof(stmt));
+    stmt *new_stmt = ALLOCATE(stmt, 1);
     new_stmt->type = STMT_EXPR;
     new_stmt->expression = new_expr;
     return new_stmt;
@@ -191,7 +199,7 @@ static stmt *get_expression_statement(expr *new_expr)
 static stmt *get_for_statement(stmt *initializer, stmt *condition,
         stmt *iterator, stmt *loopbody)
 {
-    stmt *new_stmt = malloc(sizeof(stmt));
+    stmt *new_stmt = ALLOCATE(stmt, 1);
     new_stmt->stmts = malloc(sizeof(stmt) * 3);
     new_stmt->capacity = 3;
     new_stmt->stmts[0] = initializer;
@@ -205,7 +213,7 @@ static stmt *get_for_statement(stmt *initializer, stmt *condition,
 
 static stmt *get_while_statement(expr *condition, stmt *loopbody)
 {
-    stmt *new_stmt = malloc(sizeof(stmt));
+    stmt *new_stmt = ALLOCATE(stmt, 1);
     new_stmt->type = STMT_WHILE;
     new_stmt->condition = condition;
     new_stmt->loopbody = loopbody;
@@ -215,7 +223,7 @@ static stmt *get_while_statement(expr *condition, stmt *loopbody)
 static stmt *get_if_statement(expr *condition, stmt *thenbranch, 
         stmt *elsebranch)
 {
-    stmt *new_stmt = malloc(sizeof(stmt));
+    stmt *new_stmt = ALLOCATE(stmt, 1);
     new_stmt->type = STMT_IF;
     new_stmt->condition = condition;
     new_stmt->thenbranch = thenbranch;
@@ -277,12 +285,24 @@ static expr *get_assign_expr(token *name, expr *value)
 
 static expr *primary(parser *analyzer)
 {
-    if (match(analyzer, TOKEN_FALSE))
-        return get_literal_expr("0", EXPR_LITERAL_BOOL);
-    if (match(analyzer, TOKEN_TRUE))
-        return get_literal_expr("1", EXPR_LITERAL_BOOL);
-    if (match(analyzer, TOKEN_NULL))
-        return get_literal_expr("NULL", EXPR_LITERAL_NULL);
+    if (match(analyzer, TOKEN_FALSE)) {
+        char *buffer = ALLOCATE(char, 2);
+        char *number = "0";
+        strcpy(buffer, number);
+        return get_literal_expr(buffer, EXPR_LITERAL_BOOL);
+    }
+    if (match(analyzer, TOKEN_TRUE)) {
+        char *buffer = ALLOCATE(char, 2);
+        char *number = "1";
+        strcpy(buffer, number);
+        return get_literal_expr(buffer, EXPR_LITERAL_BOOL);
+    }
+    if (match(analyzer, TOKEN_NULL)) {
+        char *buffer = ALLOCATE(char, 5);
+        char *null = "NULL";
+        strcpy(buffer, null);
+        return get_literal_expr(buffer, EXPR_LITERAL_NULL);
+    }
     if (match(analyzer, TOKEN_NUMBER)) {
         return get_literal_expr(take_string(previous(analyzer)),
                 EXPR_LITERAL_NUMBER);
@@ -387,7 +407,7 @@ static expr *expression(parser *analyzer)
 static stmt *var_declaration(parser *analyzer)
 {
     token *name = consume(analyzer, TOKEN_IDENTIFIER, "Expect variable name.");
-    stmt *initializer = NULL;
+    stmt *initializer = ALLOCATE(stmt, 1);
 
     if (match(analyzer, TOKEN_EQUAL))
         initializer = get_expression_statement(expression(analyzer));
@@ -413,13 +433,13 @@ static inline void check_stmt_capacity(stmt *block_stmt)
 
 static stmt *block(parser *analyzer)
 {
-    stmt *new_stmt = malloc(sizeof(stmt) * 8);
+    stmt *new_stmt = ALLOCATE(stmt, 1);
     new_stmt->type = STMT_BLOCK;
 
+    int i = 0;
     while (!check(analyzer, TOKEN_RIGHT_BRACE) && !is_at_end(analyzer)) {
         check_stmt_capacity(new_stmt);
-        *new_stmt->stmts = declaration(analyzer);
-        new_stmt->stmts++;
+        new_stmt->stmts[i++] = declaration(analyzer);
         new_stmt->count++;
     }
 
@@ -434,7 +454,7 @@ static stmt *if_statement(parser *analyzer)
     consume(analyzer, TOKEN_RIGHT_PAREN, "Expect ')' after if condition.");
 
     stmt *then_branch = statement(analyzer);
-    stmt *else_branch = NULL;
+    stmt *else_branch;
     if (match(analyzer, TOKEN_ELSE))
         else_branch = statement(analyzer);
 
@@ -484,25 +504,42 @@ static stmt *statement(parser *analyzer)
 
 void init_parser(parser *analyzer)
 {
+    if (analyzer->statements) {
+        stmt **statements = analyzer->statements;
+        for (int i = 0; i < analyzer->num_statements; ++i) {
+            delete_statements(statements[i]);
+        }
+    }
+    free(analyzer->statements);
     analyzer->num_statements = 0;
     analyzer->capacity = 0;
     analyzer->statements = NULL;
     analyzer->current = 0;
-    analyzer->tokens = NULL;
-    analyzer->num_of_tokens = 0;
+    analyzer->num_tokens = 0;
     analyzer->panicmode = false;
     analyzer->haderror = false;
 }
 
-void parse(parser *analyzer)
+void parse(parser *analyzer, const char *source)
 {
-    analyzer->capacity = 8;
-    analyzer->statements = malloc(sizeof(stmt) * analyzer->capacity);
+    // Get the tokens
+    init_scanner(&analyzer->scan);
+    scan_tokens(&analyzer->scan, source);
 
+    // Parse tokens into AST
+    analyzer->capacity = GROW_CAPACITY(analyzer->capacity);
+    analyzer->statements = GROW_ARRAY(analyzer->statements, stmt*, 0, analyzer->capacity); 
+
+    int i = 0;
     while (!is_at_end(analyzer)) {
-        check_analyzer_capacity(analyzer);
-        analyzer->statements = declaration(analyzer);
-        analyzer->statements++;
+        if (analyzer->capacity < analyzer->num_statements + 1) {
+            int oldcapacity = analyzer->capacity;
+            analyzer->capacity = GROW_CAPACITY(analyzer->capacity);
+            analyzer->statements = GROW_ARRAY(analyzer->statements, 
+                    stmt*, oldcapacity, analyzer->capacity);
+        }
+        analyzer->statements[i] = declaration(analyzer);
+        analyzer->num_statements++;
         if (analyzer->panicmode) synchronize(analyzer);
     }
     is_at_end(analyzer);
