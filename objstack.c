@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 #include "memory.h"
 #include "object.h"
 #include "objstack.h"
@@ -7,13 +9,6 @@ void init_objstack(objstack *stack)
 {
     stack->count = 0;
     stack->top = NULL;
-}
-
-void reset_objstack(objstack *stack)
-{
-    for (int i = 0; i < stack->count; ++i)
-		pop_objstack(stack);
-	init_objstack(stack);
 }
 
 void push_objstack(objstack *stack, object *obj)
@@ -42,7 +37,7 @@ object *pop_objstack(objstack *stack)
     popped = stack->top;
     obj = popped->obj;
     stack->top = popped->next;
-    FREE_OBJECT(objnode, popped);
+    FREE(objnode, popped);
     return obj;
 }
 

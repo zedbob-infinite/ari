@@ -138,11 +138,11 @@ static void error_at(parser *analyzer, token *tok, const char *msg)
 
     if (tok->type == TOKEN_EOF)
         fprintf(stderr, " at end");
-    else if (tok->type == TOKEN_ERROR) {
-        // Nothing
-    }
+    else if (tok->type == TOKEN_ERROR)
+        fprintf(stderr, ": %.*s", tok->length, tok->start);
     else
         fprintf(stderr, " at '%.*s'", tok->length, tok->start);
+    fprintf(stderr, "\n");
     analyzer->haderror = true;
 }
 
@@ -549,7 +549,7 @@ void init_parser(parser *analyzer)
     analyzer->haderror = false;
 }
 
-void parse(parser *analyzer, const char *source)
+bool parse(parser *analyzer, const char *source)
 {
     // Get the tokens
     init_scanner(&analyzer->scan);
@@ -572,4 +572,5 @@ void parse(parser *analyzer, const char *source)
         if (analyzer->panicmode) synchronize(analyzer);
     }
     is_at_end(analyzer);
+    return analyzer->haderror;
 }

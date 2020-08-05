@@ -24,7 +24,7 @@ typedef struct parser_t
     scanner scan;
 } parser;
 
-void parse(parser *analyzer, const char *source);
+bool parse(parser *analyzer, const char *source);
 void init_parser(parser *analyzer);
 void reset_parser(parser *analyzer);
 

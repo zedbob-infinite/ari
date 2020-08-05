@@ -19,7 +19,7 @@ typedef struct instruct_t
     code8 **code;
 } instruct;
 
-instruct *init_instructs(void);
-void destroy_instructs(instruct *instructs);
+void init_instruct(instruct *instructs);
+void reset_instruct(instruct *instructs);
 
 #endif

@@ -10,9 +10,23 @@
 #include "tokenizer.h"
 #include "vm.h"
 
-static inline void binary_comp(objstack *stack, tokentype optype)
+static void vm_add_object(VM *vm, object *obj)
+{
+   if (vm->objs) {
+       object *previous = vm->objs;
+       vm->objs = obj;
+       obj->next = previous;
+       return;
+   }
+   vm->objs = obj;
+   obj->next = NULL;
+}
+
+static inline void binary_comp(VM *vm, objstack *stack, tokentype optype)
 {
     objprim *c = create_new_primitive(VAL_BOOL);
+    vm_add_object(vm, (object*)c);
+
     objprim *b = (objprim*)pop_objstack(stack);
 	objprim *a = (objprim*)pop_objstack(stack);
 
@@ -39,10 +53,10 @@ static inline void binary_comp(objstack *stack, tokentype optype)
     push_objstack(stack, (object*)c);
 }
 
-static inline void binary_op(objstack *stack, char optype)
+static inline void binary_op(VM *vm, objstack *stack, char optype)
 {
 
-    objprim *c = create_new_primitive(VAL_DOUBLE);
+    objprim *c = create_new_primitive(VAL_DOUBLE); 
     objprim *b = (objprim*)pop_objstack(stack);
 	objprim *a = (objprim*)pop_objstack(stack);
 
@@ -52,7 +66,9 @@ static inline void binary_op(objstack *stack, char optype)
         case '*': PRIM_AS_DOUBLE(c) = PRIM_AS_DOUBLE(a) * PRIM_AS_DOUBLE(b); break;
         case '/': PRIM_AS_DOUBLE(c) = PRIM_AS_DOUBLE(a) / PRIM_AS_DOUBLE(b); break;
     }
-    push_objstack(stack, (object*)c);
+    object *obj = (object*)c;
+    vm_add_object(vm, obj);
+    push_objstack(stack, obj);
 }
 
 static inline void advance(instruct *instructs)
@@ -86,11 +102,18 @@ void execute(VM *vm, instruct *instructs)
 			}
             case OP_JMP_FALSE:
 			{
-				objprim *jump = (objprim*)operand;
-                instructs->current = instructs->current + PRIM_AS_INT(jump);
+				objprim *condition = (objprim*)pop_objstack(stack);
+
+                if (PRIM_AS_BOOL(condition))
+                    advance(instructs);
+                else {
+                    objprim *jump = (objprim*)operand;
+                    instructs->current = instructs->current + PRIM_AS_INT(jump);
+                }
                 break;
 			}
             case OP_LOAD_CONSTANT:
+                vm_add_object(vm, (object*)operand);
 				push_objstack(stack, operand);
                 advance(instructs);
                 break;
@@ -110,21 +133,30 @@ void execute(VM *vm, instruct *instructs)
                 advance(instructs);
                 break;
             case OP_BINARY_ADD:
-				binary_op(stack, '+');
+				binary_op(vm, stack, '+');
                 advance(instructs);
                 break;
             case OP_BINARY_SUB:
+                binary_op(vm, stack, '-');
                 advance(instructs);
                 break;
             case OP_BINARY_MULT:
+                binary_op(vm, stack, '*');
                 advance(instructs);
                 break;
             case OP_BINARY_DIVIDE:
+                binary_op(vm, stack, '/');
                 advance(instructs);
                 break;
             case OP_NEGATE:
+            {
+                objprim *obj = create_new_primitive(VAL_DOUBLE);
+                vm_add_object(vm, (object*)obj);
+                push_objstack(stack, (object*)obj);
+                binary_op(vm, stack, '*');
                 advance(instructs);
                 break;
+            }
             case OP_POP:
                 pop_objstack(stack);
                 advance(instructs);
@@ -136,14 +168,21 @@ void execute(VM *vm, instruct *instructs)
         }
     }
 	printf("exiting execute...\n");
+    printf("printing objects in VM..\n");
 }
 
 void free_vm(VM *vm)
 {
+    object *vmobj = NULL;
+    while ((vmobj = vm->objs)) {
+        vm->objs = vm->objs->next;
+        FREE_OBJECT(vmobj);
+        printf("deleted object\n");
+    }
+	init_objstack(&vm->evalstack);
     reset_parser(&vm->analyzer);
     reset_scanner(&vm->analyzer.scan);
-	reset_objstack(&vm->evalstack);
-    FREE_OBJECT(VM, vm);
+    FREE(VM, vm);
 }
 
 VM *init_vm(void)
@@ -152,6 +191,7 @@ VM *init_vm(void)
     init_parser(&vm->analyzer);
     init_scanner(&vm->analyzer.scan);
     init_objstack(&vm->evalstack);
+    vm->objs = NULL;
 
     return vm;
 }

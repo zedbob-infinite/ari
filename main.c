@@ -4,7 +4,10 @@
 
 #include "compiler.h"
 #include "interpret.h"
+#include "memory.h"
+#include "object.h"
 #include "repl.h"
+#include "vm.h"
 
 void run_file(const char* path);
 void arimain(int argc, char** argv);

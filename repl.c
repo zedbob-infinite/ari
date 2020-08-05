@@ -24,5 +24,6 @@ void repl(void)
         }
         interpret_line(vm, line);
     }
-    free(vm);
+    printf("exiting...\n");
+    free_vm(vm);
 }

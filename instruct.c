@@ -4,14 +4,22 @@
 
 void init_instruct(instruct* instructs)
 {
-    instruct->count = 0;
-    new_instruct->capacity = 0;
-	new_instruct->current = 0;
-    new_instruct->code = NULL;
+    instructs->count = 0;
+    instructs->capacity = 0;
+	instructs->current = 0;
+    instructs->code = NULL;
 }
 
-void reset_instructs(instruct *instructs)
+void reset_instruct(instruct *instructs)
 {
-    FREE_OBJECT(instructs, instruct);
+    for (int i = 0; i < instructs->capacity; ++i) {
+        code8 *code = instructs->code[i];
+        if (code)
+            if (code->operand) {
+
+            }
+        FREE(code8*, code);
+    }
+    FREE(code8**, instructs->code);
 	init_instruct(instructs);
 }

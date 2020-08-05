@@ -34,6 +34,7 @@ typedef enum
 typedef struct object_t
 {
 	objtype type;
+    struct object_t* next;
 } object;
 
 typedef struct objprim_t

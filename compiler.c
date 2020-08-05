@@ -17,6 +17,8 @@ static void check_instruct_capacity(instruct *instructs)
 	instructs->capacity = GROW_CAPACITY(oldcapacity);
 	instructs->code = GROW_ARRAY(instructs->code, code8*, oldcapacity, 
 			instructs->capacity);
+    for (int i = oldcapacity; i < instructs->capacity; ++i)
+        instructs->code[i] = NULL;
 }
 
 static char *take_string(token *tok)
@@ -182,10 +184,12 @@ static void compile_statement(instruct *instructs, stmt *statement)
 
 instruct *compile(parser *analyzer, const char *source)
 {
-    parse(analyzer, source);
+    if (parse(analyzer, source))
+        return NULL;
 
     // Compile parse trees into bytecode
     instruct *instructs = ALLOCATE(instruct, 1);
+    init_instruct(instructs);
 	for (int i = 0; i < analyzer->num_statements; i++)
         compile_statement(instructs, analyzer->statements[i]);
 
