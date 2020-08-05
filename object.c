@@ -1,64 +1,106 @@
+#include <stdio.h>
+
 #include "memory.h"
 #include "object.h"
 
-object *create_new_object(objtype type)
+static void inline init_int(objprim *obj)
 {
-	object *obj = ALLOCATE(object, 1);
-	obj->type = type;
+	obj->obj.type = OBJ_PRIMITIVE;
+	obj->primtype = VAL_INT;
+	obj->val_int = 0;
+}
+
+static void inline init_double(objprim *obj)
+{
+	obj->obj.type = OBJ_PRIMITIVE;
+	obj->primtype = VAL_DOUBLE;
+	obj->val_double = 0;
+}
+
+static void inline init_bool(objprim *obj)
+{
+	obj->obj.type = OBJ_PRIMITIVE;
+	obj->primtype = VAL_BOOL;
+	obj->val_int = 0;
+}
+
+static void inline init_null(objprim *obj)
+{
+	obj->obj.type = OBJ_PRIMITIVE;
+	obj->primtype = VAL_NULL;
+	obj->val_int = 0;
+}
+
+static void inline init_string(objprim *obj)
+{
+	obj->obj.type = OBJ_PRIMITIVE;
+	obj->primtype = VAL_STRING;
+	obj->val_string = NULL;
+}
+
+objprim *create_new_primitive(valtype primtype)
+{
+	objprim *obj = ALLOCATE(objprim, 1);
+	
+	switch (primtype) {
+		case VAL_INT:
+			init_int(obj);
+			break;
+		case VAL_DOUBLE:
+			init_double(obj);
+			break;
+		case VAL_BOOL:
+			init_bool(obj);
+			break;
+		case VAL_NULL:
+			init_null(obj);
+			break;
+		case VAL_STRING:
+			init_string(obj);
+			break;
+	}
 	return obj;
 }
 
-objprim inline *init_primitive_number(object *obj, double value)
+/*object *create_new_object(objtype type)
 {
-	objprim *new_prim = (objprim*)obj;
-	newprim->type = OBJ_PRIMITIVE;
-	newprim->primtype = VAL_NUMBER;
-	newprim->val_number = value;
-	return new_prim;
+	switch (type) {
+		case OBJ_PRIMITIVE:
+			object *obj = NULL;
+		default:
+			return NULL;
+	}
+	return (object*)obj;
+}*/
+
+void print_object(object *obj)
+{
+	switch (obj->type) {
+		case OBJ_PRIMITIVE:
+		{
+			objprim *prim = (objprim*)obj;
+			switch (prim->primtype) {
+				case VAL_INT:
+					printf("%d\n", PRIM_AS_INT(prim));
+					break;
+				case VAL_DOUBLE:
+					printf("%f\n", PRIM_AS_DOUBLE(prim));
+					break;
+				case VAL_STRING:
+					printf("%s\n", PRIM_AS_STRING(prim));
+					break;
+				case VAL_BOOL:
+					printf("%s\n", PRIM_AS_BOOL(prim) ? "true" : "false");
+					break;
+				case VAL_NULL:
+					printf("null\n");
+					break;
+				default:
+					break;
+			}
+			break;
+		default:
+			break;
+		}
+	}
 }
-
-objprim inline *init_primitive_bool(object *obj, int value)
-{
-	objprim *new_prim = (objprim*)obj;
-	newprim->type = OBJ_PRIMITIVE;
-	newprim->primtype = VAL_BOOL;
-	newprim->val_int = value;
-	return new_prim;
-}
-
-typedef enum
-{
-	OBJ_PRIMITIVE,
-	OBJ_CLASS,
-	OBJ_INSTANCE,
-} objtype;
-
-typedef enum
-{
-	VAL_NUMBER,
-	VAL_STRING,
-	VAL_BOOL,
-	VAL_NULL,
-} valtype;
-
-typedef struct object_t
-{
-	objtype type;
-} object;
-
-typedef struct objprim_t
-{
-	object obj;
-	valtype primtype;
-	union
-	{
-		int val_int;
-		double val_number;
-		char *val_string;
-	};
-} objprim;
-
-object *create_new_object(objtype type);
-objprim *init_primtive_null(object *obj, int value);
-objprim *init_primitie_string(object *obj, char *value);
-

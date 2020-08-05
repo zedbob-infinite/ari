@@ -13,8 +13,13 @@
     (type*)reallocate(previous, sizeof(type) * (oldcount), \
             sizeof(type) * (count))
 
+#define FREE_OBJECT(type, pointer) \
+	reallocate(pointer, sizeof(type), 0)
+
 #define FREE_ARRAY(type, pointer, oldcount) \
     reallocate(pointer, sizeof(type) * (oldcount), 0)
+
+#include <stddef.h>
 
 void *reallocate(void *previous, size_t oldsize, size_t newsize);
 

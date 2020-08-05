@@ -3,19 +3,20 @@
 
 #include <stdint.h>
 
-#include "value.h"
+#include "object.h"
 
 typedef struct code8_t
 {
-    value val;
     uint8_t bytecode;
+	object *operand;
 } code8;
 
 typedef struct instruct_t
 {
+	int current;
     int count;
     int capacity;
-    code8* current;
+    code8 **code;
 } instruct;
 
 instruct *init_instructs(void);

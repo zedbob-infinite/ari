@@ -2,9 +2,18 @@
 #define ari_object_h
 
 #define PRIM_AS_BOOL(obj)		(obj->val_int)
-#define PRIM_AS_NUMBER(obj)		(obj->val_number)
+#define PRIM_AS_INT(obj)		(obj->val_int)
+#define PRIM_AS_DOUBLE(obj)		(obj->val_double)
 #define PRIM_AS_NULL(obj)		(obj->val_int)
 #define PRIM_AS_STRING(obj)		(obj->val_string)
+
+#define INT_VAL(obj, value)					(obj->val_int = value)
+#define DOUBLE_VAL(obj, value)              (obj->val_double = value)
+#define BOOL_VAL(obj, value)				(obj->val_int = value)
+#define NULL_VAL(obj)						(obj->val_int = 0)
+
+#define ALLOCATE_PRIM_STRING(obj, length)	(obj->val_string = ALLOCATE(char, length + 1))
+#define COPY_PRIM_STRING(obj, string, length)		(strncpy(obj->val_string, string, length))
 
 typedef enum
 {
@@ -15,7 +24,8 @@ typedef enum
 
 typedef enum
 {
-	VAL_NUMBER,
+	VAL_INT,
+	VAL_DOUBLE,
 	VAL_STRING,
 	VAL_BOOL,
 	VAL_NULL,
@@ -33,15 +43,13 @@ typedef struct objprim_t
 	union
 	{
 		int val_int;
-		double val_number;
+		double val_double;
 		char *val_string;
 	};
 } objprim;
 
 object *create_new_object(objtype type);
-objprim *init_primitive_number(object *obj, double value);
-objprim *init_primitive_bool(object *obj, int value);
-objprim *init_primtive_null(object *obj, int value);
-objprim *init_primitie_string(object *obj, char *value);
+objprim *create_new_primitive(valtype primtype);
+void print_object(object *obj);
 
 #endif

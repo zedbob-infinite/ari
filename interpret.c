@@ -1,12 +1,13 @@
 #include "compiler.h"
+#include "memory.h"
 #include "vm.h"
 
+void interpret(char *source)
+{}
 
 void interpret_line(VM *vm, char *source)
 {
-    compile(vm, source);
-    /*instruct *instructs;
-    instructs = compile(vm, source);
+	instruct *instructs = compile(&vm->analyzer, source);
     execute(vm, instructs);
-    free(instructs);*/
+	FREE_OBJECT(instruct, instructs);
 }

@@ -2,8 +2,8 @@ INC=-I./include
 CC = gcc
 CFLAGS = -g -Wall -Wshadow
 
-vmmake: main.c value.o valstack.o interpret.o repl.o vm.o compiler.o tokenizer.o parser.o memory.o
-	$(CC) $(CFLAGS) $(INC) interpret.o tokenizer.o valstack.o compiler.o repl.o value.o vm.o parser.o memory.o main.c -o ari
+vmmake: main.c object.o objstack.o interpret.o repl.o vm.o compiler.o tokenizer.o parser.o memory.o
+	$(CC) $(CFLAGS) $(INC) interpret.o tokenizer.o objstack.o compiler.o repl.o object.o vm.o parser.o memory.o main.c -o ari
 
 memory.o: memory.c
 	$(CC) $(CFLAGS) $(INC) -c memory.c
@@ -20,11 +20,11 @@ compiler.o: compiler.c
 tokenizer.o: tokenizer.c
 	$(CC) $(CFLAGS) $(INC) -c tokenizer.c
 
-value.o: value.c
-	$(CC) $(CFLAGS) $(INC) -c value.c
+object.o: object.c
+	$(CC) $(CFLAGS) $(INC) -c object.c
 
-valstack.o: valstack.c
-	$(CC) $(CFLAGS) $(INC) -c valstack.c
+objstack.o: objstack.c
+	$(CC) $(CFLAGS) $(INC) -c objstack.c
 
 vm.o: vm.c
 	$(CC) $(CFLAGS) $(INC) -c vm.c

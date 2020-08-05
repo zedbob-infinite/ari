@@ -1,21 +1,17 @@
 
 #include "instruct.h"
-#include "value.h"
+#include "memory.h"
 
-
-instruct *init_instructs(void)
+void init_instruct(instruct* instructs)
 {
-    instruct *new_instructs = malloc(sizeof(instruct));
     instruct->count = 0;
-    instruct->capacity = 0;
-    instruct->current = NULL;
+    new_instruct->capacity = 0;
+	new_instruct->current = 0;
+    new_instruct->code = NULL;
 }
 
 void reset_instructs(instruct *instructs)
 {
-    for (int i = 0; i < instructs->count; i++)
-        free(instructs->current);
-    instruct->count = 0;
-    instruct->capacity = 0;
-    instruct->current = NULL;
+    FREE_OBJECT(instructs, instruct);
+	init_instruct(instructs);
 }

@@ -1,10 +1,9 @@
 #ifndef ari_compile_h
 #define ari_compile_h
 
-#include "vm.h"
+#include "instruct.h"
+#include "parser.h"
 
-typedef struct Compiler_h Compiler;
-
-void compile(VM *vm, const char *source);
+instruct *compile(parser *analyzer, const char *source);
 
 #endif

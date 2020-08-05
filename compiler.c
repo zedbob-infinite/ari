@@ -1,17 +1,56 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "compiler.h"
 #include "instruct.h"
+#include "memory.h"
+#include "object.h"
+#include "opcode.h"
 #include "parser.h"
+#include "token.h"
 #include "tokenizer.h"
 
-#define COPY_TOKEN_VALUE(val, token)       (strncpy(val, token->start, token->length))
-
-/*static void compile_expression(instruct *instructs, expr *expression)
+static void check_instruct_capacity(instruct *instructs)
 {
-    int current;
-    uint8_t byte;
-    char *val = NULL;
+	int oldcapacity = instructs->capacity;
+	instructs->capacity = GROW_CAPACITY(oldcapacity);
+	instructs->code = GROW_ARRAY(instructs->code, code8*, oldcapacity, 
+			instructs->capacity);
+}
+
+static char *take_string(token *tok)
+{
+    int length = tok->length;
+    char *buffer = ALLOCATE(char, length + 1);
+    buffer = strncpy(buffer, tok->start, tok->length);
+    buffer[tok->length] = '\0';
+    return buffer;
+}
+
+static code8 *create_code(uint8_t bytecode, object *operand)
+{
+	code8 *code = ALLOCATE(code8, 1);
+	code->bytecode = bytecode;
+	code->operand = operand;
+	return code;
+}	
+
+static int emit_instruction(instruct *instructs, uint8_t bytecode, object *operand)
+{
+	int current = instructs->count;
+	if (instructs->capacity < instructs->count + 1)
+		check_instruct_capacity(instructs);
+
+	instructs->code[instructs->count++] = create_code(bytecode, operand);
+	return current;
+}
+
+static void compile_expression(instruct *instructs, expr *expression)
+{
+	printf("going into compile_expression()...\n");
+    uint8_t byte = 0;
+    object *operand = NULL;
     switch (expression->type) {
         case EXPR_UNARY:
             switch (expression->operator->type) {
@@ -21,7 +60,10 @@
                     compile_expression(instructs, expression->right);
                     byte = OP_NEGATE;
                     break;
-            }
+				default:
+					// future error code here
+					break;
+			}
             break;
         case EXPR_GROUPING:
             compile_expression(instructs, expression->expression);
@@ -31,21 +73,23 @@
             byte = OP_STORE_NAME;
             compile_expression(instructs, expression->value);
 
-
-            val = create_new_value(VAL_STRING);
-            ALLOCATE_STRING_VAL(val, expression->name->length);
-            COPY_TOKEN_STRING(val, expression->name);
+			objprim *obj = create_new_primitive(VAL_STRING);
+            
+			PRIM_AS_STRING(obj) = take_string(expression->name);
+			operand = (object*)obj;
             break;
         }
         case EXPR_VARIABLE:
         {
             byte = OP_LOAD_NAME;
-            val = create_new_value(VAL_STRING);
-            ALLOCATE_STRING_VAL(val, expression->name->length);
-            COPY_TOKEN_STRING(val, expression->name);
+            objprim *obj = create_new_primitive(VAL_STRING);
+
+			PRIM_AS_STRING(obj) = take_string(expression->name);
+			operand = (object*)obj;
             break;
         }
         case EXPR_BINARY:
+		{
             compile_expression(instructs, expression->left);
             compile_expression(instructs, expression->right);
             switch (expression->operator->type) {
@@ -67,55 +111,86 @@
                 case TOKEN_LESS:
                 case TOKEN_LESS_EQUAL:
                     byte = OP_COMPARE;
-                    val = create_new_value(VAL_NUMBER);
-                    NUMBER_VAL(val, expression->operator->type);
+                    objprim *obj = create_new_primitive(VAL_INT);
+                    INT_VAL(obj, expression->operator->type);
+					operand = (object*)obj;
                     break;
                 default:
                     break;
-            }
+			}
             break;
-        case EXPR_LITERAL_NUMBER:
-        {
-            byte = OP_LOAD_CONSTANT;
-            val = create_new_value(VAL_NUMBER);
-            NUMBER_VAL(val, atof(expression->
-*/
+		}
+		case EXPR_LITERAL_NUMBER:
+		{
+			printf("EXPR_LITERAL_NUMBER inside compile_expression()...\n");
+			byte = OP_LOAD_CONSTANT;
+			objprim *obj = create_new_primitive(VAL_DOUBLE);
+			DOUBLE_VAL(obj, atof(expression->literal));
+			printf("EXPR_LITERAL_NUMBER exiting...\n");
+			operand = (object*)obj;
+			break;
+		}
+		case EXPR_LITERAL_STRING:
+		{
+			int length = sizeof(expression->literal);
+			byte = OP_LOAD_CONSTANT;
+			objprim *obj = create_new_primitive(VAL_STRING);
+			ALLOCATE_PRIM_STRING(obj, length);
+            COPY_PRIM_STRING(obj, expression->literal, length);
+			operand = (object*)obj;
+			break;
+		}
+		case EXPR_LITERAL_BOOL:
+		{
+			byte = OP_LOAD_CONSTANT;
+			objprim *obj = create_new_primitive(VAL_BOOL);
+			BOOL_VAL(obj, atoi(expression->literal));
+			operand = (object*)obj;
+			break;
+		}
+		default:
+			// future error code here
+			break;
+	}
+	emit_instruction(instructs, byte, operand);
+	printf("exiting compile_expression()...\n");
+}
 
-/*static void compile_statement(instruct *instructs, stmt *statement)
+static void compile_statement(instruct *instructs, stmt *statement)
 {
     switch (statement->type) {
         case STMT_FOR:
-            compile_for(instructs, statement);
+            //compile_for(instructs, statement);
             break;
         case STMT_WHILE:
-            compile_while(instructs, statement);
+            //compile_while(instructs, statement);
             break;
         case STMT_BLOCK:
-            compile_block(instructs, statement);
+            //compile_block(instructs, statement);
             break;
-        case STMT_EXPRESSION:
+        case STMT_EXPR:
             compile_expression(instructs, statement->expression);
             break;
         case STMT_IF:
-            compile_if(instructs, statement);
+            //compile_if(instructs, statement);
             break;
         case STMT_VAR:
-            compile_variable(instructs, statement);
+            //compile_variable(instructs, statement);
             break;
     }
-}*/
+}
 
-void compile(VM *vm, const char *source)
+instruct *compile(parser *analyzer, const char *source)
 {
-    // initialize parser
-    init_parser(&vm->analyzer);
-    parse(&vm->analyzer, source);
+    parse(analyzer, source);
 
     // Compile parse trees into bytecode
-    /*for (int i = 0; i < vm->analyzer->num_statements; i++)
-        compile_statement(instructs, &vm->analyzer->statements[i]);*/
+    instruct *instructs = ALLOCATE(instruct, 1);
+	for (int i = 0; i < analyzer->num_statements; i++)
+        compile_statement(instructs, analyzer->statements[i]);
 
-    reset_parser(&vm->analyzer);
-    reset_scanner(&vm->analyzer.scan);
-    /*return instructs;*/
+	emit_instruction(instructs, OP_RETURN, NULL);
+    reset_parser(analyzer);
+    reset_scanner(&analyzer->scan);
+    return instructs;
 }

@@ -14,6 +14,15 @@ static stmt *statement(parser *analyzer);
 static expr *expression(parser *analyzer);
 static token *advance(parser *analyzer);
 
+static char *take_string(token *tok)
+{
+    int length = tok->length;
+    char *buffer = ALLOCATE(char, length + 1);
+    buffer = strncpy(buffer, tok->start, tok->length);
+    buffer[tok->length] = '\0';
+    return buffer;
+}
+
 static expr *init_expr(void)
 {
     expr *new_expr = ALLOCATE(expr, 1);
@@ -145,15 +154,6 @@ static void error(parser *analyzer, const char *msg)
 static void error_at_current(parser *analyzer, const char *msg)
 {
     error_at(analyzer, analyzer->scan.tokens[analyzer->current], msg);
-}
-
-static char *take_string(token *tok)
-{
-    int length = tok->length;
-    char *buffer = malloc(sizeof(char) * (length + 1));
-    buffer = strncpy(buffer, tok->start, tok->length);
-    buffer[tok->length] = '\0';
-    return buffer;
 }
 
 static token *peek(parser *analyzer)

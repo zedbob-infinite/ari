@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "repl.h"
 #include "compiler.h"
-#include "vm.h"
+#include "interpret.h"
+#include "repl.h"
 
 void run_file(const char* path);
 void arimain(int argc, char** argv);
@@ -49,13 +49,8 @@ void run_file(const char* path)
     //strcat(strtok(pathname, "."), ".aric");
 
     FILE* file = fopen(pathname, "rb");
-    VM *vm;
     if (!file) {
-        vm = init_vm();
         char* source = read_file(path);
-        compile(vm, source);
-        /*Compiler *compiler = compile(source);
-        write_precompiled_file(pcfile, compiler);
-        run_vm_from_file(pcfile);*/
+		interpret(source);
     }
 }
