@@ -263,6 +263,12 @@ static void scan_token(scanner *scan)
     }
 }
 
+static inline void scan_next(scanner *scan)
+{
+    scan->start = scan->current;
+    scan_token(scan);
+}
+
 void scan_tokens(scanner *scan, const char *source)
 {
     check_scanner_capacity(scan);
@@ -271,8 +277,7 @@ void scan_tokens(scanner *scan, const char *source)
     scan->length = strlen(scan->source);
     scan->start = scan->current = scan->source;
     while (!is_at_end(scan)) {
-        scan->start = scan->current;
-        scan_token(scan);
+        scan_next(scan);
     }
-    scan_token(scan);
+    scan_next(scan);
 }

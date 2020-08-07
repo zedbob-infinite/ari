@@ -78,7 +78,6 @@ static inline void advance(instruct *instructs)
 
 void execute(VM *vm, instruct *instructs)
 {
-	printf("Entering execute()...\n");
     while (instructs->current < instructs->count) {
 		int current = instructs->current;
 		code8 *code = instructs->code[current];
@@ -158,17 +157,16 @@ void execute(VM *vm, instruct *instructs)
                 break;
             }
             case OP_POP:
-                pop_objstack(stack);
+                //printpop = pop_objstack(stack);
                 advance(instructs);
                 break;
             case OP_RETURN:
+                //if (printpop)
                 print_object(pop_objstack(stack));
                 advance(instructs);
                 break;
         }
     }
-	printf("exiting execute...\n");
-    printf("printing objects in VM..\n");
 }
 
 void free_vm(VM *vm)

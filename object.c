@@ -75,6 +75,10 @@ objprim *create_new_primitive(valtype primtype)
 
 void print_object(object *obj)
 {
+    if (!obj) {
+        printf("No object found.\n");
+        return;
+    }
 	switch (obj->type) {
 		case OBJ_PRIMITIVE:
 		{

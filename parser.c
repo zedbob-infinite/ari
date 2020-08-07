@@ -14,6 +14,16 @@ static stmt *statement(parser *analyzer);
 static expr *expression(parser *analyzer);
 static token *advance(parser *analyzer);
 
+static void check_parser_capacity(parser* analyzer)
+{
+    int oldcapacity = analyzer->capacity;
+    analyzer->capacity = GROW_CAPACITY(analyzer->capacity);
+    analyzer->statements = GROW_ARRAY(analyzer->statements, 
+                    stmt*, oldcapacity, analyzer->capacity);
+    for (int i = oldcapacity; i < analyzer->capacity; ++i)
+        analyzer->statements[i] = NULL;
+}
+
 static char *take_string(token *tok)
 {
     int length = tok->length;
@@ -449,10 +459,13 @@ static stmt *declaration(parser *analyzer)
 
 static inline void check_stmt_capacity(stmt *block_stmt)
 {
+    int oldcapacity = block_stmt->capacity;
     if (block_stmt->count == block_stmt->capacity - 1) {
-        block_stmt->capacity *= 2;
+        block_stmt->capacity = GROW_CAPACITY(block_stmt->capacity);
         block_stmt->stmts = realloc(block_stmt->stmts, sizeof(stmt) * block_stmt->capacity);
     }
+    for (int i = oldcapacity; i < block_stmt->capacity; ++i)
+        block_stmt->stmts[i] = NULL;
 }
 
 static stmt *block(parser *analyzer)
@@ -561,13 +574,10 @@ bool parse(parser *analyzer, const char *source)
 
     int i = 0;
     while (!is_at_end(analyzer)) {
-        if (analyzer->capacity < analyzer->num_statements + 1) {
-            int oldcapacity = analyzer->capacity;
-            analyzer->capacity = GROW_CAPACITY(analyzer->capacity);
-            analyzer->statements = GROW_ARRAY(analyzer->statements, 
-                    stmt*, oldcapacity, analyzer->capacity);
-        }
-        analyzer->statements[i] = declaration(analyzer);
+        if (analyzer->capacity < analyzer->num_statements + 1)
+            check_parser_capacity(analyzer);
+
+        analyzer->statements[i++] = declaration(analyzer);
         analyzer->num_statements++;
         if (analyzer->panicmode) synchronize(analyzer);
     }

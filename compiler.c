@@ -45,12 +45,12 @@ static int emit_instruction(instruct *instructs, uint8_t bytecode, object *opera
 		check_instruct_capacity(instructs);
 
 	instructs->code[instructs->count++] = create_code(bytecode, operand);
+
 	return current;
 }
 
 static void compile_expression(instruct *instructs, expr *expression)
 {
-	printf("going into compile_expression()...\n");
     uint8_t byte = 0;
     object *operand = NULL;
     switch (expression->type) {
@@ -124,11 +124,9 @@ static void compile_expression(instruct *instructs, expr *expression)
 		}
 		case EXPR_LITERAL_NUMBER:
 		{
-			printf("EXPR_LITERAL_NUMBER inside compile_expression()...\n");
 			byte = OP_LOAD_CONSTANT;
 			objprim *obj = create_new_primitive(VAL_DOUBLE);
 			DOUBLE_VAL(obj, atof(expression->literal));
-			printf("EXPR_LITERAL_NUMBER exiting...\n");
 			operand = (object*)obj;
 			break;
 		}
@@ -155,7 +153,6 @@ static void compile_expression(instruct *instructs, expr *expression)
 			break;
 	}
 	emit_instruction(instructs, byte, operand);
-	printf("exiting compile_expression()...\n");
 }
 
 static void compile_statement(instruct *instructs, stmt *statement)
@@ -172,6 +169,8 @@ static void compile_statement(instruct *instructs, stmt *statement)
             break;
         case STMT_EXPR:
             compile_expression(instructs, statement->expression);
+            //emit_instruction(instructs, OP_POP, NULL);
+            emit_instruction(instructs, OP_RETURN, NULL);
             break;
         case STMT_IF:
             //compile_if(instructs, statement);
@@ -190,11 +189,15 @@ instruct *compile(parser *analyzer, const char *source)
     // Compile parse trees into bytecode
     instruct *instructs = ALLOCATE(instruct, 1);
     init_instruct(instructs);
-	for (int i = 0; i < analyzer->num_statements; i++)
+	for (int i = 0; i < analyzer->num_statements; i++) {
+        if (instructs->capacity < instructs->count + 1)
+            check_instruct_capacity(instructs);
         compile_statement(instructs, analyzer->statements[i]);
+    }
 
-	emit_instruction(instructs, OP_RETURN, NULL);
+	//emit_instruction(instructs, OP_RETURN, NULL);
     reset_parser(analyzer);
     reset_scanner(&analyzer->scan);
+
     return instructs;
 }
