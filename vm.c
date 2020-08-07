@@ -71,6 +71,18 @@ static inline void binary_op(VM *vm, objstack *stack, char optype)
     push_objstack(stack, obj);
 }
 
+static void set_name(objhash *globals, object *name, object *value)
+{
+    objprim *prim = (objprim*)name;
+    objhash_set(globals, PRIM_AS_STRING(prim), value);
+}
+
+static object *get_name(objhash *globals, object *name)
+{
+    objprim *prim = (objprim*)name;
+    return objhash_get(globals, PRIM_AS_STRING(prim));
+}
+
 static inline void advance(instruct *instructs)
 {
 	instructs->current++;
@@ -78,10 +90,12 @@ static inline void advance(instruct *instructs)
 
 void execute(VM *vm, instruct *instructs)
 {
+    objstack *stack = &vm->evalstack;
+    objhash *globals = &vm->globals;
+
     while (instructs->current < instructs->count) {
 		int current = instructs->current;
 		code8 *code = instructs->code[current];
-        objstack *stack = &vm->evalstack;
         object *operand = code->operand;
 
         switch (code->bytecode) {
@@ -117,8 +131,18 @@ void execute(VM *vm, instruct *instructs)
                 advance(instructs);
                 break;
             case OP_LOAD_NAME:
+            {
+                object *obj = get_name(globals, operand);
+                if (obj)
+                    push_objstack(stack, obj);
+                else {
+                    objprim *prim = (objprim*)operand;
+                    printf("Name %s not found...\n",
+                            PRIM_AS_STRING(prim));
+                }
                 advance(instructs);
                 break;
+            }
             case OP_CALL_FUNCTION:
                 advance(instructs);
                 break;
@@ -126,8 +150,11 @@ void execute(VM *vm, instruct *instructs)
                 advance(instructs);
                 break;
             case OP_STORE_NAME:
+            {
+                set_name(globals, operand, pop_objstack(stack));
                 advance(instructs);
                 break;
+            }
             case OP_COMPARE:
                 advance(instructs);
                 break;
@@ -160,9 +187,18 @@ void execute(VM *vm, instruct *instructs)
                 //printpop = pop_objstack(stack);
                 advance(instructs);
                 break;
+            case OP_PRINT:
+            {
+                if (peek_objstack(stack)) {
+                    print_object(pop_objstack(stack));
+                    printf("\n");
+                }
+                advance(instructs);
+                break;
+            }
             case OP_RETURN:
                 //if (printpop)
-                print_object(pop_objstack(stack));
+                //print_object(pop_objstack(stack));
                 advance(instructs);
                 break;
         }
@@ -180,6 +216,7 @@ void free_vm(VM *vm)
 	init_objstack(&vm->evalstack);
     reset_parser(&vm->analyzer);
     reset_scanner(&vm->analyzer.scan);
+    reset_objhash(&vm->globals);
     FREE(VM, vm);
 }
 
@@ -189,6 +226,7 @@ VM *init_vm(void)
     init_parser(&vm->analyzer);
     init_scanner(&vm->analyzer.scan);
     init_objstack(&vm->evalstack);
+    init_objhash(&vm->globals, 8);
     vm->objs = NULL;
 
     return vm;

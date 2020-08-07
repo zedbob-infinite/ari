@@ -133,6 +133,7 @@ static inline void identifier(scanner *scan)
         case 'i': type = check_keyword(scan, 1, 1, "f", TOKEN_IF); break;
         case 'n': type = check_keyword(scan, 1, 3, "ull", TOKEN_NULL); break;
         case 'o': type = check_keyword(scan, 1, 2, "r", TOKEN_OR); break;
+        case 'p': type = check_keyword(scan, 1, 4, "rint", TOKEN_PRINT); break;
         case 'r': type = check_keyword(scan, 1, 5, "eturn", TOKEN_RETURN); break;
         case 's': type = check_keyword(scan, 1, 4, "uper", TOKEN_SUPER); break;
         case 't':

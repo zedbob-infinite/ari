@@ -3,6 +3,7 @@
 
 #include "instruct.h"
 #include "object.h"
+#include "objhash.h"
 #include "objstack.h"
 #include "parser.h"
 #include "tokenizer.h"
@@ -11,6 +12,7 @@ typedef struct VM_t
 {
     parser analyzer;
 	objstack evalstack;
+    objhash globals;
 	instruct *instructs;
     object *objs;
 } VM;

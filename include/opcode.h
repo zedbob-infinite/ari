@@ -19,6 +19,7 @@ typedef enum
     OP_BINARY_MULT,
     OP_BINARY_DIVIDE,
     OP_NEGATE,
+    OP_PRINT,
     OP_RETURN
 } opcode;
 

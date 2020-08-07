@@ -12,7 +12,7 @@ void repl(void)
 {
     VM *vm = init_vm();
     char *msg = "ari 0.0.1.dev";
-    printf("%s", msg);
+    printf("%s\n", msg);
     printf("[GCC %s] on %s\n", version, os);
 
     char line[1024];

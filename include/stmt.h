@@ -12,6 +12,7 @@ typedef enum stmttype_t
     STMT_WHILE,
     STMT_FOR,
     STMT_VAR,
+    STMT_PRINT,
 } stmttype;
 
 typedef struct stmt_t

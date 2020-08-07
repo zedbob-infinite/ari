@@ -104,6 +104,8 @@ static void delete_statements(stmt *pstmt)
         case STMT_VAR:
             delete_statements(pstmt->initializer);
             break;
+        case STMT_PRINT:
+            break;
     }
     if (pstmt->expression)
         delete_expression(pstmt->expression);
@@ -262,6 +264,14 @@ static stmt *get_if_statement(expr *condition, stmt *thenbranch,
     new_stmt->condition = condition;
     new_stmt->thenbranch = thenbranch;
     new_stmt->elsebranch = elsebranch;
+    return new_stmt;
+}
+
+static stmt *get_print_statement(expr *value)
+{
+    stmt *new_stmt = init_stmt();
+    new_stmt->type = STMT_PRINT;
+    new_stmt->value = value;
     return new_stmt;
 }
 
@@ -526,12 +536,21 @@ static stmt *expression_statement(parser *analyzer)
     return get_expression_statement(new_expr);
 }
 
+static stmt *print_statement(parser *analyzer)
+{
+    expr *value = expression(analyzer);
+    consume(analyzer, TOKEN_SEMICOLON, "Expect ';' after expressin.");
+    return get_print_statement(value);
+}
+
 static stmt *statement(parser *analyzer)
 {
     if (match(analyzer, TOKEN_FOR))
         return for_statement(analyzer);
     if (match(analyzer, TOKEN_WHILE))
         return while_statement(analyzer);
+    if (match(analyzer, TOKEN_PRINT))
+        return print_statement(analyzer);
     if (match(analyzer, TOKEN_IF))
         return if_statement(analyzer);
     if (match(analyzer, TOKEN_LEFT_BRACE))

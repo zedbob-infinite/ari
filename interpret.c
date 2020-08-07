@@ -13,8 +13,6 @@ void interpret_line(VM *vm, char *source)
     if (!instructs)
         return;
     execute(vm, instructs);
-    printf("entering reset_instruct()...\n");
     reset_instruct(instructs);
-    printf("exiting reset_instruct()...\n");
 	FREE(instruct, instructs);
 }

@@ -11,6 +11,20 @@
 #include "token.h"
 #include "tokenizer.h"
 
+
+static void compile_statement(instruct *instructs, stmt *statement);
+
+
+static void patch_jump(instruct *instructs, int location, int jump)
+{
+    objprim *objjump = create_new_primitive(VAL_INT);
+    INT_VAL(objjump, jump);
+    code8 *code = instructs->code[location];
+
+    if (code)
+        code->operand = (object*)objjump;
+}
+
 static void check_instruct_capacity(instruct *instructs)
 {
 	int oldcapacity = instructs->capacity;
@@ -155,6 +169,42 @@ static void compile_expression(instruct *instructs, expr *expression)
 	emit_instruction(instructs, byte, operand);
 }
 
+static void compile_for(instruct *instructs, stmt *statement)
+{
+    int forbegin = 0;
+    int jmpbegin = 0;
+    int jmpfalse = 0;
+    // Initializer_statement
+    compile_statement(instructs, statement->stmts[0]);
+    // thenbranch used for compare statement
+    forbegin = instructs->count;
+    compile_statement(instructs, statement->stmts[1]);
+    jmpfalse = emit_instruction(instructs, OP_JMP_FALSE, NULL);
+    // loop body
+    compile_statement(instructs, statement->loopbody);
+    // elsebranch used for iterator statement
+    compile_statement(instructs, statement->stmts[2]);
+
+    jmpbegin = emit_instruction(instructs, OP_JMP_LOC, NULL);
+
+    // patch the jump instructs
+    patch_jump(instructs, jmpbegin, forbegin);
+    patch_jump(instructs, jmpfalse, instructs->count);
+}
+
+static void compile_variable(instruct *instructs, stmt *statement)
+{
+    token *name = statement->name;
+    if (statement->initializer)
+        compile_statement(instructs, statement->initializer);
+
+    objprim *prim = create_new_primitive(VAL_STRING);
+    ALLOCATE_PRIM_STRING(prim, name->length);
+    PRIM_AS_STRING(prim) = take_string(name);
+
+    emit_instruction(instructs, OP_STORE_NAME, (object*)prim);
+}
+
 static void compile_statement(instruct *instructs, stmt *statement)
 {
     switch (statement->type) {
@@ -170,13 +220,17 @@ static void compile_statement(instruct *instructs, stmt *statement)
         case STMT_EXPR:
             compile_expression(instructs, statement->expression);
             //emit_instruction(instructs, OP_POP, NULL);
-            emit_instruction(instructs, OP_RETURN, NULL);
+            //emit_instruction(instructs, OP_RETURN, NULL);
+            break;
+        case STMT_PRINT:
+            compile_expression(instructs, statement->value);
+            emit_instruction(instructs, OP_PRINT, NULL);
             break;
         case STMT_IF:
             //compile_if(instructs, statement);
             break;
         case STMT_VAR:
-            //compile_variable(instructs, statement);
+            compile_variable(instructs, statement);
             break;
     }
 }
@@ -195,7 +249,7 @@ instruct *compile(parser *analyzer, const char *source)
         compile_statement(instructs, analyzer->statements[i]);
     }
 
-	//emit_instruction(instructs, OP_RETURN, NULL);
+	emit_instruction(instructs, OP_RETURN, NULL);
     reset_parser(analyzer);
     reset_scanner(&analyzer->scan);
 
