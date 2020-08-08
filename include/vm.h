@@ -15,6 +15,7 @@ typedef struct VM_t
     objhash globals;
 	instruct *instructs;
     object *objs;
+    int num_objects;
 } VM;
 
 void interpret(char *source);

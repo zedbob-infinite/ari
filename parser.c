@@ -97,10 +97,12 @@ static void delete_statements(stmt *pstmt)
             delete_statements(pstmt->loopbody);
             break;
         case STMT_FOR:
+        {
             for (int i = 0; i < 3; i++)
                 delete_statements(pstmt->stmts[i]);
             delete_statements(pstmt->loopbody);
             break;
+        }
         case STMT_VAR:
             delete_statements(pstmt->initializer);
             break;
@@ -113,7 +115,7 @@ static void delete_statements(stmt *pstmt)
         delete_expression(pstmt->condition);
     if (pstmt->value)
         delete_expression(pstmt->value);
-    free(pstmt);
+    FREE(stmt, pstmt);
 }
 
 static void synchronize(parser *analyzer)
@@ -480,10 +482,8 @@ static inline void check_stmt_capacity(stmt *block_stmt)
 static stmt *block(parser *analyzer)
 {
     printf("Entering block()...\n");
-    stmt *new_stmt = ALLOCATE(stmt, 1);
+    stmt *new_stmt = init_stmt();
     new_stmt->type = STMT_BLOCK;
-    new_stmt->count = 0;
-    new_stmt->capacity = 0;
 
     int i = 0;
     printf("entering while loop in block()...\n");

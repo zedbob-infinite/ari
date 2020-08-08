@@ -78,9 +78,14 @@ void init_objhash(objhash* hashtable, int size)
 
 void reset_objhash(objhash *hashtable)
 {
+    objentry *entry = NULL;
     for (int i = 0; i < hashtable->size; ++i) {
-        if (hashtable->table[i])
-            FREE(objentry*, hashtable->table[i]);
+        entry = hashtable->table[i];
+        if (entry) {
+            FREE(char*, entry->key);
+            FREE(object*, entry->value);
+            FREE(objentry*, entry);
+        }
     }
 }
 

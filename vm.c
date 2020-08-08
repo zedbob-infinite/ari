@@ -10,7 +10,7 @@
 #include "tokenizer.h"
 #include "vm.h"
 
-#define DEBUG_ARI
+//#define DEBUG_ARI
 
 static void vm_add_object(VM *vm, object *obj)
 {
@@ -21,6 +21,7 @@ static void vm_add_object(VM *vm, object *obj)
        return;
    }
    vm->objs = obj;
+   vm->num_objects += 1;
    obj->next = NULL;
 }
 
@@ -277,11 +278,15 @@ void execute(VM *vm, instruct *instructs)
 
 void free_vm(VM *vm)
 {
+    int i = 0;
     object *vmobj = NULL;
     while ((vmobj = vm->objs)) {
         vm->objs = vm->objs->next;
         FREE_OBJECT(vmobj);
         printf("deleted object\n");
+        i++;
+        if (i > vm->num_objects)
+            return;
     }
 	init_objstack(&vm->evalstack);
     reset_parser(&vm->analyzer);
@@ -298,6 +303,7 @@ VM *init_vm(void)
     init_objstack(&vm->evalstack);
     init_objhash(&vm->globals, 8);
     vm->objs = NULL;
+    vm->num_objects = 0;
 
     return vm;
 }
