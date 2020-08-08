@@ -136,7 +136,6 @@ static void synchronize(parser *analyzer)
             default:
                 ;
         }
-
         advance(analyzer);
     }
 }
@@ -147,7 +146,7 @@ static void error_at(parser *analyzer, token *tok, const char *msg)
     analyzer->panicmode = true;
 
     fprintf(stderr, "[line %d] Error", tok->line);
-
+    fprintf(stderr, " for token %d\n", tok->type);
     if (tok->type == TOKEN_EOF)
         fprintf(stderr, " at end");
     else if (tok->type == TOKEN_ERROR)
@@ -238,11 +237,11 @@ static stmt *get_for_statement(stmt *initializer, stmt *condition,
     stmt *new_stmt = init_stmt();
     new_stmt->stmts = ALLOCATE(stmt*, 3);
     new_stmt->capacity = 3;
+    new_stmt->count = 3;
+    new_stmt->type = STMT_FOR;
     new_stmt->stmts[0] = initializer;
     new_stmt->stmts[1] = condition;
     new_stmt->stmts[2] = iterator;
-    new_stmt->count = 3;
-    new_stmt->type = STMT_FOR;
     new_stmt->loopbody = loopbody;
     return new_stmt;
 }
@@ -332,19 +331,19 @@ static expr *primary(parser *analyzer)
     if (match(analyzer, TOKEN_FALSE)) {
         char *buffer = ALLOCATE(char, 2);
         char *number = "0";
-        strcpy(buffer, number);
+        strncpy(buffer, number, 2);
         return get_literal_expr(buffer, EXPR_LITERAL_BOOL);
     }
     if (match(analyzer, TOKEN_TRUE)) {
         char *buffer = ALLOCATE(char, 2);
         char *number = "1";
-        strcpy(buffer, number);
+        strncpy(buffer, number, 2);
         return get_literal_expr(buffer, EXPR_LITERAL_BOOL);
     }
     if (match(analyzer, TOKEN_NULL)) {
         char *buffer = ALLOCATE(char, 5);
         char *null = "NULL";
-        strcpy(buffer, null);
+        strncpy(buffer, null, 4);
         return get_literal_expr(buffer, EXPR_LITERAL_NULL);
     }
     if (match(analyzer, TOKEN_NUMBER)) {
@@ -451,7 +450,7 @@ static expr *expression(parser *analyzer)
 static stmt *var_declaration(parser *analyzer)
 {
     token *name = consume(analyzer, TOKEN_IDENTIFIER, "Expect variable name.");
-    stmt *initializer = ALLOCATE(stmt, 1);
+    stmt *initializer = NULL;
 
     if (match(analyzer, TOKEN_EQUAL))
         initializer = get_expression_statement(expression(analyzer));
@@ -470,7 +469,7 @@ static stmt *declaration(parser *analyzer)
 static inline void check_stmt_capacity(stmt *block_stmt)
 {
     int oldcapacity = block_stmt->capacity;
-    if (block_stmt->count == block_stmt->capacity - 1) {
+    if (block_stmt->capacity < block_stmt->count + 1) {
         block_stmt->capacity = GROW_CAPACITY(block_stmt->capacity);
         block_stmt->stmts = realloc(block_stmt->stmts, sizeof(stmt) * block_stmt->capacity);
     }
@@ -480,17 +479,24 @@ static inline void check_stmt_capacity(stmt *block_stmt)
 
 static stmt *block(parser *analyzer)
 {
+    printf("Entering block()...\n");
     stmt *new_stmt = ALLOCATE(stmt, 1);
     new_stmt->type = STMT_BLOCK;
+    new_stmt->count = 0;
+    new_stmt->capacity = 0;
 
     int i = 0;
+    printf("entering while loop in block()...\n");
     while (!check(analyzer, TOKEN_RIGHT_BRACE) && !is_at_end(analyzer)) {
+        printf("in while loop in block()...\n");
         check_stmt_capacity(new_stmt);
         new_stmt->stmts[i++] = declaration(analyzer);
         new_stmt->count++;
     }
+    printf("exiting while loop in block()...\n");
 
     consume(analyzer, TOKEN_RIGHT_BRACE, "Expect '}' after block.");
+    printf("Exiting block()...\n");
     return new_stmt;
 }
 

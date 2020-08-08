@@ -10,6 +10,8 @@
 #include "tokenizer.h"
 #include "vm.h"
 
+#define DEBUG_ARI
+
 static void vm_add_object(VM *vm, object *obj)
 {
    if (vm->objs) {
@@ -88,6 +90,66 @@ static inline void advance(instruct *instructs)
 	instructs->current++;
 }
 
+static void print_bytecode(uint8_t bytecode)
+{
+    switch (bytecode) { 
+        case OP_LOOP:
+            printf("OP_LOOP");
+            break;
+        case OP_JMP_LOC:
+            printf("OP_JMP_LOC");
+            break;
+        case OP_JMP_AFTER:
+            printf("OP_JMP_AFTER");
+            break;
+        case OP_JMP_FALSE:
+            printf("OP_JMP_FALSE");
+            break;
+        case OP_POP:
+            printf("OP_POP");
+            break;
+        case OP_LOAD_CONSTANT:
+            printf("OP_LOAD_CONSTANT");
+            break;
+        case OP_LOAD_NAME:
+            printf("OP_LOAD_NAME");
+            break;
+        case OP_CALL_FUNCTION:
+            printf("OP_CALL_FUNCTION");
+            break;
+        case OP_MAKE_FUNCTION:
+            printf("OP_MAKE_FUNCTION");
+            break;
+        case OP_STORE_NAME:
+            printf("OP_STORE_NAME");
+            break;
+        case OP_COMPARE:
+            printf("OP_COMPARE");
+            break;
+        case OP_BINARY_ADD:
+            printf("OP_BINARY_ADD");
+            break;
+        case OP_BINARY_SUB:
+            printf("OP_BINARY_SUB");
+            break;
+        case OP_BINARY_MULT:
+            printf("OP_BINARY_MULT");
+            break;
+        case OP_BINARY_DIVIDE:
+            printf("OP_BINARY_DIVIDE");
+            break;
+        case OP_NEGATE:
+            printf("OP_NEGATE");
+            break;
+        case OP_PRINT:
+            printf("OP_PRINT");
+            break;
+        case OP_RETURN:
+            printf("OP_RETURN");
+            break;
+    }
+}
+
 void execute(VM *vm, instruct *instructs)
 {
     objstack *stack = &vm->evalstack;
@@ -97,14 +159,18 @@ void execute(VM *vm, instruct *instructs)
 		int current = instructs->current;
 		code8 *code = instructs->code[current];
         object *operand = code->operand;
-
+#ifdef DEBUG_ARI
+        printf("|%d|    ", current);
+        print_bytecode(code->bytecode);
+        printf("\n");
+#endif
         switch (code->bytecode) {
             case OP_LOOP:
                 break;
             case OP_JMP_LOC:
 			{
 				objprim *jump = (objprim*)operand;
-                instructs->current = instructs->current + PRIM_AS_INT(jump);
+                instructs->current = PRIM_AS_INT(jump);
                 break;
 			}
             case OP_JMP_AFTER:
@@ -121,7 +187,7 @@ void execute(VM *vm, instruct *instructs)
                     advance(instructs);
                 else {
                     objprim *jump = (objprim*)operand;
-                    instructs->current = instructs->current + PRIM_AS_INT(jump);
+                    instructs->current = PRIM_AS_INT(jump);
                 }
                 break;
 			}
@@ -156,8 +222,12 @@ void execute(VM *vm, instruct *instructs)
                 break;
             }
             case OP_COMPARE:
+            {
+                objprim *prim = (objprim*)operand;
+                binary_comp(vm, stack, PRIM_AS_INT(prim));
                 advance(instructs);
                 break;
+            }
             case OP_BINARY_ADD:
 				binary_op(vm, stack, '+');
                 advance(instructs);

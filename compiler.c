@@ -205,17 +205,25 @@ static void compile_variable(instruct *instructs, stmt *statement)
     emit_instruction(instructs, OP_STORE_NAME, (object*)prim);
 }
 
+static void compile_block(instruct *instructs, stmt *statement)
+{
+    int i = 0;
+    stmt *current = NULL;
+    while ((current = statement->stmts[i++]))
+        compile_statement(instructs, current);
+}
+
 static void compile_statement(instruct *instructs, stmt *statement)
 {
     switch (statement->type) {
         case STMT_FOR:
-            //compile_for(instructs, statement);
+            compile_for(instructs, statement);
             break;
         case STMT_WHILE:
             //compile_while(instructs, statement);
             break;
         case STMT_BLOCK:
-            //compile_block(instructs, statement);
+            compile_block(instructs, statement);
             break;
         case STMT_EXPR:
             compile_expression(instructs, statement->expression);
