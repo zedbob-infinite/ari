@@ -10,7 +10,7 @@
 #include "tokenizer.h"
 #include "vm.h"
 
-//#define DEBUG_ARI
+#define DEBUG_ARI
 
 static void vm_add_object(VM *vm, object *obj)
 {
@@ -28,8 +28,6 @@ static void vm_add_object(VM *vm, object *obj)
 static inline void binary_comp(VM *vm, objstack *stack, tokentype optype)
 {
     objprim *c = create_new_primitive(VAL_BOOL);
-    vm_add_object(vm, (object*)c);
-
     objprim *b = (objprim*)pop_objstack(stack);
 	objprim *a = (objprim*)pop_objstack(stack);
 
@@ -53,12 +51,13 @@ static inline void binary_comp(VM *vm, objstack *stack, tokentype optype)
             // future error code here
             break;
     }
-    push_objstack(stack, (object*)c);
+    object *obj = (object*)c;
+    vm_add_object(vm, obj);
+    push_objstack(stack, obj);
 }
 
 static inline void binary_op(VM *vm, objstack *stack, char optype)
 {
-
     objprim *c = create_new_primitive(VAL_DOUBLE); 
     objprim *b = (objprim*)pop_objstack(stack);
 	objprim *a = (objprim*)pop_objstack(stack);
@@ -193,7 +192,6 @@ void execute(VM *vm, instruct *instructs)
                 break;
 			}
             case OP_LOAD_CONSTANT:
-                vm_add_object(vm, (object*)operand);
 				push_objstack(stack, operand);
                 advance(instructs);
                 break;
@@ -248,7 +246,6 @@ void execute(VM *vm, instruct *instructs)
             case OP_NEGATE:
             {
                 objprim *obj = create_new_primitive(VAL_DOUBLE);
-                vm_add_object(vm, (object*)obj);
                 push_objstack(stack, (object*)obj);
                 binary_op(vm, stack, '*');
                 advance(instructs);
@@ -261,8 +258,8 @@ void execute(VM *vm, instruct *instructs)
             case OP_PRINT:
             {
                 if (peek_objstack(stack)) {
-                    print_object(pop_objstack(stack));
-                    printf("\n");
+                    //print_object(pop_objstack(stack));
+                    //printf("\n");
                 }
                 advance(instructs);
                 break;
@@ -278,20 +275,19 @@ void execute(VM *vm, instruct *instructs)
 
 void free_vm(VM *vm)
 {
-    int i = 0;
+    //int i = 0;
     object *vmobj = NULL;
     while ((vmobj = vm->objs)) {
-        vm->objs = vm->objs->next;
+        if (vm->objs) 
+            vm->objs = vm->objs->next;
         FREE_OBJECT(vmobj);
         printf("deleted object\n");
-        i++;
-        if (i > vm->num_objects)
-            return;
     }
 	init_objstack(&vm->evalstack);
     reset_parser(&vm->analyzer);
     reset_scanner(&vm->analyzer.scan);
     reset_objhash(&vm->globals);
+    reset_objstack(&vm->evalstack);
     FREE(VM, vm);
 }
 

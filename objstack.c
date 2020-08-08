@@ -11,6 +11,14 @@ void init_objstack(objstack *stack)
     stack->top = NULL;
 }
 
+void reset_objstack(objstack *stack)
+{
+    object *obj = NULL;
+
+    while ((obj = pop_objstack(stack)))
+        FREE_OBJECT(obj);
+}
+
 void push_objstack(objstack *stack, object *obj)
 {
     objnode *node = ALLOCATE(objnode, 1);
