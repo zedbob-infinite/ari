@@ -12,14 +12,8 @@ void init_instruct(instruct* instructs)
 
 void reset_instruct(instruct *instructs)
 {
-    for (int i = 0; i < instructs->capacity; ++i) {
-        code8 *code = instructs->code[i];
-        if (code)
-            if (code->operand) {
-
-            }
-        FREE(code8*, code);
-    }
+    for (int i = 0; i < instructs->capacity; ++i)
+        FREE(code8*, instructs->code[i]);
     FREE(code8**, instructs->code);
 	init_instruct(instructs);
 }

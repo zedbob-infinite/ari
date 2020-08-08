@@ -59,8 +59,6 @@ static inline void objhash_remove_entry(objentry *entry)
     if (entry) {
         if (entry->key)
             FREE(char, entry->key);
-        if (entry->value)
-            FREE(object, entry->value);
     }
     FREE(objentry*, entry);
 }
@@ -89,6 +87,8 @@ void reset_objhash(objhash *hashtable)
         entry = hashtable->table[i];
         objhash_remove_entry(entry);
     }
+    FREE(objentry*, hashtable->table);
+    init_objhash(hashtable, DEFAULT_HT_SIZE);
 }
 
 bool objhash_remove(objhash *ht, char *key)

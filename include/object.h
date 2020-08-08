@@ -24,12 +24,12 @@ typedef enum
 
 typedef enum
 {
-	VAL_INT,
-	VAL_DOUBLE,
-	VAL_STRING,
-	VAL_BOOL,
-	VAL_NULL,
-} valtype;
+	PRIM_INT,
+	PRIM_DOUBLE,
+	PRIM_STRING,
+	PRIM_BOOL,
+	PRIM_NULL,
+} primtype;
 
 typedef struct object_t
 {
@@ -40,7 +40,7 @@ typedef struct object_t
 typedef struct objprim_t
 {
 	object obj;
-	valtype primtype;
+	primtype ptype;
 	union
 	{
 		int val_int;
@@ -50,7 +50,7 @@ typedef struct objprim_t
 } objprim;
 
 object *create_new_object(objtype type);
-objprim *create_new_primitive(valtype primtype);
+objprim *create_new_primitive(primtype ptype);
 void print_object(object *obj);
 
 #endif

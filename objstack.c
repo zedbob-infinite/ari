@@ -15,8 +15,10 @@ void reset_objstack(objstack *stack)
 {
     object *obj = NULL;
 
-    while ((obj = pop_objstack(stack)))
-        FREE_OBJECT(obj);
+    while ((obj = pop_objstack(stack))) {
+        // objects are freed in Garbage Collector and the VM
+    }
+
 }
 
 void push_objstack(objstack *stack, object *obj)

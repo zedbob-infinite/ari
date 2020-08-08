@@ -10,7 +10,7 @@ void free_object(void *obj, objtype type)
         case OBJ_PRIMITIVE:
         {
             objprim *prim = (objprim*)obj;
-            if (prim->primtype == VAL_STRING) {
+            if (prim->ptype == PRIM_STRING) {
                 FREE(char*, PRIM_AS_STRING(prim));
             }
             FREE(objprim, obj);
