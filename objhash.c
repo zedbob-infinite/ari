@@ -56,6 +56,10 @@ static objentry *objhash_find_entry(objhash *ht, char *key, int *binnum)
 
 static inline void objhash_remove_entry(objentry *entry)
 {
+    if (entry) {
+        if (entry->key)
+            FREE(char, entry->key);
+    }
     FREE(objentry*, entry);
 }
 
@@ -81,12 +85,10 @@ void reset_objhash(objhash *hashtable)
     objentry *entry = NULL;
     for (int i = 0; i < hashtable->size; ++i) {
         entry = hashtable->table[i];
-        if (entry) {
-            FREE(char*, entry->key);
-            FREE(object*, entry->value);
-            FREE(objentry*, entry);
-        }
+        objhash_remove_entry(entry);
     }
+    FREE(objentry*, hashtable->table);
+    init_objhash(hashtable, DEFAULT_HT_SIZE);
 }
 
 bool objhash_remove(objhash *ht, char *key)

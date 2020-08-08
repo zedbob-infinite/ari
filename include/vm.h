@@ -8,6 +8,12 @@
 #include "parser.h"
 #include "tokenizer.h"
 
+typedef enum
+{
+    INTERPRET_OK,
+    INTERPRET_RUNTIME_ERROR,
+} interpret_states;
+
 typedef struct VM_t
 {
     parser analyzer;
@@ -23,6 +29,6 @@ void interpret_line(VM *vm, char *source);
 /*void run_vm_from_file(FILE* file);*/
 VM *init_vm(void);
 void free_vm(VM *vm);
-void execute(VM *vm, instruct *instructs);
+int execute(VM *vm, instruct *instructs);
 
 #endif

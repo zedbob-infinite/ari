@@ -5,6 +5,8 @@
 
 #include "object.h"
 
+#define DEFAULT_HT_SIZE 8
+
 typedef struct objentry_t
 {
     char *key;

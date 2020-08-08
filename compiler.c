@@ -5,7 +5,6 @@
 #include "compiler.h"
 #include "instruct.h"
 #include "memory.h"
-#include "object.h"
 #include "opcode.h"
 #include "parser.h"
 #include "token.h"
@@ -17,12 +16,9 @@ static void compile_statement(instruct *instructs, stmt *statement);
 
 static void patch_jump(instruct *instructs, int location, int jump)
 {
-    objprim *objjump = create_new_primitive(VAL_INT);
-    INT_VAL(objjump, jump);
     code8 *code = instructs->code[location];
-
     if (code)
-        code->operand = (object*)objjump;
+        VAL_AS_INT(code->operand) = jump;
 }
 
 static void check_instruct_capacity(instruct *instructs)
@@ -44,21 +40,22 @@ static char *take_string(token *tok)
     return buffer;
 }
 
-static code8 *create_code(uint8_t bytecode, object *operand)
+static code8 *create_code(uint8_t bytecode, value operand, valtype type)
 {
 	code8 *code = ALLOCATE(code8, 1);
 	code->bytecode = bytecode;
 	code->operand = operand;
+    code->type = type;
 	return code;
 }	
 
-static int emit_instruction(instruct *instructs, uint8_t bytecode, object *operand)
+static int emit_instruction(instruct *instructs, uint8_t bytecode, value operand, valtype type)
 {
 	int current = instructs->count;
 	if (instructs->capacity < instructs->count + 1)
 		check_instruct_capacity(instructs);
 
-	instructs->code[instructs->count++] = create_code(bytecode, operand);
+	instructs->code[instructs->count++] = create_code(bytecode, operand, type);
 
 	return current;
 }
@@ -66,7 +63,9 @@ static int emit_instruction(instruct *instructs, uint8_t bytecode, object *opera
 static void compile_expression(instruct *instructs, expr *expression)
 {
     uint8_t byte = 0;
-    object *operand = NULL;
+    value operand;
+    valtype type = -1;
+    VAL_AS_INT(operand) = 0;
     switch (expression->type) {
         case EXPR_UNARY:
             switch (expression->operator->type) {
@@ -88,20 +87,15 @@ static void compile_expression(instruct *instructs, expr *expression)
         {
             byte = OP_STORE_NAME;
             compile_expression(instructs, expression->value);
-
-			objprim *obj = create_new_primitive(VAL_STRING);
-            
-			PRIM_AS_STRING(obj) = take_string(expression->name);
-			operand = (object*)obj;
+			VAL_AS_STRING(operand) = take_string(expression->name);
+            type = VAL_STRING;
             break;
         }
         case EXPR_VARIABLE:
         {
             byte = OP_LOAD_NAME;
-            objprim *obj = create_new_primitive(VAL_STRING);
-
-			PRIM_AS_STRING(obj) = take_string(expression->name);
-			operand = (object*)obj;
+			VAL_AS_STRING(operand) = take_string(expression->name);
+            type = VAL_STRING;
             break;
         }
         case EXPR_BINARY:
@@ -127,9 +121,8 @@ static void compile_expression(instruct *instructs, expr *expression)
                 case TOKEN_LESS:
                 case TOKEN_LESS_EQUAL:
                     byte = OP_COMPARE;
-                    objprim *obj = create_new_primitive(VAL_INT);
-                    INT_VAL(obj, expression->operator->type);
-					operand = (object*)obj;
+                    VAL_AS_INT(operand) = expression->operator->type;
+                    type = VAL_INT;
                     break;
                 default:
                     break;
@@ -139,53 +132,53 @@ static void compile_expression(instruct *instructs, expr *expression)
 		case EXPR_LITERAL_NUMBER:
 		{
 			byte = OP_LOAD_CONSTANT;
-			objprim *obj = create_new_primitive(VAL_DOUBLE);
-			DOUBLE_VAL(obj, atof(expression->literal));
-			operand = (object*)obj;
+            VAL_AS_DOUBLE(operand) = atof(expression->literal);
+            type = VAL_DOUBLE;
 			break;
 		}
 		case EXPR_LITERAL_STRING:
 		{
 			int length = sizeof(expression->literal);
-			byte = OP_LOAD_CONSTANT;
-			objprim *obj = create_new_primitive(VAL_STRING);
-			ALLOCATE_PRIM_STRING(obj, length);
-            COPY_PRIM_STRING(obj, expression->literal, length);
-			operand = (object*)obj;
+            byte = OP_LOAD_CONSTANT;
+
+            ALLOCATE_VAL_STRING(operand, expression->literal);
+            COPY_VALUE_STRING(operand, expression->literal, length);
+            type = VAL_STRING;
 			break;
 		}
 		case EXPR_LITERAL_BOOL:
 		{
 			byte = OP_LOAD_CONSTANT;
-			objprim *obj = create_new_primitive(VAL_BOOL);
-			BOOL_VAL(obj, atoi(expression->literal));
-			operand = (object*)obj;
+            VAL_AS_INT(operand) = atoi(expression->literal);
+            type = VAL_INT;
 			break;
 		}
 		default:
 			// future error code here
 			break;
 	}
-	emit_instruction(instructs, byte, operand);
+	emit_instruction(instructs, byte, operand, type);
 }
 
 static void compile_for(instruct *instructs, stmt *statement)
 {
+    value empty;
     int forbegin = 0;
     int jmpbegin = 0;
     int jmpfalse = 0;
+    VAL_AS_INT(empty) = 0;
     // Initializer_statement
     compile_statement(instructs, statement->stmts[0]);
     // thenbranch used for compare statement
     forbegin = instructs->count;
     compile_statement(instructs, statement->stmts[1]);
-    jmpfalse = emit_instruction(instructs, OP_JMP_FALSE, NULL);
+    jmpfalse = emit_instruction(instructs, OP_JMP_FALSE, empty, VAL_INT);
     // loop body
     compile_statement(instructs, statement->loopbody);
     // elsebranch used for iterator statement
     compile_statement(instructs, statement->stmts[2]);
 
-    jmpbegin = emit_instruction(instructs, OP_JMP_LOC, NULL);
+    jmpbegin = emit_instruction(instructs, OP_JMP_LOC, empty, VAL_INT);
 
     // patch the jump instructs
     patch_jump(instructs, jmpbegin, forbegin);
@@ -198,11 +191,10 @@ static void compile_variable(instruct *instructs, stmt *statement)
     if (statement->initializer)
         compile_statement(instructs, statement->initializer);
 
-    objprim *prim = create_new_primitive(VAL_STRING);
-    ALLOCATE_PRIM_STRING(prim, name->length);
-    PRIM_AS_STRING(prim) = take_string(name);
+    value operand;
+    VAL_AS_STRING(operand) = take_string(name);
 
-    emit_instruction(instructs, OP_STORE_NAME, (object*)prim);
+    emit_instruction(instructs, OP_STORE_NAME, operand, VAL_STRING);
 }
 
 static void compile_block(instruct *instructs, stmt *statement)
@@ -231,9 +223,13 @@ static void compile_statement(instruct *instructs, stmt *statement)
             //emit_instruction(instructs, OP_RETURN, NULL);
             break;
         case STMT_PRINT:
+        {
+            value empty;
+            VAL_AS_INT(empty) = 0;
             compile_expression(instructs, statement->value);
-            emit_instruction(instructs, OP_PRINT, NULL);
+            emit_instruction(instructs, OP_PRINT, empty, -1);
             break;
+        }
         case STMT_IF:
             //compile_if(instructs, statement);
             break;
@@ -257,9 +253,21 @@ instruct *compile(parser *analyzer, const char *source)
         compile_statement(instructs, analyzer->statements[i]);
     }
 
-	emit_instruction(instructs, OP_RETURN, NULL);
+    value empty;
+    VAL_AS_INT(empty) = 0;
+	emit_instruction(instructs, OP_RETURN, empty, -1);
     reset_parser(analyzer);
     reset_scanner(&analyzer->scan);
 
     return instructs;
 }
+
+/*void print_value(value val, valtype type)
+{
+    switch (type) {
+        case VAL_UNDEFINED:
+        case VAL_INT:
+        case VAL_DOUBLE:
+        case VAL_STRING:
+    }
+}*/

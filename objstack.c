@@ -11,6 +11,16 @@ void init_objstack(objstack *stack)
     stack->top = NULL;
 }
 
+void reset_objstack(objstack *stack)
+{
+    object *obj = NULL;
+
+    while ((obj = pop_objstack(stack))) {
+        // objects are freed in Garbage Collector and the VM
+    }
+
+}
+
 void push_objstack(objstack *stack, object *obj)
 {
     objnode *node = ALLOCATE(objnode, 1);
