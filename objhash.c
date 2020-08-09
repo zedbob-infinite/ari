@@ -60,7 +60,7 @@ static inline void objhash_remove_entry(objentry *entry)
         if (entry->key)
             FREE(char, entry->key);
     }
-    FREE(objentry*, entry);
+    FREE(objentry, entry);
 }
 
 void init_objhash(objhash* hashtable, int size)
@@ -88,7 +88,6 @@ void reset_objhash(objhash *hashtable)
         objhash_remove_entry(entry);
     }
     FREE(objentry*, hashtable->table);
-    init_objhash(hashtable, DEFAULT_HT_SIZE);
 }
 
 bool objhash_remove(objhash *ht, char *key)
@@ -116,7 +115,7 @@ void objhash_set(objhash *ht, char *key, object *value)
         return;
     }
     if (find) {
-        objhash_remove(ht, key);
+        objhash_remove_entry(find);
         ht->count--;
     }
 

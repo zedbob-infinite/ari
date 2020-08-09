@@ -256,6 +256,7 @@ instruct *compile(parser *analyzer, const char *source)
     value empty;
     VAL_AS_INT(empty) = 0;
 	emit_instruction(instructs, OP_RETURN, empty, -1);
+    printf("Outside reset_parser()...\n");
     reset_parser(analyzer);
     reset_scanner(&analyzer->scan);
 

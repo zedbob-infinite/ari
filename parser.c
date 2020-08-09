@@ -67,6 +67,7 @@ static stmt *init_stmt(void)
 
 static void delete_expression(expr *pexpr)
 {
+    printf("inside delete_expression()...\n");
     if (pexpr->expression)
         delete_expression(pexpr->expression);
     if (pexpr->value)
@@ -75,16 +76,24 @@ static void delete_expression(expr *pexpr)
         delete_expression(pexpr->left);
     if (pexpr->right)
         delete_expression(pexpr->right);
-    free(pexpr->literal);
-    free(pexpr);
+    FREE(char, pexpr->literal);
+    FREE(expr, pexpr);
+    printf("leaving delete_expression()...\n");
 }
 
 static void delete_statements(stmt *pstmt)
 {
+    if (pstmt->expression)
+        delete_expression(pstmt->expression);
+    if (pstmt->condition)
+        delete_expression(pstmt->condition);
+    if (pstmt->value)
+        delete_expression(pstmt->value);
     switch (pstmt->type) {
         case STMT_BLOCK:
             for (int i = 0; i < pstmt->count; i++)
                 delete_statements(pstmt->stmts[i]);
+            FREE(stmt*, pstmt->stmts);
             break;
         case STMT_EXPR:
             break;
@@ -98,8 +107,10 @@ static void delete_statements(stmt *pstmt)
             break;
         case STMT_FOR:
         {
+            printf("I'm in the STMT_FOR delete statement...\n");
             for (int i = 0; i < 3; i++)
                 delete_statements(pstmt->stmts[i]);
+            FREE(stmt*, pstmt->stmts);
             delete_statements(pstmt->loopbody);
             break;
         }
@@ -109,12 +120,6 @@ static void delete_statements(stmt *pstmt)
         case STMT_PRINT:
             break;
     }
-    if (pstmt->expression)
-        delete_expression(pstmt->expression);
-    if (pstmt->condition)
-        delete_expression(pstmt->condition);
-    if (pstmt->value)
-        delete_expression(pstmt->value);
     FREE(stmt, pstmt);
 }
 
@@ -481,22 +486,17 @@ static inline void check_stmt_capacity(stmt *block_stmt)
 
 static stmt *block(parser *analyzer)
 {
-    printf("Entering block()...\n");
     stmt *new_stmt = init_stmt();
     new_stmt->type = STMT_BLOCK;
 
     int i = 0;
-    printf("entering while loop in block()...\n");
     while (!check(analyzer, TOKEN_RIGHT_BRACE) && !is_at_end(analyzer)) {
-        printf("in while loop in block()...\n");
         check_stmt_capacity(new_stmt);
         new_stmt->stmts[i++] = declaration(analyzer);
         new_stmt->count++;
     }
-    printf("exiting while loop in block()...\n");
 
     consume(analyzer, TOKEN_RIGHT_BRACE, "Expect '}' after block.");
-    printf("Exiting block()...\n");
     return new_stmt;
 }
 
@@ -514,12 +514,18 @@ static stmt *if_statement(parser *analyzer)
     return get_if_statement(condition, then_branch, else_branch);
 }
 
+static inline stmt *iterator_statement(parser *analyzer)
+{
+    expr *new_expr = expression(analyzer);
+    return get_expression_statement(new_expr);
+}
+
 static stmt *for_statement(parser *analyzer)
 {
     consume(analyzer, TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
     stmt *initializer = statement(analyzer);
     stmt *condition = statement(analyzer);
-    stmt *iterator = statement(analyzer);
+    stmt *iterator = iterator_statement(analyzer);
     consume(analyzer, TOKEN_RIGHT_PAREN, "Expect ')' after for condition.");
     stmt *loop_body = statement(analyzer);
     return get_for_statement(initializer, condition, iterator, loop_body);
@@ -566,12 +572,15 @@ static stmt *statement(parser *analyzer)
 
 void reset_parser(parser *analyzer)
 {
+    printf("inside reset_parser()...\n");
     if (analyzer->statements) {
+        printf("inside if statement in reset_parser()...\n");
         stmt **statements = analyzer->statements;
         for (int i = 0; i < analyzer->num_statements; ++i) {
+            printf("deleted statement %d\n", i);
             delete_statements(statements[i]);
         }
-        free(analyzer->statements);
+        FREE(stmt*, analyzer->statements);
     }
     init_parser(analyzer);
 }
@@ -593,10 +602,8 @@ bool parse(parser *analyzer, const char *source)
     init_scanner(&analyzer->scan);
     scan_tokens(&analyzer->scan, source);
 
+    check_parser_capacity(analyzer);
     // Parse tokens into AST
-    analyzer->capacity = GROW_CAPACITY(analyzer->capacity);
-    analyzer->statements = GROW_ARRAY(analyzer->statements, stmt*, 0, analyzer->capacity); 
-
     int i = 0;
     while (!is_at_end(analyzer)) {
         if (analyzer->capacity < analyzer->num_statements + 1)

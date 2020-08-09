@@ -11,9 +11,9 @@ void reset_scanner(scanner *scan)
 {
     if (scan->tokens) {
         for (int i = 0; i < scan->capacity; ++i) {
-            free(scan->tokens[i]);
+            FREE(token, scan->tokens[i]);
         }
-        free(scan->tokens);
+        FREE(token*, scan->tokens);
     }
     init_scanner(scan);
 }

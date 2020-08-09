@@ -12,7 +12,7 @@
 #include "tokenizer.h"
 #include "vm.h"
 
-#define DEBUG_ARI
+//#define DEBUG_ARI
 
 static inline void delete_value(value *val, valtype type)
 {
@@ -327,19 +327,19 @@ int execute(VM *vm, instruct *instructs)
 
 void free_vm(VM *vm)
 {
-    //int i = 0;
-    object *vmobj = NULL;
-    while ((vmobj = vm->objs)) {
-        if (vm->objs) 
-            vm->objs = vm->objs->next;
-        FREE_OBJECT(vmobj);
+    reset_objstack(&vm->evalstack);
+    object *current = vm->objs;
+    object *next = NULL;
+    while (current) {
+        next = current->next;
+        FREE_OBJECT(current);
         printf("deleted object\n");
+        current = next;
     }
 	init_objstack(&vm->evalstack);
     reset_parser(&vm->analyzer);
     reset_scanner(&vm->analyzer.scan);
     reset_objhash(&vm->globals);
-    reset_objstack(&vm->evalstack);
     FREE(VM, vm);
 }
 
