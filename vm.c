@@ -12,7 +12,7 @@
 #include "tokenizer.h"
 #include "vm.h"
 
-//#define DEBUG_ARI
+#define DEBUG_ARI
 
 static inline void delete_value(value *val, valtype type)
 {
@@ -190,8 +190,11 @@ int execute(VM *vm, instruct *instructs)
 #ifdef DEBUG_ARI
         printf("|%d|    ", current);
         print_bytecode(code->bytecode);
-        //print_value(operand);
-
+        if (type != -1) {
+            printf("\t\t(");
+            print_value(operand, type);
+            printf(")");
+        }
         printf("\n");
 #endif
         switch (code->bytecode) {
@@ -310,7 +313,7 @@ int execute(VM *vm, instruct *instructs)
             {
                 if (peek_objstack(stack)) {
                     print_object(pop_objstack(stack));
-                    printf("\n");
+                    //printf("\n");
                 }
                 advance(instructs);
                 break;
@@ -333,7 +336,6 @@ void free_vm(VM *vm)
     while (current) {
         next = current->next;
         FREE_OBJECT(current);
-        printf("deleted object\n");
         current = next;
     }
 	init_objstack(&vm->evalstack);
@@ -354,4 +356,21 @@ VM *init_vm(void)
     vm->num_objects = 0;
 
     return vm;
+}
+
+void print_value(value val, valtype type)
+{
+	switch (type) {
+        case VAL_INT:
+            printf("%d", VAL_AS_INT(val));
+			break;
+		case VAL_DOUBLE:
+			printf("%f", VAL_AS_DOUBLE(val));
+			break;
+		case VAL_STRING:
+			printf("%s", VAL_AS_STRING(val));
+			break;
+		default:
+			break;
+	}
 }

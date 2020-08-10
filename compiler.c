@@ -256,19 +256,8 @@ instruct *compile(parser *analyzer, const char *source)
     value empty;
     VAL_AS_INT(empty) = 0;
 	emit_instruction(instructs, OP_RETURN, empty, -1);
-    printf("Outside reset_parser()...\n");
     reset_parser(analyzer);
     reset_scanner(&analyzer->scan);
 
     return instructs;
 }
-
-/*void print_value(value val, valtype type)
-{
-    switch (type) {
-        case VAL_UNDEFINED:
-        case VAL_INT:
-        case VAL_DOUBLE:
-        case VAL_STRING:
-    }
-}*/

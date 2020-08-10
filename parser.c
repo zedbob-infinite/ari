@@ -67,7 +67,6 @@ static stmt *init_stmt(void)
 
 static void delete_expression(expr *pexpr)
 {
-    printf("inside delete_expression()...\n");
     if (pexpr->expression)
         delete_expression(pexpr->expression);
     if (pexpr->value)
@@ -78,7 +77,6 @@ static void delete_expression(expr *pexpr)
         delete_expression(pexpr->right);
     FREE(char, pexpr->literal);
     FREE(expr, pexpr);
-    printf("leaving delete_expression()...\n");
 }
 
 static void delete_statements(stmt *pstmt)
@@ -107,7 +105,6 @@ static void delete_statements(stmt *pstmt)
             break;
         case STMT_FOR:
         {
-            printf("I'm in the STMT_FOR delete statement...\n");
             for (int i = 0; i < 3; i++)
                 delete_statements(pstmt->stmts[i]);
             FREE(stmt*, pstmt->stmts);
@@ -221,14 +218,14 @@ static bool match(parser *analyzer, tokentype type)
     return false;
 }
 
-static stmt *get_variable_statement(token *name, stmt *initializer)
+/*static stmt *get_variable_statement(token *name, stmt *initializer)
 {
     stmt *new_stmt = init_stmt();
     new_stmt->type = STMT_VAR;
     new_stmt->name = name;
     new_stmt->initializer = initializer;
     return new_stmt;
-}
+}*/
 
 static stmt *get_expression_statement(expr *new_expr)
 {
@@ -324,12 +321,13 @@ static expr *get_grouping_expr(expr *group_expr)
     return new_expr;
 }
 
-static expr *get_assign_expr(token *name, expr *value)
+static expr *get_assign_expr(expr *assign_expr, expr *value)
 {
     expr *new_expr = init_expr();
-    new_expr->name = name;
+    new_expr->name = assign_expr->name;
     new_expr->value = value;
     new_expr->type = EXPR_ASSIGN;
+    new_expr->expression = assign_expr;
     return new_expr;
 }
 
@@ -443,7 +441,7 @@ static expr* assignment(parser *analyzer)
     expr *new_expr = equality(analyzer);
     if (match(analyzer, TOKEN_EQUAL)) {
         if (new_expr->type == EXPR_VARIABLE)
-            return get_assign_expr(new_expr->name, assignment(analyzer));
+            return get_assign_expr(new_expr, assignment(analyzer));
         error(analyzer, "Invalid assignment target.");
     }
     return new_expr;
@@ -454,7 +452,7 @@ static expr *expression(parser *analyzer)
     return assignment(analyzer);
 }
 
-static stmt *var_declaration(parser *analyzer)
+/*static stmt *var_declaration(parser *analyzer)
 {
     token *name = consume(analyzer, TOKEN_IDENTIFIER, "Expect variable name.");
     stmt *initializer = NULL;
@@ -463,12 +461,12 @@ static stmt *var_declaration(parser *analyzer)
         initializer = get_expression_statement(expression(analyzer));
     consume(analyzer, TOKEN_SEMICOLON, "Exepct ';' after variable declaration.");
     return get_variable_statement(name, initializer);
-}
+}*/
 
 static stmt *declaration(parser *analyzer)
 {
-    if (match(analyzer, TOKEN_VAR))
-        return var_declaration(analyzer);
+    /*if (match(analyzer, TOKEN_VAR))
+        return var_declaration(analyzer);*/
     if (analyzer->panicmode) synchronize(analyzer);
     return statement(analyzer);
 }
@@ -572,12 +570,9 @@ static stmt *statement(parser *analyzer)
 
 void reset_parser(parser *analyzer)
 {
-    printf("inside reset_parser()...\n");
     if (analyzer->statements) {
-        printf("inside if statement in reset_parser()...\n");
         stmt **statements = analyzer->statements;
         for (int i = 0; i < analyzer->num_statements; ++i) {
-            printf("deleted statement %d\n", i);
             delete_statements(statements[i]);
         }
         FREE(stmt*, analyzer->statements);
