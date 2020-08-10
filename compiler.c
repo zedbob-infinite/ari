@@ -56,7 +56,6 @@ static int emit_instruction(instruct *instructs, uint8_t bytecode, value operand
 		check_instruct_capacity(instructs);
 
 	instructs->code[instructs->count++] = create_code(bytecode, operand, type);
-
 	return current;
 }
 
@@ -185,6 +184,27 @@ static void compile_for(instruct *instructs, stmt *statement)
     patch_jump(instructs, jmpfalse, instructs->count);
 }
 
+static void compile_while(instruct *instructs, stmt *statement)
+{
+    value empty;
+    VAL_AS_INT(empty) = 0;
+    int compare = 0;
+    int jmpfalse = 0;
+    int jmpbegin = 0;
+
+    compare = instructs->count;
+
+    compile_expression(instructs, statement->condition);
+
+    jmpfalse = emit_instruction(instructs, OP_JMP_FALSE, empty, VAL_INT);
+    compile_statement(instructs, statement->loopbody);
+    
+    jmpbegin = emit_instruction(instructs, OP_JMP_LOC, empty, VAL_INT);
+    patch_jump(instructs, jmpbegin, compare);
+    
+    patch_jump(instructs, jmpfalse, instructs->count);
+}
+
 static void compile_variable(instruct *instructs, stmt *statement)
 {
     token *name = statement->name;
@@ -212,7 +232,7 @@ static void compile_statement(instruct *instructs, stmt *statement)
             compile_for(instructs, statement);
             break;
         case STMT_WHILE:
-            //compile_while(instructs, statement);
+            compile_while(instructs, statement);
             break;
         case STMT_BLOCK:
             compile_block(instructs, statement);
