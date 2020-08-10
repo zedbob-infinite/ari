@@ -65,6 +65,35 @@ static inline void objhash_remove_entry(objentry *entry)
     FREE(objentry, entry);
 }
 
+
+static void check_capacity(objhash* ht)
+{
+    int oldsize = ht->capacity;
+    ht->capacity = GROW_CAPACITY(ht->capacity);
+
+    int newsize = ht->capacity;
+    objentry **entries = ALLOCATE(objentry*, newsize);
+
+    for (int i = 0; i < newsize; ++i)
+        entries[i] = NULL;
+
+    ht->count = 0;
+    uint32_t bin = 0;
+    for (int i = 0; i < oldsize; ++i) {
+        objentry *entry = ht->table[i];
+        if (!entry) continue;
+
+        objentry *dest = objhash_find_entry(entries, newsize, entry->key,
+                                         &bin);
+        dest->key = entry->key;
+        dest->value = entry->value;
+        ht->count++;
+        FREE(objentry, entry);
+    }
+    FREE(objentry*, ht->table);
+    ht->table = entries;
+}
+
 void init_objhash(objhash* ht, uint32_t size)
 {
     if (size < 1)
@@ -108,8 +137,8 @@ bool objhash_remove(objhash *ht, char *key)
 
 void objhash_set(objhash *ht, char *key, object *value)
 {
-    /*if (ht->count + 1 > ht->capacity * TABLE_MAX_LOAD)
-        check_capacity(ht, capacity);*/
+    if (ht->count + 1 > ht->capacity * TABLE_MAX_LOAD)
+        check_capacity(ht);
 
     uint32_t bin = 0;
     uint32_t size = ht->capacity; 
