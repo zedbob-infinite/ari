@@ -261,13 +261,3 @@ instruct *compile(parser *analyzer, const char *source)
 
     return instructs;
 }
-
-/*void print_value(value val, valtype type)
-{
-    switch (type) {
-        case VAL_UNDEFINED:
-        case VAL_INT:
-        case VAL_DOUBLE:
-        case VAL_STRING:
-    }
-}*/

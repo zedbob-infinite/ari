@@ -30,5 +30,6 @@ void interpret_line(VM *vm, char *source);
 VM *init_vm(void);
 void free_vm(VM *vm);
 int execute(VM *vm, instruct *instructs);
+void print_value(value val, valtype type);
 
 #endif

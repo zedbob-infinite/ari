@@ -11,9 +11,9 @@ void free_object(void *obj, objtype type)
         {
             objprim *prim = (objprim*)obj;
             if (prim->ptype == PRIM_STRING) {
-                FREE(char*, PRIM_AS_STRING(prim));
+                FREE(char, PRIM_AS_STRING(prim));
             }
-            FREE(objprim, obj);
+            FREE(objprim, prim);
             break;
         }
         default:

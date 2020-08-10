@@ -75,16 +75,23 @@ static void delete_expression(expr *pexpr)
         delete_expression(pexpr->left);
     if (pexpr->right)
         delete_expression(pexpr->right);
-    free(pexpr->literal);
-    free(pexpr);
+    FREE(char, pexpr->literal);
+    FREE(expr, pexpr);
 }
 
 static void delete_statements(stmt *pstmt)
 {
+    if (pstmt->expression)
+        delete_expression(pstmt->expression);
+    if (pstmt->condition)
+        delete_expression(pstmt->condition);
+    if (pstmt->value)
+        delete_expression(pstmt->value);
     switch (pstmt->type) {
         case STMT_BLOCK:
             for (int i = 0; i < pstmt->count; i++)
                 delete_statements(pstmt->stmts[i]);
+            FREE(stmt*, pstmt->stmts);
             break;
         case STMT_EXPR:
             break;
@@ -100,6 +107,7 @@ static void delete_statements(stmt *pstmt)
         {
             for (int i = 0; i < 3; i++)
                 delete_statements(pstmt->stmts[i]);
+            FREE(stmt*, pstmt->stmts);
             delete_statements(pstmt->loopbody);
             break;
         }
@@ -109,12 +117,6 @@ static void delete_statements(stmt *pstmt)
         case STMT_PRINT:
             break;
     }
-    if (pstmt->expression)
-        delete_expression(pstmt->expression);
-    if (pstmt->condition)
-        delete_expression(pstmt->condition);
-    if (pstmt->value)
-        delete_expression(pstmt->value);
     FREE(stmt, pstmt);
 }
 
@@ -216,14 +218,14 @@ static bool match(parser *analyzer, tokentype type)
     return false;
 }
 
-static stmt *get_variable_statement(token *name, stmt *initializer)
+/*static stmt *get_variable_statement(token *name, stmt *initializer)
 {
     stmt *new_stmt = init_stmt();
     new_stmt->type = STMT_VAR;
     new_stmt->name = name;
     new_stmt->initializer = initializer;
     return new_stmt;
-}
+}*/
 
 static stmt *get_expression_statement(expr *new_expr)
 {
@@ -319,12 +321,13 @@ static expr *get_grouping_expr(expr *group_expr)
     return new_expr;
 }
 
-static expr *get_assign_expr(token *name, expr *value)
+static expr *get_assign_expr(expr *assign_expr, expr *value)
 {
     expr *new_expr = init_expr();
-    new_expr->name = name;
+    new_expr->name = assign_expr->name;
     new_expr->value = value;
     new_expr->type = EXPR_ASSIGN;
+    new_expr->expression = assign_expr;
     return new_expr;
 }
 
@@ -438,7 +441,7 @@ static expr* assignment(parser *analyzer)
     expr *new_expr = equality(analyzer);
     if (match(analyzer, TOKEN_EQUAL)) {
         if (new_expr->type == EXPR_VARIABLE)
-            return get_assign_expr(new_expr->name, assignment(analyzer));
+            return get_assign_expr(new_expr, assignment(analyzer));
         error(analyzer, "Invalid assignment target.");
     }
     return new_expr;
@@ -449,7 +452,7 @@ static expr *expression(parser *analyzer)
     return assignment(analyzer);
 }
 
-static stmt *var_declaration(parser *analyzer)
+/*static stmt *var_declaration(parser *analyzer)
 {
     token *name = consume(analyzer, TOKEN_IDENTIFIER, "Expect variable name.");
     stmt *initializer = NULL;
@@ -458,12 +461,12 @@ static stmt *var_declaration(parser *analyzer)
         initializer = get_expression_statement(expression(analyzer));
     consume(analyzer, TOKEN_SEMICOLON, "Exepct ';' after variable declaration.");
     return get_variable_statement(name, initializer);
-}
+}*/
 
 static stmt *declaration(parser *analyzer)
 {
-    if (match(analyzer, TOKEN_VAR))
-        return var_declaration(analyzer);
+    /*if (match(analyzer, TOKEN_VAR))
+        return var_declaration(analyzer);*/
     if (analyzer->panicmode) synchronize(analyzer);
     return statement(analyzer);
 }
@@ -481,22 +484,17 @@ static inline void check_stmt_capacity(stmt *block_stmt)
 
 static stmt *block(parser *analyzer)
 {
-    printf("Entering block()...\n");
     stmt *new_stmt = init_stmt();
     new_stmt->type = STMT_BLOCK;
 
     int i = 0;
-    printf("entering while loop in block()...\n");
     while (!check(analyzer, TOKEN_RIGHT_BRACE) && !is_at_end(analyzer)) {
-        printf("in while loop in block()...\n");
         check_stmt_capacity(new_stmt);
         new_stmt->stmts[i++] = declaration(analyzer);
         new_stmt->count++;
     }
-    printf("exiting while loop in block()...\n");
 
     consume(analyzer, TOKEN_RIGHT_BRACE, "Expect '}' after block.");
-    printf("Exiting block()...\n");
     return new_stmt;
 }
 
@@ -514,12 +512,18 @@ static stmt *if_statement(parser *analyzer)
     return get_if_statement(condition, then_branch, else_branch);
 }
 
+static inline stmt *iterator_statement(parser *analyzer)
+{
+    expr *new_expr = expression(analyzer);
+    return get_expression_statement(new_expr);
+}
+
 static stmt *for_statement(parser *analyzer)
 {
     consume(analyzer, TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
     stmt *initializer = statement(analyzer);
     stmt *condition = statement(analyzer);
-    stmt *iterator = statement(analyzer);
+    stmt *iterator = iterator_statement(analyzer);
     consume(analyzer, TOKEN_RIGHT_PAREN, "Expect ')' after for condition.");
     stmt *loop_body = statement(analyzer);
     return get_for_statement(initializer, condition, iterator, loop_body);
@@ -571,7 +575,7 @@ void reset_parser(parser *analyzer)
         for (int i = 0; i < analyzer->num_statements; ++i) {
             delete_statements(statements[i]);
         }
-        free(analyzer->statements);
+        FREE(stmt*, analyzer->statements);
     }
     init_parser(analyzer);
 }
@@ -593,10 +597,8 @@ bool parse(parser *analyzer, const char *source)
     init_scanner(&analyzer->scan);
     scan_tokens(&analyzer->scan, source);
 
+    check_parser_capacity(analyzer);
     // Parse tokens into AST
-    analyzer->capacity = GROW_CAPACITY(analyzer->capacity);
-    analyzer->statements = GROW_ARRAY(analyzer->statements, stmt*, 0, analyzer->capacity); 
-
     int i = 0;
     while (!is_at_end(analyzer)) {
         if (analyzer->capacity < analyzer->num_statements + 1)
