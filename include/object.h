@@ -20,6 +20,7 @@ typedef enum
 	OBJ_PRIMITIVE,
 	OBJ_CLASS,
 	OBJ_INSTANCE,
+    OBJ_MODULE,
 } objtype;
 
 typedef enum

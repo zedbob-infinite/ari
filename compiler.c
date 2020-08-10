@@ -138,7 +138,7 @@ static void compile_expression(instruct *instructs, expr *expression)
 		}
 		case EXPR_LITERAL_STRING:
 		{
-			int length = sizeof(expression->literal);
+			int length = strlen(expression->literal);
             byte = OP_LOAD_CONSTANT;
 
             ALLOCATE_VAL_STRING(operand, expression->literal);
@@ -239,25 +239,27 @@ static void compile_statement(instruct *instructs, stmt *statement)
     }
 }
 
-instruct *compile(parser *analyzer, const char *source)
+instruct compile(parser *analyzer, const char *source)
 {
-    if (parse(analyzer, source))
-        return NULL;
+    instruct instructs;
+    init_instruct(&instructs);
+    
+    if (parse(analyzer, source)) {
+        reset_parser(analyzer);
+        return instructs;
+    }
 
     // Compile parse trees into bytecode
-    instruct *instructs = ALLOCATE(instruct, 1);
-    init_instruct(instructs);
 	for (int i = 0; i < analyzer->num_statements; i++) {
-        if (instructs->capacity < instructs->count + 1)
-            check_instruct_capacity(instructs);
-        compile_statement(instructs, analyzer->statements[i]);
+        if (instructs.capacity < instructs.count + 1)
+            check_instruct_capacity(&instructs);
+        compile_statement(&instructs, analyzer->statements[i]);
     }
 
     value empty;
     VAL_AS_INT(empty) = 0;
-	emit_instruction(instructs, OP_RETURN, empty, -1);
+	emit_instruction(&instructs, OP_RETURN, empty, -1);
     reset_parser(analyzer);
-    reset_scanner(&analyzer->scan);
 
     return instructs;
 }

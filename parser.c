@@ -578,6 +578,7 @@ void reset_parser(parser *analyzer)
         FREE(stmt*, analyzer->statements);
     }
     init_parser(analyzer);
+    reset_scanner(&analyzer->scan);
 }
 
 void init_parser(parser *analyzer)

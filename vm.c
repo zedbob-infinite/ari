@@ -180,7 +180,7 @@ static void print_bytecode(uint8_t bytecode)
 int execute(VM *vm, instruct *instructs)
 {
     objstack *stack = &vm->evalstack;
-    objhash *globals = &vm->globals;
+    objhash *globals = &vm->global.locals;
 
     while (instructs->current < instructs->count) {
 		int current = instructs->current;
@@ -341,17 +341,17 @@ void free_vm(VM *vm)
 	init_objstack(&vm->evalstack);
     reset_parser(&vm->analyzer);
     reset_scanner(&vm->analyzer.scan);
-    reset_objhash(&vm->globals);
+    reset_objhash(&vm->global.locals);
     FREE(VM, vm);
 }
 
 VM *init_vm(void)
 {
     VM *vm = ALLOCATE(VM, 1);
+    init_module(&vm->global);
     init_parser(&vm->analyzer);
     init_scanner(&vm->analyzer.scan);
     init_objstack(&vm->evalstack);
-    init_objhash(&vm->globals, DEFAULT_HT_SIZE);
     vm->objs = NULL;
     vm->num_objects = 0;
 
