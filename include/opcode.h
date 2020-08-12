@@ -8,6 +8,8 @@ typedef enum
     OP_JMP_AFTER,
     OP_JMP_FALSE,
     OP_POP,
+    OP_PUSH_FRAME,
+    OP_POP_FRAME,
     OP_LOAD_CONSTANT,
     OP_LOAD_NAME,
     OP_CALL_FUNCTION,

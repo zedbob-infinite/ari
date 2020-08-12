@@ -1,6 +1,7 @@
 #ifndef ari_module_t
 #define ari_module_t
 
+#include "frame.h"
 #include "instruct.h"
 #include "object.h"
 #include "objhash.h"
@@ -8,7 +9,7 @@
 typedef struct module_t
 {
     object obj;
-    objhash locals;
+    frame local;
     instruct instructs;
 } module;
 
