@@ -103,14 +103,22 @@ static inline void binary_op(VM *vm, objstack *stack, char optype)
     push_objstack(stack, obj);
 }
 
-static inline void set_name(objhash *locals, value name, object *val)
+static inline void set_name(frame *localframe, value name, object *val)
 {
-    objhash_set(locals, VAL_AS_STRING(name), val);
+    objhash_set(&localframe->locals, VAL_AS_STRING(name), val);
 }
 
-static inline object *get_name(objhash *locals, value name)
+static inline object *get_name(frame *localframe, value name)
 {
-    return objhash_get(locals, VAL_AS_STRING(name));
+    frame *current = localframe;
+    object *obj = objhash_get(&current->locals, VAL_AS_STRING(name));
+    while ((!obj) && (current->next)) {
+        printf("in get_name() while loop...\n");
+        current = localframe->next;
+        if (current)
+            obj = objhash_get(&current->locals, VAL_AS_STRING(name));
+    }
+    return obj;
 }
 
 static inline void advance(instruct *instructs)
@@ -189,7 +197,6 @@ int execute(VM *vm, instruct *instructs)
     objstack *stack = &vm->evalstack;
     while (instructs->current < instructs->count) {
         frame **topframe = &vm->top;
-        objhash *locals = &(*topframe)->locals;
 
 		int current = instructs->current;
 		code8 *code = instructs->code[current];
@@ -270,7 +277,7 @@ int execute(VM *vm, instruct *instructs)
             }
             case OP_LOAD_NAME:
             {
-                object *obj = get_name(locals, operand);
+                object *obj = get_name(*topframe, operand);
                 if (obj)
                     push_objstack(stack, obj);
                 else {
@@ -289,7 +296,7 @@ int execute(VM *vm, instruct *instructs)
                 break;
             case OP_STORE_NAME:
             {
-                set_name(locals, operand, pop_objstack(stack));
+                set_name(*topframe, operand, pop_objstack(stack));
                 advance(instructs);
                 break;
             }

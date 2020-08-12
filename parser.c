@@ -14,6 +14,7 @@ static stmt *statement(parser *analyzer);
 static expr *expression(parser *analyzer);
 static token *advance(parser *analyzer);
 static stmt *block(parser *analyzer);
+static char *token_type(int type);
 
 static void check_parser_capacity(parser* analyzer)
 {
@@ -150,13 +151,14 @@ static void synchronize(parser *analyzer)
     }
 }
 
+
 static void error_at(parser *analyzer, token *tok, const char *msg)
 {
     if (analyzer->panicmode) return;
     analyzer->panicmode = true;
 
     fprintf(stderr, "[line %d] Error", tok->line);
-    fprintf(stderr, " for token %d\n", tok->type);
+    fprintf(stderr, " for token %s\n", token_type(tok->type));
     if (tok->type == TOKEN_EOF)
         fprintf(stderr, " at end");
     else if (tok->type == TOKEN_ERROR)
@@ -657,4 +659,55 @@ bool parse(parser *analyzer, const char *source)
     }
     is_at_end(analyzer);
     return analyzer->haderror;
+}
+
+static char *token_type(int type)
+{
+    char *msg = NULL;
+    switch (type) {
+        case TOKEN_LEFT_PAREN: msg = "LEFT_PAREN"; break;
+        case TOKEN_RIGHT_PAREN: msg = "RIGHT_PAREN"; break;
+        case TOKEN_LEFT_BRACE: msg = "LEFT_BRACE"; break;
+        case TOKEN_RIGHT_BRACE: msg = "RIGHT_BRACE"; break;
+        case TOKEN_LEFT_BRACKET: msg = "LEFT_BRACE"; break;
+        case TOKEN_RIGHT_BRACKET: msg = "RIGHT_BRACE"; break;
+        case TOKEN_COMMA: msg = "COMMA"; break;
+        case TOKEN_DOT: msg = "DOT"; break;
+        case TOKEN_MINUS: msg = "MINUS"; break;
+        case TOKEN_PLUS: msg = "PLUS"; break;
+        case TOKEN_SEMICOLON: msg = "SEMICOLON"; break;
+        case TOKEN_SLASH: msg = "SLASH"; break;
+        case TOKEN_STAR: msg = "STAR"; break;
+        case TOKEN_BANG: msg = "BANG"; break;
+        case TOKEN_BANG_EQUAL: msg = "BANG_EQUAL"; break;
+        case TOKEN_EQUAL: msg = "EQUAL"; break;
+        case TOKEN_EQUAL_EQUAL: msg = "EQUAL_EQUAL"; break;
+        case TOKEN_GREATER: msg = "GREATER"; break;
+        case TOKEN_GREATER_EQUAL: msg = "GREATER_EQUAL"; break;
+        case TOKEN_LESS: msg = "LESS"; break;
+        case TOKEN_LESS_EQUAL: msg = "LESS_EQUAL"; break;
+        case TOKEN_IDENTIFIER: msg = "IDENTIFIER"; break;
+        case TOKEN_STRING: msg = "STRING"; break;
+        case TOKEN_NUMBER: msg = "NUMBER"; break;
+        case TOKEN_AND: msg = "AND"; break;
+        case TOKEN_CLASS: msg = "CLASS"; break;
+        case TOKEN_ELSE: msg = "ELSE"; break;
+        case TOKEN_FALSE: msg = "FALSE"; break;
+        case TOKEN_FUN: msg = "FUN"; break;
+        case TOKEN_FOR: msg = "FOR"; break;
+        case TOKEN_IF: msg = "IF"; break;
+        case TOKEN_NULL: msg = "NULL"; break;
+        case TOKEN_OR: msg = "OR"; break;
+        case TOKEN_RETURN: msg = "RETURN"; break;
+        case TOKEN_SUPER: msg = "SUPER"; break;
+        case TOKEN_THIS: msg = "THIS"; break;
+        case TOKEN_TRUE: msg = "TRUE"; break;
+        case TOKEN_VAR: msg = "VAR"; break;
+        case TOKEN_WHILE: msg = "WHILE"; break;
+        case TOKEN_PRINT: msg = "PRINT"; break;
+        case TOKEN_EXIT: msg = "EXIT"; break;
+        case TOKEN_ERROR: msg = "ERROR"; break;
+        case TOKEN_EOF: msg = "EOF"; break;
+    }
+    return msg;
 }

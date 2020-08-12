@@ -91,14 +91,15 @@ static inline tokentype check_keyword(scanner* scan, int start, int length,
         const char *rest, tokentype type)
 {
     if (scan->current - scan->start == start + length &&
-            memcmp(scan->start + start, rest, length) == 0)
+            memcmp(scan->start + start, rest, length) == 0) {
         return type;
+    }
     return TOKEN_IDENTIFIER;
 }
 
 static inline void identifier(scanner *scan)
 { 
-    tokentype type = 0;
+    tokentype type = TOKEN_IDENTIFIER;
 
     while (is_alpha(peek(scan)) || is_digit(peek(scan))) advance(scan);
 
