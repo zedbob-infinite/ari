@@ -2,6 +2,8 @@
 #define ari_vm_h
 
 #include "instruct.h"
+#include "frame.h"
+#include "module.h"
 #include "object.h"
 #include "objhash.h"
 #include "objstack.h"
@@ -18,8 +20,8 @@ typedef struct VM_t
 {
     parser analyzer;
 	objstack evalstack;
-    objhash globals;
-	instruct *instructs;
+    module global;
+    frame *top;
     object *objs;
     int num_objects;
 } VM;

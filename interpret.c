@@ -9,10 +9,12 @@ void interpret(char *source)
 
 void interpret_line(VM *vm, char *source)
 {
-	instruct *instructs = compile(&vm->analyzer, source);
-    if (!instructs)
+	vm->global.instructs = compile(&vm->analyzer, source);
+    if (!vm->global.instructs.count) {
+        reset_instruct(&vm->global.instructs);
         return;
-    execute(vm, instructs);
-    reset_instruct(instructs);
-	FREE(instruct, instructs);
+    }
+
+    execute(vm, &vm->global.instructs);
+    reset_instruct(&vm->global.instructs);
 }

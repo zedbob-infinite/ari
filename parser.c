@@ -13,6 +13,7 @@
 static stmt *statement(parser *analyzer);
 static expr *expression(parser *analyzer);
 static token *advance(parser *analyzer);
+static stmt *block(parser *analyzer);
 
 static void check_parser_capacity(parser* analyzer)
 {
@@ -52,6 +53,7 @@ static stmt *init_stmt(void)
     stmt *new_stmt = ALLOCATE(stmt, 1);
     new_stmt->type = 0;
     new_stmt->name = NULL;
+    new_stmt->parameters = NULL;
     new_stmt->initializer = NULL;
     new_stmt->expression = NULL;
     new_stmt->condition = NULL;
@@ -59,6 +61,7 @@ static stmt *init_stmt(void)
     new_stmt->loopbody = NULL;
     new_stmt->thenbranch = NULL;
     new_stmt->elsebranch = NULL;
+    new_stmt->block = NULL;
     new_stmt->count = 0;
     new_stmt->capacity = 0;
     new_stmt->stmts = NULL;
@@ -88,6 +91,9 @@ static void delete_statements(stmt *pstmt)
     if (pstmt->value)
         delete_expression(pstmt->value);
     switch (pstmt->type) {
+        case STMT_FUNCTION:
+            delete_statements(pstmt->block);
+            break;
         case STMT_BLOCK:
             for (int i = 0; i < pstmt->count; i++)
                 delete_statements(pstmt->stmts[i]);
@@ -278,6 +284,17 @@ static stmt *get_print_statement(expr *value)
     return new_stmt;
 }
 
+static stmt *get_function_statement(token *name, token **parameters, 
+        stmt *body)
+{
+    stmt *new_stmt = init_stmt();
+    new_stmt->type = STMT_FUNCTION;
+    new_stmt->name = name;
+    new_stmt->parameters = parameters;
+    new_stmt->block = body;
+    return new_stmt;
+}
+
 static expr *get_binary_expr(token *operator, expr *left, expr *right)
 {
     expr *new_expr = init_expr();
@@ -463,10 +480,39 @@ static expr *expression(parser *analyzer)
     return get_variable_statement(name, initializer);
 }*/
 
+static stmt *function(parser *analyzer)
+{
+    token *name = consume(analyzer, TOKEN_IDENTIFIER, "Expect function name.");
+    consume(analyzer, TOKEN_LEFT_PAREN, "Expect '(' after function name.");
+
+    int i = 0;
+    int oldsize = 0;
+    int size = 8;
+    token **parameters = ALLOCATE(token*, size);
+    if (!check(analyzer, TOKEN_RIGHT_PAREN)) {
+        do {
+            if (i > size) {
+                oldsize = size;
+                size *= 2;
+                parameters = GROW_ARRAY(parameters, token*, oldsize, size);
+            }
+            parameters[i++] = consume(analyzer, TOKEN_IDENTIFIER, 
+                    "Expect parameter name.");
+        } while (match(analyzer, TOKEN_COMMA));
+    }
+
+    consume(analyzer, TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
+    consume(analyzer, TOKEN_LEFT_BRACE, "Expect '{' before function body.");
+    stmt *body = block(analyzer);
+    return get_function_statement(name, parameters, body);
+}
+
 static stmt *declaration(parser *analyzer)
 {
     /*if (match(analyzer, TOKEN_VAR))
         return var_declaration(analyzer);*/
+    if (match(analyzer, TOKEN_FUN))
+        return function(analyzer);
     if (analyzer->panicmode) synchronize(analyzer);
     return statement(analyzer);
 }
@@ -578,6 +624,7 @@ void reset_parser(parser *analyzer)
         FREE(stmt*, analyzer->statements);
     }
     init_parser(analyzer);
+    reset_scanner(&analyzer->scan);
 }
 
 void init_parser(parser *analyzer)

@@ -13,12 +13,14 @@ typedef enum stmttype_t
     STMT_FOR,
     STMT_VAR,
     STMT_PRINT,
+    STMT_FUNCTION,
 } stmttype;
 
 typedef struct stmt_t
 {
     stmttype type;
     token *name;
+    token **parameters;
     struct stmt_t *initializer;
     expr *expression;
     expr *condition;
@@ -26,6 +28,7 @@ typedef struct stmt_t
     struct stmt_t *loopbody;
     struct stmt_t *thenbranch;
     struct stmt_t *elsebranch;
+    struct stmt_t *block;
     int count;
     int capacity;
     struct stmt_t **stmts;

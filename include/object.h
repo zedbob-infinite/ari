@@ -7,10 +7,10 @@
 #define PRIM_AS_NULL(obj)		(obj->val_int)
 #define PRIM_AS_STRING(obj)		(obj->val_string)
 
-#define INT_VAL(obj, value)					(obj->val_int = value)
-#define DOUBLE_VAL(obj, value)              (obj->val_double = value)
-#define BOOL_VAL(obj, value)				(obj->val_int = value)
-#define NULL_VAL(obj)						(obj->val_int = 0)
+#define PRIM_INT_VAL(obj, value)		(obj->val_int = value)
+#define PRIM_DOUBLE_VAL(obj, value)     (obj->val_double = value)
+#define PRIM_BOOL_VAL(obj, value)		(obj->val_int = value)
+#define PRIM_NULL_VAL(obj)			    (obj->val_int = 0)
 
 #define ALLOCATE_PRIM_STRING(obj, length)	(obj->val_string = ALLOCATE(char, length + 1))
 #define COPY_PRIM_STRING(obj, string, length)		(strncpy(obj->val_string, string, length))
@@ -20,6 +20,7 @@ typedef enum
 	OBJ_PRIMITIVE,
 	OBJ_CLASS,
 	OBJ_INSTANCE,
+    OBJ_MODULE,
 } objtype;
 
 typedef enum

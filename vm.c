@@ -5,6 +5,7 @@
 
 #include "compiler.h"
 #include "instruct.h"
+#include "frame.h"
 #include "memory.h"
 #include "objstack.h"
 #include "opcode.h"
@@ -102,14 +103,14 @@ static inline void binary_op(VM *vm, objstack *stack, char optype)
     push_objstack(stack, obj);
 }
 
-static inline void set_name(objhash *globals, value name, object *val)
+static inline void set_name(objhash *locals, value name, object *val)
 {
-    objhash_set(globals, VAL_AS_STRING(name), val);
+    objhash_set(locals, VAL_AS_STRING(name), val);
 }
 
-static inline object *get_name(objhash *globals, value name)
+static inline object *get_name(objhash *locals, value name)
 {
-    return objhash_get(globals, VAL_AS_STRING(name));
+    return objhash_get(locals, VAL_AS_STRING(name));
 }
 
 static inline void advance(instruct *instructs)
@@ -120,6 +121,12 @@ static inline void advance(instruct *instructs)
 static void print_bytecode(uint8_t bytecode)
 {
     switch (bytecode) { 
+        case OP_POP_FRAME:
+            printf("OP_POP_FRAME");
+            break;
+        case OP_PUSH_FRAME:
+            printf("OP_PUSH_FRAME");
+            break;
         case OP_LOOP:
             printf("OP_LOOP");
             break;
@@ -180,9 +187,10 @@ static void print_bytecode(uint8_t bytecode)
 int execute(VM *vm, instruct *instructs)
 {
     objstack *stack = &vm->evalstack;
-    objhash *globals = &vm->globals;
-
     while (instructs->current < instructs->count) {
+        frame **topframe = &vm->top;
+        objhash *locals = &(*topframe)->locals;
+
 		int current = instructs->current;
 		code8 *code = instructs->code[current];
         value operand = code->operand;
@@ -198,6 +206,17 @@ int execute(VM *vm, instruct *instructs)
         printf("\n");
 #endif
         switch (code->bytecode) {
+            case OP_PUSH_FRAME:
+            {
+                frame *newframe = ALLOCATE(frame, 1);
+                push_frame(&vm->top, newframe); 
+                advance(instructs);
+                break;
+            }
+            case OP_POP_FRAME:
+                pop_frame(&vm->top);
+                advance(instructs);
+                break;
             case OP_LOOP:
                 break;
             case OP_JMP_LOC:
@@ -225,7 +244,7 @@ int execute(VM *vm, instruct *instructs)
             {
                 objprim *prim = NULL;
                 switch (type) {
-                    case VAL_UNDEFINED:
+                    case VAL_EMPTY:
                     {
                         runtime_error(stack, current, "No object found.");
                         return INTERPRET_RUNTIME_ERROR;
@@ -251,7 +270,7 @@ int execute(VM *vm, instruct *instructs)
             }
             case OP_LOAD_NAME:
             {
-                object *obj = get_name(globals, operand);
+                object *obj = get_name(locals, operand);
                 if (obj)
                     push_objstack(stack, obj);
                 else {
@@ -270,7 +289,7 @@ int execute(VM *vm, instruct *instructs)
                 break;
             case OP_STORE_NAME:
             {
-                set_name(globals, operand, pop_objstack(stack));
+                set_name(locals, operand, pop_objstack(stack));
                 advance(instructs);
                 break;
             }
@@ -341,19 +360,20 @@ void free_vm(VM *vm)
 	init_objstack(&vm->evalstack);
     reset_parser(&vm->analyzer);
     reset_scanner(&vm->analyzer.scan);
-    reset_objhash(&vm->globals);
+    reset_frame(&vm->global.local);
     FREE(VM, vm);
 }
 
 VM *init_vm(void)
 {
     VM *vm = ALLOCATE(VM, 1);
+    init_module(&vm->global);
     init_parser(&vm->analyzer);
     init_scanner(&vm->analyzer.scan);
     init_objstack(&vm->evalstack);
-    init_objhash(&vm->globals, DEFAULT_HT_SIZE);
     vm->objs = NULL;
     vm->num_objects = 0;
+    vm->top = &vm->global.local;
 
     return vm;
 }

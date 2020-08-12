@@ -4,6 +4,6 @@
 #include "instruct.h"
 #include "parser.h"
 
-instruct *compile(parser *analyzer, const char *source);
+instruct compile(parser *analyzer, const char *source);
 
 #endif

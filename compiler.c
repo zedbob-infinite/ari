@@ -10,9 +10,9 @@
 #include "token.h"
 #include "tokenizer.h"
 
-
 static void compile_statement(instruct *instructs, stmt *statement);
-
+static void compile_block(instruct *instructs, stmt *statement, 
+        bool makeframe);
 
 static void patch_jump(instruct *instructs, int location, int jump)
 {
@@ -56,7 +56,6 @@ static int emit_instruction(instruct *instructs, uint8_t bytecode, value operand
 		check_instruct_capacity(instructs);
 
 	instructs->code[instructs->count++] = create_code(bytecode, operand, type);
-
 	return current;
 }
 
@@ -64,7 +63,7 @@ static void compile_expression(instruct *instructs, expr *expression)
 {
     uint8_t byte = 0;
     value operand;
-    valtype type = -1;
+    valtype type = VAL_EMPTY;
     VAL_AS_INT(operand) = 0;
     switch (expression->type) {
         case EXPR_UNARY:
@@ -138,7 +137,7 @@ static void compile_expression(instruct *instructs, expr *expression)
 		}
 		case EXPR_LITERAL_STRING:
 		{
-			int length = sizeof(expression->literal);
+			int length = strlen(expression->literal);
             byte = OP_LOAD_CONSTANT;
 
             ALLOCATE_VAL_STRING(operand, expression->literal);
@@ -162,26 +161,48 @@ static void compile_expression(instruct *instructs, expr *expression)
 
 static void compile_for(instruct *instructs, stmt *statement)
 {
-    value empty;
     int forbegin = 0;
     int jmpbegin = 0;
     int jmpfalse = 0;
-    VAL_AS_INT(empty) = 0;
+    
+    emit_instruction(instructs, OP_PUSH_FRAME, EMPTY_VAL, VAL_INT);
+
     // Initializer_statement
     compile_statement(instructs, statement->stmts[0]);
     // thenbranch used for compare statement
     forbegin = instructs->count;
     compile_statement(instructs, statement->stmts[1]);
-    jmpfalse = emit_instruction(instructs, OP_JMP_FALSE, empty, VAL_INT);
+    jmpfalse = emit_instruction(instructs, OP_JMP_FALSE, EMPTY_VAL, VAL_INT);
     // loop body
-    compile_statement(instructs, statement->loopbody);
+    compile_block(instructs, statement->loopbody, false);
     // elsebranch used for iterator statement
     compile_statement(instructs, statement->stmts[2]);
 
-    jmpbegin = emit_instruction(instructs, OP_JMP_LOC, empty, VAL_INT);
+    jmpbegin = emit_instruction(instructs, OP_JMP_LOC, EMPTY_VAL, VAL_INT);
 
     // patch the jump instructs
     patch_jump(instructs, jmpbegin, forbegin);
+    patch_jump(instructs, jmpfalse, instructs->count);
+    
+    emit_instruction(instructs, OP_POP_FRAME, EMPTY_VAL, VAL_INT);
+}
+
+static void compile_while(instruct *instructs, stmt *statement)
+{
+    int compare = 0;
+    int jmpfalse = 0;
+    int jmpbegin = 0;
+
+    compare = instructs->count;
+
+    compile_expression(instructs, statement->condition);
+
+    jmpfalse = emit_instruction(instructs, OP_JMP_FALSE, EMPTY_VAL, VAL_INT);
+    compile_block(instructs, statement->loopbody, false);
+    
+    jmpbegin = emit_instruction(instructs, OP_JMP_LOC, EMPTY_VAL, VAL_INT);
+    patch_jump(instructs, jmpbegin, compare);
+    
     patch_jump(instructs, jmpfalse, instructs->count);
 }
 
@@ -197,25 +218,49 @@ static void compile_variable(instruct *instructs, stmt *statement)
     emit_instruction(instructs, OP_STORE_NAME, operand, VAL_STRING);
 }
 
-static void compile_block(instruct *instructs, stmt *statement)
+static void compile_block(instruct *instructs, stmt *statement, bool makeframe)
 {
     int i = 0;
     stmt *current = NULL;
+    if (makeframe)
+        emit_instruction(instructs, OP_PUSH_FRAME, EMPTY_VAL, VAL_INT);
+
     while ((current = statement->stmts[i++]))
         compile_statement(instructs, current);
+
+    if (makeframe)
+        emit_instruction(instructs, OP_POP_FRAME, EMPTY_VAL, VAL_INT);
+}
+
+static void compile_function(instruct *instructs, stmt *statement)
+{
+    /*stmt *new_stmt = init_stmt();
+    new_stmt->type = STMT_FUNCTION;
+    new_stmt->name = name;
+    new_stmt->parameters = parameters;
+    new_stmt->block = body;*/
+    token *name = statement->name;
+
+    value operand;
+    VAL_AS_STRING(operand) = take_string(name);
+
+    emit_instruction(instructs, OP_STORE_NAME, operand, VAL_STRING);
 }
 
 static void compile_statement(instruct *instructs, stmt *statement)
 {
     switch (statement->type) {
+        case STMT_FUNCTION:
+            compile_function(instructs, statement);
+            break;
         case STMT_FOR:
             compile_for(instructs, statement);
             break;
         case STMT_WHILE:
-            //compile_while(instructs, statement);
+            compile_while(instructs, statement);
             break;
         case STMT_BLOCK:
-            compile_block(instructs, statement);
+            compile_block(instructs, statement, true);
             break;
         case STMT_EXPR:
             compile_expression(instructs, statement->expression);
@@ -224,10 +269,8 @@ static void compile_statement(instruct *instructs, stmt *statement)
             break;
         case STMT_PRINT:
         {
-            value empty;
-            VAL_AS_INT(empty) = 0;
             compile_expression(instructs, statement->value);
-            emit_instruction(instructs, OP_PRINT, empty, -1);
+            emit_instruction(instructs, OP_PRINT, EMPTY_VAL, -1);
             break;
         }
         case STMT_IF:
@@ -236,28 +279,32 @@ static void compile_statement(instruct *instructs, stmt *statement)
         case STMT_VAR:
             compile_variable(instructs, statement);
             break;
+        default:
+            break;
     }
 }
 
-instruct *compile(parser *analyzer, const char *source)
+instruct compile(parser *analyzer, const char *source)
 {
-    if (parse(analyzer, source))
-        return NULL;
+    instruct instructs;
+    init_instruct(&instructs);
+    
+    if (parse(analyzer, source)) {
+        reset_parser(analyzer);
+        return instructs;
+    }
 
     // Compile parse trees into bytecode
-    instruct *instructs = ALLOCATE(instruct, 1);
-    init_instruct(instructs);
 	for (int i = 0; i < analyzer->num_statements; i++) {
-        if (instructs->capacity < instructs->count + 1)
-            check_instruct_capacity(instructs);
-        compile_statement(instructs, analyzer->statements[i]);
+        if (instructs.capacity < instructs.count + 1)
+            check_instruct_capacity(&instructs);
+        compile_statement(&instructs, analyzer->statements[i]);
     }
 
     value empty;
     VAL_AS_INT(empty) = 0;
-	emit_instruction(instructs, OP_RETURN, empty, -1);
+	emit_instruction(&instructs, OP_RETURN, empty, -1);
     reset_parser(analyzer);
-    reset_scanner(&analyzer->scan);
 
     return instructs;
 }
