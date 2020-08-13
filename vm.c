@@ -128,68 +128,70 @@ static inline void advance(instruct *instructs)
 
 static void print_bytecode(uint8_t bytecode)
 {
+	char *msg = NULL;
     switch (bytecode) { 
         case OP_POP_FRAME:
-            printf("OP_POP_FRAME");
+			msg = "OP_POP_FRAME";
             break;
         case OP_PUSH_FRAME:
-            printf("OP_PUSH_FRAME");
+            msg ="OP_PUSH_FRAME";
             break;
         case OP_LOOP:
-            printf("OP_LOOP");
+            msg = "OP_LOOP";
             break;
         case OP_JMP_LOC:
-            printf("OP_JMP_LOC");
+            msg = "OP_JMP_LOC";
             break;
         case OP_JMP_AFTER:
-            printf("OP_JMP_AFTER");
+            msg = "OP_JMP_AFTER";
             break;
         case OP_JMP_FALSE:
-            printf("OP_JMP_FALSE");
+            msg = "OP_JMP_FALSE";
             break;
         case OP_POP:
-            printf("OP_POP");
+            msg = "OP_POP";
             break;
         case OP_LOAD_CONSTANT:
-            printf("OP_LOAD_CONSTANT");
+            msg = "OP_LOAD_CONSTANT";
             break;
         case OP_LOAD_NAME:
-            printf("OP_LOAD_NAME");
+            msg = "OP_LOAD_NAME";
             break;
         case OP_CALL_FUNCTION:
-            printf("OP_CALL_FUNCTION");
+            msg = "OP_CALL_FUNCTION";
             break;
         case OP_MAKE_FUNCTION:
-            printf("OP_MAKE_FUNCTION");
+            msg = "OP_MAKE_FUNCTION";
             break;
         case OP_STORE_NAME:
-            printf("OP_STORE_NAME");
+            msg = "OP_STORE_NAME";
             break;
         case OP_COMPARE:
-            printf("OP_COMPARE");
+            msg = "OP_COMPARE";
             break;
         case OP_BINARY_ADD:
-            printf("OP_BINARY_ADD");
+            msg = "OP_BINARY_ADD";
             break;
         case OP_BINARY_SUB:
-            printf("OP_BINARY_SUB");
+            msg = "OP_BINARY_SUB";
             break;
         case OP_BINARY_MULT:
-            printf("OP_BINARY_MULT");
+            msg = "OP_BINARY_MULT";
             break;
         case OP_BINARY_DIVIDE:
-            printf("OP_BINARY_DIVIDE");
+            msg = "OP_BINARY_DIVIDE";
             break;
         case OP_NEGATE:
-            printf("OP_NEGATE");
+            msg = "OP_NEGATE";
             break;
         case OP_PRINT:
-            printf("OP_PRINT");
+            msg = "OP_PRINT";
             break;
         case OP_RETURN:
-            printf("OP_RETURN");
+            msg = "OP_RETURN";
             break;
     }
+	printf("%-20s", msg);
 }
 
 int execute(VM *vm, instruct *instructs)
@@ -201,15 +203,13 @@ int execute(VM *vm, instruct *instructs)
 		int current = instructs->current;
 		code8 *code = instructs->code[current];
         value operand = code->operand;
-        valtype type = code->type; 
+        valtype type = code->operand.type; 
 #ifdef DEBUG_ARI
-        printf("|%d|    ", current);
+        printf("|%d|\t", current);
         print_bytecode(code->bytecode);
-        if (type != -1) {
-            printf("\t\t(");
-            print_value(operand, type);
-            printf(")");
-        }
+        printf("\t(");
+        print_value(operand, type);
+        printf(")");
         printf("\n");
 #endif
         switch (code->bytecode) {
@@ -388,14 +388,17 @@ VM *init_vm(void)
 void print_value(value val, valtype type)
 {
 	switch (type) {
+		case VAL_EMPTY:
+			printf("%-4s", "empty");
+			break;
         case VAL_INT:
-            printf("%d", VAL_AS_INT(val));
+            printf("%-4d", VAL_AS_INT(val));
 			break;
 		case VAL_DOUBLE:
-			printf("%f", VAL_AS_DOUBLE(val));
+			printf("%-4f", VAL_AS_DOUBLE(val));
 			break;
 		case VAL_STRING:
-			printf("%s", VAL_AS_STRING(val));
+			printf("%-4s", VAL_AS_STRING(val));
 			break;
 		default:
 			break;

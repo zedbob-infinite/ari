@@ -79,7 +79,6 @@ static void delete_expression(expr *pexpr)
         delete_expression(pexpr->left);
     if (pexpr->right)
         delete_expression(pexpr->right);
-    FREE(char, pexpr->literal);
     FREE(expr, pexpr);
 }
 

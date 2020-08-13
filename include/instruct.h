@@ -9,9 +9,9 @@
 #define VAL_AS_DOUBLE(value)    (value.val_double)
 #define VAL_AS_STRING(value)    (value.val_string)
 
-#define NULL_VAL                ((value){.val_int = 0})
-#define NUMBER_VAL(val)         ((value){.val_double = val})
-#define EMPTY_VAL               ((value){.val_int = 0})
+#define NULL_VAL                ((value){VAL_NULL, {.val_int = 0}})
+#define NUMBER_VAL(val)         ((value){VAL_NUBMER, {.val_double = val}})
+#define EMPTY_VAL               ((value){VAL_EMPTY, {.val_int = 0}})
 
 #define ALLOCATE_VAL_STRING(value, string)	\
     (value.val_string = ALLOCATE(char, sizeof(string) + 1))
@@ -20,17 +20,21 @@
 
 typedef enum 
 {
-    VAL_EMPTY = -1,
+	VAL_EMPTY,
     VAL_INT,
     VAL_DOUBLE,
     VAL_STRING,
 } valtype;
 
-typedef union value_t
+typedef struct value_t
 {
-    int val_int;
-    double val_double;
-    char *val_string;
+	valtype type;
+	union 
+	{
+		int val_int;
+		double val_double;
+		char *val_string;
+	};
 } value;
 
 typedef struct code8_t
