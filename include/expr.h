@@ -13,7 +13,8 @@ typedef enum exprtype_t
     EXPR_LITERAL_BOOL,
     EXPR_LITERAL_NULL,
     EXPR_UNARY,
-    EXPR_VARIABLE
+    EXPR_VARIABLE,
+	EXPR_CALL,
 } exprtype;
 
 typedef struct expr_t
@@ -22,6 +23,7 @@ typedef struct expr_t
     token *name;
     token *operator;
     char *literal;
+	struct expr_t **arguments;
     struct expr_t *expression;
     struct expr_t *value;
     struct expr_t *left;

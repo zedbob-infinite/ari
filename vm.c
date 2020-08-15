@@ -7,6 +7,7 @@
 #include "instruct.h"
 #include "frame.h"
 #include "memory.h"
+#include "objcode.h"
 #include "objstack.h"
 #include "opcode.h"
 #include "token.h"
@@ -103,9 +104,9 @@ static inline void binary_op(VM *vm, objstack *stack, char optype)
     push_objstack(stack, obj);
 }
 
-static inline void set_name(frame *localframe, value name, object *val)
+static inline void set_name(frame *localframe, char *name, object *val)
 {
-    objhash_set(&localframe->locals, VAL_AS_STRING(name), val);
+    objhash_set(&localframe->locals, name, val);
 }
 
 static inline object *get_name(frame *localframe, value name)
@@ -113,7 +114,6 @@ static inline object *get_name(frame *localframe, value name)
     frame *current = localframe;
     object *obj = objhash_get(&current->locals, VAL_AS_STRING(name));
     while ((!obj) && (current->next)) {
-        printf("in get_name() while loop...\n");
         current = localframe->next;
         if (current)
             obj = objhash_get(&current->locals, VAL_AS_STRING(name));
@@ -268,6 +268,11 @@ int execute(VM *vm, instruct *instructs)
                         prim = create_new_primitive(PRIM_STRING);
                         PRIM_AS_STRING(prim) = take_string(operand, strlen(VAL_AS_STRING(operand)));
                         break;
+					default:
+					{
+						runtime_error(stack, current, "Cannot load non-constant value.");
+						return INTERPRET_RUNTIME_ERROR;
+					}
                 }
                 object *obj = (object*)prim;
                 vm_add_object(vm, obj);
@@ -289,14 +294,37 @@ int execute(VM *vm, instruct *instructs)
                 break;
             }
             case OP_CALL_FUNCTION:
+			{
+				int argcount = VAL_AS_INT(operand);
+				object **arguments = ALLOCATE(object*, argcount);
+
+				for (int i = 0; i < argcount; ++i) {
+					arguments[i] = pop_objstack(stack);
+				}
+				objcode *funcobj = (objcode*)pop_objstack(stack);
+				frame *localframe = &funcobj->localframe;
+                push_frame(&vm->top, localframe); 
+
+				for (int k = 0, i = argcount - 1; k < argcount; k++) {
+					set_name(localframe, 
+							PRIM_AS_STRING(funcobj->arguments[k]),
+							arguments[i--]);
+				}
+
+				execute(vm, &funcobj->instructs);
+                pop_frame(&vm->top);
                 advance(instructs);
                 break;
+			}
             case OP_MAKE_FUNCTION:
+			{
+				push_objstack(stack, VAL_AS_OBJECT(operand));
                 advance(instructs);
                 break;
+			}
             case OP_STORE_NAME:
             {
-                set_name(*topframe, operand, pop_objstack(stack));
+                set_name(*topframe, VAL_AS_STRING(operand), pop_objstack(stack));
                 advance(instructs);
                 break;
             }

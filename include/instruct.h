@@ -5,9 +5,15 @@
 
 #include "object.h"
 
+#define VAL_IS_INT(value)		(value.type == VAL_INT)
+#define VAL_IS_DOUBLE(value)	(value.type == VAL_DOUBLE)
+#define VAL_IS_STRING(value)	(value.type == VAL_STRING)
+#define VAL_IS_OBJECT(value)	(value.type == VAL_OBJ)
+
 #define VAL_AS_INT(value)       (value.val_int)
 #define VAL_AS_DOUBLE(value)    (value.val_double)
 #define VAL_AS_STRING(value)    (value.val_string)
+#define VAL_AS_OBJECT(value)	(value.val_obj)
 
 #define NULL_VAL                ((value){VAL_NULL, {.val_int = 0}})
 #define NUMBER_VAL(val)         ((value){VAL_NUBMER, {.val_double = val}})
@@ -24,6 +30,7 @@ typedef enum
     VAL_INT,
     VAL_DOUBLE,
     VAL_STRING,
+	VAL_OBJECT,
 } valtype;
 
 typedef struct value_t
@@ -34,6 +41,7 @@ typedef struct value_t
 		int val_int;
 		double val_double;
 		char *val_string;
+		object *val_obj;
 	};
 } value;
 

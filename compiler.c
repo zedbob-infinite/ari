@@ -5,6 +5,8 @@
 #include "compiler.h"
 #include "instruct.h"
 #include "memory.h"
+#include "object.h"
+#include "objcode.h"
 #include "opcode.h"
 #include "parser.h"
 #include "token.h"
@@ -13,6 +15,8 @@
 static void compile_statement(instruct *instructs, stmt *statement);
 static void compile_block(instruct *instructs, stmt *statement, 
         bool makeframe);
+
+static void start_compile(instruct *instructs, stmt **statements, int num_statements);
 
 static void patch_jump(instruct *instructs, int location, int jump)
 {
@@ -33,7 +37,6 @@ static void check_instruct_capacity(instruct *instructs)
 
 static char *take_string(token *tok)
 {
-	printf("in take_string()...\n");
     int length = tok->length;
     char *buffer = ALLOCATE(char, length + 1);
     buffer = strncpy(buffer, tok->start, tok->length);
@@ -66,6 +69,20 @@ static void compile_expression(instruct *instructs, expr *expression)
     operand.type = VAL_EMPTY;
     VAL_AS_INT(operand) = 0;
     switch (expression->type) {
+		case EXPR_CALL:
+		{
+			int i = 0;
+			expr *current_expr = NULL;
+			byte = OP_CALL_FUNCTION;
+			compile_expression(instructs, expression->expression);
+			while ((current_expr = *(expression->arguments++))) {
+				i++;
+				compile_expression(instructs, current_expr);
+			}
+			operand.type = VAL_INT;
+			VAL_AS_INT(operand) = i;
+			break;
+		}
         case EXPR_UNARY:
             switch (expression->operator->type) {
                 case TOKEN_BANG:
@@ -232,17 +249,33 @@ static void compile_block(instruct *instructs, stmt *statement, bool makeframe)
 
 static void compile_function(instruct *instructs, stmt *statement)
 {
-    /*stmt *new_stmt = init_stmt();
-    new_stmt->type = STMT_FUNCTION;
-    new_stmt->name = name;
-    new_stmt->parameters = parameters;
-    new_stmt->block = body;*/
-    token *name = statement->name;
+	int argcount = statement->num_parameters;
+	token **parameters = statement->parameters;
 
+	objprim **arguments = ALLOCATE(objprim*, argcount);
+
+	for (int i = 0; i < argcount; ++i) {
+		objprim *prim = create_new_primitive(PRIM_STRING);
+		PRIM_AS_STRING(prim) = take_string(parameters[i]);
+		arguments[i] = prim;
+	}
+	
+	objcode *codeobj = init_objcode(argcount, arguments);
+
+    compile_block(&(codeobj->instructs), statement->block, false);
+
+	/* Push new code object onto the stack */
+	value valobj;
+	valobj.type = VAL_OBJECT;
+
+	VAL_AS_OBJECT(valobj) = (object*)codeobj;
+	emit_instruction(instructs, OP_MAKE_FUNCTION, valobj);
+
+	/* Store object*/
+    token *name = statement->name;
     value operand;
 	operand.type = VAL_STRING;
     VAL_AS_STRING(operand) = take_string(name);
-
     emit_instruction(instructs, OP_STORE_NAME, operand);
 }
 
@@ -283,22 +316,26 @@ static void compile_statement(instruct *instructs, stmt *statement)
     }
 }
 
+static void start_compile(instruct *instructs, stmt **statements, int num_statements)
+{
+    // Compile parse trees into bytecode
+	for (int i = 0; i < num_statements; i++) {
+        if (instructs->capacity < instructs->count + 1)
+            check_instruct_capacity(instructs);
+        compile_statement(instructs, statements[i]);
+    }
+}
+
 instruct compile(parser *analyzer, const char *source)
 {
     instruct instructs;
     init_instruct(&instructs);
-    
+
     if (parse(analyzer, source)) {
         reset_parser(analyzer);
         return instructs;
     }
-
-    // Compile parse trees into bytecode
-	for (int i = 0; i < analyzer->num_statements; i++) {
-        if (instructs.capacity < instructs.count + 1)
-            check_instruct_capacity(&instructs);
-        compile_statement(&instructs, analyzer->statements[i]);
-    }
+	start_compile(&instructs, analyzer->statements, analyzer->num_statements);
 
 	emit_instruction(&instructs, OP_RETURN, EMPTY_VAL);
     reset_parser(analyzer);

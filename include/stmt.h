@@ -20,6 +20,7 @@ typedef struct stmt_t
 {
     stmttype type;
     token *name;
+	int num_parameters;
     token **parameters;
     struct stmt_t *initializer;
     expr *expression;

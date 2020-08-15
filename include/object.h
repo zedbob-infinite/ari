@@ -21,6 +21,7 @@ typedef enum
 	OBJ_CLASS,
 	OBJ_INSTANCE,
     OBJ_MODULE,
+	OBJ_CODE,
 } objtype;
 
 typedef enum

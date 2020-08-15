@@ -42,6 +42,7 @@ static expr *init_expr(void)
     new_expr->name = NULL;
     new_expr->operator = NULL;
     new_expr->literal = NULL;
+	new_expr->arguments = NULL;
     new_expr->expression= NULL;
     new_expr->value = NULL;
     new_expr->left = NULL;
@@ -54,6 +55,7 @@ static stmt *init_stmt(void)
     stmt *new_stmt = ALLOCATE(stmt, 1);
     new_stmt->type = 0;
     new_stmt->name = NULL;
+	new_stmt->num_parameters = 0;
     new_stmt->parameters = NULL;
     new_stmt->initializer = NULL;
     new_stmt->expression = NULL;
@@ -285,12 +287,13 @@ static stmt *get_print_statement(expr *value)
     return new_stmt;
 }
 
-static stmt *get_function_statement(token *name, token **parameters, 
+static stmt *get_function_statement(token *name, int num_parameters, token **parameters, 
         stmt *body)
 {
     stmt *new_stmt = init_stmt();
     new_stmt->type = STMT_FUNCTION;
     new_stmt->name = name;
+	new_stmt->num_parameters = num_parameters;
     new_stmt->parameters = parameters;
     new_stmt->block = body;
     return new_stmt;
@@ -349,6 +352,15 @@ static expr *get_assign_expr(expr *assign_expr, expr *value)
     return new_expr;
 }
 
+static expr *get_call_expression(expr *callee, expr **arguments)
+{
+	expr *new_expr = init_expr();
+	new_expr->type = EXPR_CALL;
+	new_expr->expression = callee;
+	new_expr->arguments = arguments;
+	return new_expr;
+}
+
 static expr *primary(parser *analyzer)
 {
     if (match(analyzer, TOKEN_FALSE)) {
@@ -388,6 +400,37 @@ static expr *primary(parser *analyzer)
     return NULL;
 }
 
+static expr *finish_call(parser *analyzer, expr *callee)
+{
+	int i = 0;
+	int oldsize = 0;
+	int size = 8;
+	expr **arguments = ALLOCATE(expr*, size);
+	if (!check(analyzer, TOKEN_RIGHT_PAREN)) {
+		do {
+			if (i > size - 1) {
+				oldsize = size;
+				size *= 2;
+				arguments = GROW_ARRAY(arguments, expr*, oldsize, size);
+			}
+			arguments[i++] = expression(analyzer);
+		} while (match(analyzer, TOKEN_COMMA));
+	}
+	consume(analyzer, TOKEN_RIGHT_PAREN, "Expect ')' after arguments.");
+
+	return get_call_expression(callee, arguments);
+}
+
+static expr *call(parser *analyzer)
+{
+	expr *new_expr = primary(analyzer);
+
+	if (match(analyzer, TOKEN_LEFT_PAREN))
+		return finish_call(analyzer, new_expr);
+
+	return new_expr;
+}
+
 static expr *unary(parser *analyzer)
 {
     if (match(analyzer, TOKEN_BANG) || match(analyzer, TOKEN_MINUS)) {
@@ -395,8 +438,7 @@ static expr *unary(parser *analyzer)
         expr *right = unary(analyzer);
         return get_unary_expr(opcode, right);
     }
-    expr *literal = primary(analyzer);
-    return literal;
+    return call(analyzer);
 }
 
 static expr *multiplication(parser *analyzer)
@@ -505,7 +547,7 @@ static stmt *function(parser *analyzer)
     consume(analyzer, TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
     consume(analyzer, TOKEN_LEFT_BRACE, "Expect '{' before function body.");
     stmt *body = block(analyzer);
-    return get_function_statement(name, parameters, body);
+    return get_function_statement(name, i, parameters, body);
 }
 
 static stmt *declaration(parser *analyzer)
