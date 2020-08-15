@@ -8,7 +8,6 @@ void init_instruct(instruct* instructs)
     instructs->capacity = 0;
 	instructs->current = 0;
     instructs->code = NULL;
-    instructs->instructions = NULL;
 }
 
 void reset_instruct(instruct *instructs)

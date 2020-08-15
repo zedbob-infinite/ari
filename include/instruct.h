@@ -58,7 +58,6 @@ typedef struct instruct_t
     int count;
     int capacity;
     code8 **code;
-    struct instruct_t **instructions;
 } instruct;
 
 void init_instruct(instruct *instructs);

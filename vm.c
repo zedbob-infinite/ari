@@ -312,6 +312,7 @@ int execute(VM *vm, instruct *instructs)
 				}
 
 				execute(vm, &funcobj->instructs);
+                funcobj->instructs.current = 0;
                 pop_frame(&vm->top);
                 advance(instructs);
                 break;
