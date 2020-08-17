@@ -71,14 +71,12 @@ static void compile_expression(instruct *instructs, expr *expression)
     switch (expression->type) {
 		case EXPR_CALL:
 		{
-			int i = 0;
-			expr *current_expr = NULL;
 			byte = OP_CALL_FUNCTION;
 			compile_expression(instructs, expression->expression);
-			while ((current_expr = *(expression->arguments++))) {
-				i++;
-				compile_expression(instructs, current_expr);
-			}
+			
+            int i = 0;
+            for (i = 0; i < expression->count; i++)
+                compile_expression(instructs, expression->arguments[i]);
 			operand.type = VAL_INT;
 			VAL_AS_INT(operand) = i;
 			break;
@@ -155,7 +153,11 @@ static void compile_expression(instruct *instructs, expr *expression)
 		case EXPR_LITERAL_STRING:
 		{
             byte = OP_LOAD_CONSTANT;
-			VAL_AS_STRING(operand) = expression->literal;
+            int length = strlen(expression->literal);
+            char *buffer = ALLOCATE(char, length + 1);
+            buffer = strncpy(buffer, expression->literal, length);
+            buffer[length] = '\0';
+			VAL_AS_STRING(operand) = buffer;
 			operand.type = VAL_STRING;
 			break;
 		}

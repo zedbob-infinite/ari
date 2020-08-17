@@ -223,6 +223,7 @@ int execute(VM *vm, instruct *instructs)
                 advance(instructs);
                 break;
             case OP_LOOP:
+                exit(EXIT_FAILURE);
                 break;
             case OP_JMP_LOC:
 			{
@@ -310,7 +311,9 @@ int execute(VM *vm, instruct *instructs)
                 printf("\n");
 #endif
 				objcode *funcobj = (objcode*)pop_objstack(stack);
-				frame *localframe = &funcobj->localframe;
+                vm_add_object(vm, (object*)funcobj);
+				
+                frame *localframe = &funcobj->localframe;
                 push_frame(&vm->top, localframe); 
 
 				for (int k = 0, i = argcount - 1; k < argcount; k++) {
@@ -328,6 +331,7 @@ int execute(VM *vm, instruct *instructs)
 				execute(vm, &funcobj->instructs);
                 funcobj->instructs.current = 0;
                 pop_frame(&vm->top);
+                FREE(object*, arguments);
                 advance(instructs);
                 break;
 			}

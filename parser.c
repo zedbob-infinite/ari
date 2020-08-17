@@ -42,7 +42,8 @@ static expr *init_expr(void)
     new_expr->name = NULL;
     new_expr->operator = NULL;
     new_expr->literal = NULL;
-    new_expr->num_arguments = 0;
+    new_expr->count = 0;
+    new_expr->capacity = 0;
 	new_expr->arguments = NULL;
     new_expr->expression= NULL;
     new_expr->value = NULL;
@@ -74,16 +75,25 @@ static stmt *init_stmt(void)
 
 static void delete_expression(expr *pexpr)
 {
-    if (pexpr->expression)
-        delete_expression(pexpr->expression);
-    if (pexpr->value)
-        delete_expression(pexpr->value);
-    if (pexpr->left)
-        delete_expression(pexpr->left);
-    if (pexpr->right)
-        delete_expression(pexpr->right);
-    if (pexpr->literal) {
-        FREE(char, pexpr->literal);
+    if (pexpr) {
+        if (pexpr->expression)
+            delete_expression(pexpr->expression);
+        if (pexpr->value)
+            delete_expression(pexpr->value);
+        if (pexpr->left)
+            delete_expression(pexpr->left);
+        if (pexpr->right)
+            delete_expression(pexpr->right);
+        if (pexpr->literal)
+            FREE(char, pexpr->literal);
+        if (pexpr->arguments) {
+            printf("deleting arguments\n");
+            for (int i = 0; i < pexpr->count; i++) {
+                delete_expression(pexpr->arguments[i]);
+                printf("deleted argument %d\n", i);
+            }
+            FREE(expr*, pexpr->arguments);
+        }
     }
     FREE(expr, pexpr);
 }
@@ -98,6 +108,7 @@ static void delete_statements(stmt *pstmt)
         delete_expression(pstmt->value);
     switch (pstmt->type) {
         case STMT_FUNCTION:
+            FREE(token*, pstmt->parameters);
             delete_statements(pstmt->block);
             break;
         case STMT_BLOCK:
@@ -356,13 +367,14 @@ static expr *get_assign_expr(expr *assign_expr, expr *value)
     return new_expr;
 }
 
-static expr *get_call_expression(expr *callee, expr **arguments, int num_arguments)
+static expr *get_call_expression(expr *callee, expr **arguments, int num_arguments, int capacity)
 {
 	expr *new_expr = init_expr();
 	new_expr->type = EXPR_CALL;
 	new_expr->expression = callee;
 	new_expr->arguments = arguments;
-    new_expr->num_arguments = num_arguments;
+    new_expr->count = num_arguments;
+    new_expr->capacity = capacity;
 	return new_expr;
 }
 
@@ -408,25 +420,26 @@ static expr *primary(parser *analyzer)
 static expr *finish_call(parser *analyzer, expr *callee)
 {
 	int i = 0;
-	int oldsize = 0;    
-    int size = 8;
-    expr **arguments = ALLOCATE(expr*, size);
-    for (int j = 0; j < size; j++)
+	int oldcapacity = 0;
+    int capacity = 0;
+    capacity = GROW_CAPACITY(capacity);
+    expr **arguments = ALLOCATE(expr*, capacity);
+    for (int j = 0; j < capacity; j++)
         arguments[j] = NULL;
     if (!check(analyzer, TOKEN_RIGHT_PAREN)) {
         do {
-            if (i > size - 1) {
-                oldsize = size;
-                size *= 2;
-                arguments = GROW_ARRAY(arguments, expr*, oldsize, size);
-                for (int j = oldsize; j < size; j++)
+            if (i > capacity - 1) {
+                oldcapacity = capacity;
+                capacity = GROW_CAPACITY(capacity);
+                arguments = GROW_ARRAY(arguments, expr*, oldcapacity, capacity);
+                for (int j = oldcapacity; j < capacity; j++)
                     arguments[j] = NULL;
             }
             arguments[i++] = expression(analyzer);
         } while (match(analyzer, TOKEN_COMMA));
     }
     consume(analyzer, TOKEN_RIGHT_PAREN, "Expect ')' after arguments.");
-	return get_call_expression(callee, arguments, i);
+	return get_call_expression(callee, arguments, i, capacity);
 }
 
 static expr *call(parser *analyzer)
@@ -520,17 +533,6 @@ static expr *expression(parser *analyzer)
     return assignment(analyzer);
 }
 
-/*static stmt *var_declaration(parser *analyzer)
-{
-    token *name = consume(analyzer, TOKEN_IDENTIFIER, "Expect variable name.");
-    stmt *initializer = NULL;
-
-    if (match(analyzer, TOKEN_EQUAL))
-        initializer = get_expression_statement(expression(analyzer));
-    consume(analyzer, TOKEN_SEMICOLON, "Exepct ';' after variable declaration.");
-    return get_variable_statement(name, initializer);
-}*/
-
 static stmt *function(parser *analyzer)
 {
     token *name = consume(analyzer, TOKEN_IDENTIFIER, "Expect function name.");
@@ -562,8 +564,6 @@ static stmt *function(parser *analyzer)
 
 static stmt *declaration(parser *analyzer)
 {
-    /*if (match(analyzer, TOKEN_VAR))
-        return var_declaration(analyzer);*/
     if (match(analyzer, TOKEN_FUN))
         return function(analyzer);
     if (analyzer->panicmode) synchronize(analyzer);
