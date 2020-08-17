@@ -231,17 +231,12 @@ static void compile_if(instruct *instructs, stmt *statement)
 
     compile_statement(instructs, statement->thenbranch);
 
-    /*if (statement->elsebranch) {
-        int jmpafter = 0;
-
-        jmpafter = emit_instruction(instructs, OP_JMP_AFTER, EMPTY_VAL);
-
-        patch_jump(instructs, jmpfalse, 0);
+    if (statement->elsebranch) {
+        patch_jump(instructs, jmpfalse, instructs->count);
+        compile_statement(instructs, statement->elsebranch);
     }
-    else {*/
-    printf("instructs->count %d\n", instructs->count);
-    patch_jump(instructs, jmpfalse, instructs->count);
-    //}
+    else 
+        patch_jump(instructs, jmpfalse, instructs->count);
 }
 
 static void compile_variable(instruct *instructs, stmt *statement)
@@ -303,9 +298,18 @@ static void compile_function(instruct *instructs, stmt *statement)
     emit_instruction(instructs, OP_STORE_NAME, operand);
 }
 
+static void compile_return(instruct *instructs, stmt *statement)
+{
+    compile_expression(instructs, statement->value);
+    emit_instruction(instructs, OP_RETURN, EMPTY_VAL);
+}
+
 static void compile_statement(instruct *instructs, stmt *statement)
 {
     switch (statement->type) {
+        case STMT_RETURN:
+            compile_return(instructs, statement);
+            break;
         case STMT_FUNCTION:
             compile_function(instructs, statement);
             break;

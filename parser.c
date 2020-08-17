@@ -87,15 +87,12 @@ static void delete_expression(expr *pexpr)
         if (pexpr->literal)
             FREE(char, pexpr->literal);
         if (pexpr->arguments) {
-            printf("deleting arguments\n");
-            for (int i = 0; i < pexpr->count; i++) {
+            for (int i = 0; i < pexpr->count; i++)
                 delete_expression(pexpr->arguments[i]);
-                printf("deleted argument %d\n", i);
-            }
             FREE(expr*, pexpr->arguments);
         }
-    }
     FREE(expr, pexpr);
+    }
 }
 
 static void delete_statements(stmt *pstmt)
@@ -139,6 +136,10 @@ static void delete_statements(stmt *pstmt)
             break;
         case STMT_PRINT:
             break;
+        case STMT_RETURN:
+            break;
+        default:
+            break;
     }
     FREE(stmt, pstmt);
 }
@@ -159,7 +160,6 @@ static void synchronize(parser *analyzer)
             case TOKEN_WHILE:
             case TOKEN_RETURN:
                 return;
-
             default:
                 ;
         }
@@ -242,15 +242,6 @@ static bool match(parser *analyzer, tokentype type)
     return false;
 }
 
-/*static stmt *get_variable_statement(token *name, stmt *initializer)
-{
-    stmt *new_stmt = init_stmt();
-    new_stmt->type = STMT_VAR;
-    new_stmt->name = name;
-    new_stmt->initializer = initializer;
-    return new_stmt;
-}*/
-
 static stmt *get_expression_statement(expr *new_expr)
 {
     stmt *new_stmt = init_stmt();
@@ -311,6 +302,14 @@ static stmt *get_function_statement(token *name, int num_parameters, token **par
 	new_stmt->num_parameters = num_parameters;
     new_stmt->parameters = parameters;
     new_stmt->block = body;
+    return new_stmt;
+}
+
+static stmt *get_return_statement(expr *value)
+{
+    stmt *new_stmt = init_stmt();
+    new_stmt->type = STMT_RETURN;
+    new_stmt->value = value;
     return new_stmt;
 }
 
@@ -398,10 +397,9 @@ static expr *primary(parser *analyzer)
         strncpy(buffer, null, 4);
         return get_literal_expr(buffer, EXPR_LITERAL_NULL);
     }
-    if (match(analyzer, TOKEN_NUMBER)) {
+    if (match(analyzer, TOKEN_NUMBER))
         return get_literal_expr(take_string(previous(analyzer)),
                 EXPR_LITERAL_NUMBER);
-    }
     if (match(analyzer, TOKEN_STRING)) 
         return get_literal_expr(take_string(previous(analyzer)),
                     EXPR_LITERAL_STRING);
@@ -419,6 +417,7 @@ static expr *primary(parser *analyzer)
 
 static expr *finish_call(parser *analyzer, expr *callee)
 {
+    /* Initialize arguments array */
 	int i = 0;
 	int oldcapacity = 0;
     int capacity = 0;
@@ -426,6 +425,8 @@ static expr *finish_call(parser *analyzer, expr *callee)
     expr **arguments = ALLOCATE(expr*, capacity);
     for (int j = 0; j < capacity; j++)
         arguments[j] = NULL;
+
+    /* Build the arguments array */
     if (!check(analyzer, TOKEN_RIGHT_PAREN)) {
         do {
             if (i > capacity - 1) {
@@ -445,10 +446,8 @@ static expr *finish_call(parser *analyzer, expr *callee)
 static expr *call(parser *analyzer)
 {
 	expr *new_expr = primary(analyzer);
-
 	if (match(analyzer, TOKEN_LEFT_PAREN))
 		return finish_call(analyzer, new_expr);
-
 	return new_expr;
 }
 
@@ -603,12 +602,12 @@ static stmt *if_statement(parser *analyzer)
     expr *condition = expression(analyzer);
     consume(analyzer, TOKEN_RIGHT_PAREN, "Expect ')' after if condition.");
 
-    stmt *then_branch = statement(analyzer);
-    stmt *else_branch;
+    stmt *thenbranch = statement(analyzer);
+    stmt *elsebranch = NULL;
     if (match(analyzer, TOKEN_ELSE))
-        else_branch = statement(analyzer);
+        elsebranch = statement(analyzer);
 
-    return get_if_statement(condition, then_branch, else_branch);
+    return get_if_statement(condition, thenbranch, elsebranch);
 }
 
 static inline stmt *iterator_statement(parser *analyzer)
@@ -652,10 +651,22 @@ static stmt *print_statement(parser *analyzer)
     return get_print_statement(value);
 }
 
+static stmt *return_statement(parser *analyzer)
+{
+    expr *value = NULL;
+    if (!check(analyzer, TOKEN_SEMICOLON))
+        value = expression(analyzer);
+
+    consume(analyzer, TOKEN_SEMICOLON, "Expect ';' after return value.");
+    return get_return_statement(value);
+}
+
 static stmt *statement(parser *analyzer)
 {
     if (match(analyzer, TOKEN_FOR))
         return for_statement(analyzer);
+    if (match(analyzer, TOKEN_RETURN))
+        return return_statement(analyzer);
     if (match(analyzer, TOKEN_WHILE))
         return while_statement(analyzer);
     if (match(analyzer, TOKEN_PRINT))

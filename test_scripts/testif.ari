@@ -1,0 +1,12 @@
+i = 9;
+
+if (i > 10) {
+	print("Hello there! i is greater than 10!");
+}
+else {
+	print("I guess i is less than 10!");
+}
+
+if (i < 10) {
+	print("Hello there! i is less than 10!");
+}
