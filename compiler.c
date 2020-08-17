@@ -222,6 +222,28 @@ static void compile_while(instruct *instructs, stmt *statement)
     patch_jump(instructs, jmpfalse, instructs->count);
 }
 
+static void compile_if(instruct *instructs, stmt *statement)
+{
+    int jmpfalse = 0;
+
+    compile_expression(instructs, statement->condition);
+    jmpfalse = emit_instruction(instructs, OP_JMP_FALSE, EMPTY_VAL);
+
+    compile_statement(instructs, statement->thenbranch);
+
+    /*if (statement->elsebranch) {
+        int jmpafter = 0;
+
+        jmpafter = emit_instruction(instructs, OP_JMP_AFTER, EMPTY_VAL);
+
+        patch_jump(instructs, jmpfalse, 0);
+    }
+    else {*/
+    printf("instructs->count %d\n", instructs->count);
+    patch_jump(instructs, jmpfalse, instructs->count);
+    //}
+}
+
 static void compile_variable(instruct *instructs, stmt *statement)
 {
     token *name = statement->name;
@@ -306,7 +328,7 @@ static void compile_statement(instruct *instructs, stmt *statement)
             break;
         }
         case STMT_IF:
-            //compile_if(instructs, statement);
+            compile_if(instructs, statement);
             break;
         case STMT_VAR:
             compile_variable(instructs, statement);

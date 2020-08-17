@@ -22,10 +22,10 @@ void push_frame(frame **top, frame *newframe)
     *top = newframe;
 }
 
-void pop_frame(frame **top)
+frame *pop_frame(frame **top)
 {
     frame *oldtop = *top;
     frame *next = oldtop->next;
     *top = next;
-    // future FREE code here for frame
+    return oldtop;
 }

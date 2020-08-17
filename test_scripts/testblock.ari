@@ -1,0 +1,5 @@
+i = 10;
+
+{print(i); v = 100; print(v);}
+
+print(v);

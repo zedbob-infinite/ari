@@ -12,6 +12,6 @@ typedef struct frame_t
 void init_frame(frame *f);
 void reset_frame(frame *f);
 void push_frame(frame **top, frame *newframe);
-void pop_frame(frame **top);
+frame *pop_frame(frame **top);
 
 #endif

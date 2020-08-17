@@ -214,14 +214,19 @@ int execute(VM *vm, instruct *instructs)
             case OP_PUSH_FRAME:
             {
                 frame *newframe = ALLOCATE(frame, 1);
+                init_frame(newframe);
                 push_frame(&vm->top, newframe); 
                 advance(instructs);
                 break;
             }
             case OP_POP_FRAME:
-                pop_frame(&vm->top);
+            {
+                frame *oldframe = pop_frame(&vm->top);
+                reset_frame(oldframe);
+                FREE(frame, oldframe);
                 advance(instructs);
                 break;
+            }
             case OP_LOOP:
                 exit(EXIT_FAILURE);
                 break;

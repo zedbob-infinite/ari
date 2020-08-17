@@ -678,7 +678,6 @@ void reset_parser(parser *analyzer)
     }
     init_parser(analyzer);
     reset_scanner(&analyzer->scan);
-    printf("going into reset_scanner()...\n");
 }
 
 void init_parser(parser *analyzer)
