@@ -62,16 +62,11 @@ objprim *create_new_primitive(primtype ptype)
 	return obj;
 }
 
-/*object *create_new_object(objtype type)
+void init_object(object *obj, objtype type, object *next)
 {
-	switch (type) {
-		case OBJ_PRIMITIVE:
-			object *obj = NULL;
-		default:
-			return NULL;
-	}
-	return (object*)obj;
-}*/
+    obj->type = type;
+    obj->next = next;
+}
 
 void print_object(object *obj)
 {

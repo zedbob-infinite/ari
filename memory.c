@@ -4,6 +4,9 @@
 #include "memory.h"
 #include "object.h"
 
+int Freed = 0;
+int Allocated = 0;
+
 void free_object(void *obj, objtype type)
 {
     switch (type) {

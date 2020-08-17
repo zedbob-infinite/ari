@@ -99,6 +99,7 @@ void init_objhash(objhash* ht, uint32_t size)
     if (size < 1)
         return;
 
+    ht->table = NULL;
     // Given the possibility of memory allocation failures
     // probably should test within the memory allocation module itself
     // and somehow generate an abortive error (future stuff)
@@ -108,6 +109,7 @@ void init_objhash(objhash* ht, uint32_t size)
     for (int i = 0; i < size; ++i)
         ht->table[i] = NULL;
 
+    ht->count = 0;
     ht->capacity = size;
 }
 

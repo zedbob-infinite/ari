@@ -265,7 +265,7 @@ static void compile_function(instruct *instructs, stmt *statement)
     compile_block(&(codeobj->instructs), statement->block, false);
 
 	/* Push new code object onto the stack */
-	value valobj;
+	value valobj = {VAL_EMPTY, {1}};
 	valobj.type = VAL_OBJECT;
 
 	VAL_AS_OBJECT(valobj) = (object*)codeobj;
@@ -296,8 +296,6 @@ static void compile_statement(instruct *instructs, stmt *statement)
             break;
         case STMT_EXPR:
             compile_expression(instructs, statement->expression);
-            //emit_instruction(instructs, OP_POP, NULL);
-            //emit_instruction(instructs, OP_RETURN, NULL);
             break;
         case STMT_PRINT:
         {
@@ -338,7 +336,6 @@ instruct compile(parser *analyzer, const char *source)
 	start_compile(&instructs, analyzer->statements, analyzer->num_statements);
 
 	emit_instruction(&instructs, OP_RETURN, EMPTY_VAL);
-    reset_parser(analyzer);
 
     return instructs;
 }

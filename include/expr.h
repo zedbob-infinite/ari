@@ -23,6 +23,7 @@ typedef struct expr_t
     token *name;
     token *operator;
     char *literal;
+    int num_arguments;
 	struct expr_t **arguments;
     struct expr_t *expression;
     struct expr_t *value;

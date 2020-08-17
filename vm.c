@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "compiler.h"
+#include "debug.h"
 #include "instruct.h"
 #include "frame.h"
 #include "memory.h"
@@ -13,8 +14,6 @@
 #include "token.h"
 #include "tokenizer.h"
 #include "vm.h"
-
-#define DEBUG_ARI
 
 static inline void delete_value(value *val, valtype type)
 {
@@ -198,11 +197,10 @@ int execute(VM *vm, instruct *instructs)
 {
     objstack *stack = &vm->evalstack;
     while (instructs->current < instructs->count) {
-        frame **topframe = &vm->top;
-
 		int current = instructs->current;
 		code8 *code = instructs->code[current];
-        value operand = code->operand;
+        value operand = {VAL_EMPTY, {0}};
+        operand = code->operand;
         valtype type = code->operand.type; 
 #ifdef DEBUG_ARI
         printf("|%d|\t", current);
@@ -282,7 +280,7 @@ int execute(VM *vm, instruct *instructs)
             }
             case OP_LOAD_NAME:
             {
-                object *obj = get_name(*topframe, operand);
+                object *obj = get_name(vm->top, operand);
                 if (obj)
                     push_objstack(stack, obj);
                 else {
@@ -297,20 +295,36 @@ int execute(VM *vm, instruct *instructs)
 			{
 				int argcount = VAL_AS_INT(operand);
 				object **arguments = ALLOCATE(object*, argcount);
-
+#ifdef DEBUG_ARI
+                printf("\n");
+#endif
 				for (int i = 0; i < argcount; ++i) {
 					arguments[i] = pop_objstack(stack);
+#ifdef DEBUG_ARI
+                    printf("   \targument %d: ", i + 1);
+                    printf("\tvalue: ");
+                    print_object(arguments[i]);
+#endif
 				}
+#ifdef DEBUG_ARI
+                printf("\n");
+#endif
 				objcode *funcobj = (objcode*)pop_objstack(stack);
 				frame *localframe = &funcobj->localframe;
                 push_frame(&vm->top, localframe); 
 
 				for (int k = 0, i = argcount - 1; k < argcount; k++) {
+#ifdef DEBUG_ARI
+                    printf("   \tcode object argument %d: %s\n", k + 1,
+                            PRIM_AS_STRING(funcobj->arguments[k]));
+#endif
 					set_name(localframe, 
 							PRIM_AS_STRING(funcobj->arguments[k]),
 							arguments[i--]);
 				}
-
+#ifdef DEBUG_ARI
+                printf("\n");
+#endif
 				execute(vm, &funcobj->instructs);
                 funcobj->instructs.current = 0;
                 pop_frame(&vm->top);
@@ -325,7 +339,9 @@ int execute(VM *vm, instruct *instructs)
 			}
             case OP_STORE_NAME:
             {
-                set_name(*topframe, VAL_AS_STRING(operand), pop_objstack(stack));
+                object *obj = pop_objstack(stack);
+                char *string = VAL_AS_STRING(operand);
+                set_name(vm->top, string, obj);
                 advance(instructs);
                 break;
             }
@@ -383,6 +399,11 @@ int execute(VM *vm, instruct *instructs)
     return INTERPRET_OK;
 }
 
+void reset_vm(VM *vm)
+{
+    reset_parser(&vm->analyzer);
+}
+
 void free_vm(VM *vm)
 {
     reset_objstack(&vm->evalstack);
@@ -395,7 +416,6 @@ void free_vm(VM *vm)
     }
 	init_objstack(&vm->evalstack);
     reset_parser(&vm->analyzer);
-    reset_scanner(&vm->analyzer.scan);
     reset_frame(&vm->global.local);
     FREE(VM, vm);
 }
@@ -403,14 +423,12 @@ void free_vm(VM *vm)
 VM *init_vm(void)
 {
     VM *vm = ALLOCATE(VM, 1);
-    init_module(&vm->global);
     init_parser(&vm->analyzer);
-    init_scanner(&vm->analyzer.scan);
     init_objstack(&vm->evalstack);
+    init_module(&vm->global);
+    vm->top = &vm->global.local;
     vm->objs = NULL;
     vm->num_objects = 0;
-    vm->top = &vm->global.local;
-
     return vm;
 }
 

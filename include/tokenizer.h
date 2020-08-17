@@ -18,5 +18,6 @@ typedef struct scanner_t
 void init_scanner(scanner *scan);
 void reset_scanner(scanner *scan);
 void scan_tokens(scanner *scan, const char *source);
+void print_token(token *tok);
 
 #endif

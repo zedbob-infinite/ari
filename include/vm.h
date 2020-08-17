@@ -31,6 +31,7 @@ void interpret_line(VM *vm, char *source);
 /*void run_vm_from_file(FILE* file);*/
 VM *init_vm(void);
 void free_vm(VM *vm);
+void reset_vm(VM *vm);
 int execute(VM *vm, instruct *instructs);
 void print_value(value val, valtype type);
 

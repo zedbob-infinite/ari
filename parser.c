@@ -42,6 +42,7 @@ static expr *init_expr(void)
     new_expr->name = NULL;
     new_expr->operator = NULL;
     new_expr->literal = NULL;
+    new_expr->num_arguments = 0;
 	new_expr->arguments = NULL;
     new_expr->expression= NULL;
     new_expr->value = NULL;
@@ -81,6 +82,9 @@ static void delete_expression(expr *pexpr)
         delete_expression(pexpr->left);
     if (pexpr->right)
         delete_expression(pexpr->right);
+    if (pexpr->literal) {
+        FREE(char, pexpr->literal);
+    }
     FREE(expr, pexpr);
 }
 
@@ -352,12 +356,13 @@ static expr *get_assign_expr(expr *assign_expr, expr *value)
     return new_expr;
 }
 
-static expr *get_call_expression(expr *callee, expr **arguments)
+static expr *get_call_expression(expr *callee, expr **arguments, int num_arguments)
 {
 	expr *new_expr = init_expr();
 	new_expr->type = EXPR_CALL;
 	new_expr->expression = callee;
 	new_expr->arguments = arguments;
+    new_expr->num_arguments = num_arguments;
 	return new_expr;
 }
 
@@ -403,22 +408,25 @@ static expr *primary(parser *analyzer)
 static expr *finish_call(parser *analyzer, expr *callee)
 {
 	int i = 0;
-	int oldsize = 0;
-	int size = 8;
-	expr **arguments = ALLOCATE(expr*, size);
-	if (!check(analyzer, TOKEN_RIGHT_PAREN)) {
-		do {
-			if (i > size - 1) {
-				oldsize = size;
-				size *= 2;
-				arguments = GROW_ARRAY(arguments, expr*, oldsize, size);
-			}
-			arguments[i++] = expression(analyzer);
-		} while (match(analyzer, TOKEN_COMMA));
-	}
-	consume(analyzer, TOKEN_RIGHT_PAREN, "Expect ')' after arguments.");
-
-	return get_call_expression(callee, arguments);
+	int oldsize = 0;    
+    int size = 8;
+    expr **arguments = ALLOCATE(expr*, size);
+    for (int j = 0; j < size; j++)
+        arguments[j] = NULL;
+    if (!check(analyzer, TOKEN_RIGHT_PAREN)) {
+        do {
+            if (i > size - 1) {
+                oldsize = size;
+                size *= 2;
+                arguments = GROW_ARRAY(arguments, expr*, oldsize, size);
+                for (int j = oldsize; j < size; j++)
+                    arguments[j] = NULL;
+            }
+            arguments[i++] = expression(analyzer);
+        } while (match(analyzer, TOKEN_COMMA));
+    }
+    consume(analyzer, TOKEN_RIGHT_PAREN, "Expect ')' after arguments.");
+	return get_call_expression(callee, arguments, i);
 }
 
 static expr *call(parser *analyzer)
@@ -538,6 +546,8 @@ static stmt *function(parser *analyzer)
                 oldsize = size;
                 size *= 2;
                 parameters = GROW_ARRAY(parameters, token*, oldsize, size);
+                for (int j = oldsize; j < size; j++)
+                    parameters[j] = NULL;
             }
             parameters[i++] = consume(analyzer, TOKEN_IDENTIFIER, 
                     "Expect parameter name.");
@@ -668,6 +678,7 @@ void reset_parser(parser *analyzer)
     }
     init_parser(analyzer);
     reset_scanner(&analyzer->scan);
+    printf("going into reset_scanner()...\n");
 }
 
 void init_parser(parser *analyzer)
@@ -677,6 +688,7 @@ void init_parser(parser *analyzer)
     analyzer->statements = NULL;
     analyzer->current = 0;
     analyzer->num_tokens = 0;
+    analyzer->tokens = NULL;
     analyzer->panicmode = false;
     analyzer->haderror = false;
 }
@@ -749,6 +761,9 @@ static char *token_type(int type)
         case TOKEN_EXIT: msg = "EXIT"; break;
         case TOKEN_ERROR: msg = "ERROR"; break;
         case TOKEN_EOF: msg = "EOF"; break;
+        default:
+                msg="ERROR";
+                break;
     }
     return msg;
 }

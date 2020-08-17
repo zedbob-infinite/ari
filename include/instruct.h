@@ -15,7 +15,6 @@
 #define VAL_AS_STRING(value)    (value.val_string)
 #define VAL_AS_OBJECT(value)	(value.val_obj)
 
-#define NULL_VAL                ((value){VAL_NULL, {.val_int = 0}})
 #define NUMBER_VAL(val)         ((value){VAL_NUBMER, {.val_double = val}})
 #define EMPTY_VAL               ((value){VAL_EMPTY, {.val_int = 0}})
 
@@ -40,15 +39,17 @@ typedef struct value_t
 	{
 		int val_int;
 		double val_double;
-		char *val_string;
-		object *val_obj;
+        union
+        {
+		    char *val_string;
+		    object *val_obj;
+        };
 	};
 } value;
 
 typedef struct code8_t
 {
     uint8_t bytecode;
-    valtype type;
 	value operand;
 } code8;
 

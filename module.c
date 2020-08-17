@@ -1,3 +1,5 @@
+#include <stddef.h>
+
 #include "instruct.h"
 #include "module.h"
 #include "object.h"
@@ -5,7 +7,7 @@
 
 void init_module(module *mod)
 {
-    mod->obj.type = OBJ_MODULE;
+    init_object(&mod->obj, OBJ_MODULE, NULL);
     init_instruct(&mod->instructs);
     init_frame(&mod->local);
 }

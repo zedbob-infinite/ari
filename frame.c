@@ -7,14 +7,12 @@ void init_frame(frame *f)
 {
     init_objhash(&f->locals, DEFAULT_HT_SIZE);
     f->next = NULL;
-    f->previous = NULL;
 }
 
 void reset_frame(frame *f)
 {
     reset_objhash(&f->locals);
     f->next = NULL;
-    f->previous = NULL;
 }
 
 void push_frame(frame **top, frame *newframe)

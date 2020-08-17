@@ -36,7 +36,8 @@ static char* read_file(const char* path)
   size_t size = ftell(file);                                 
   rewind(file);                                                  
 
-  char* buffer = malloc(size + 1);                    
+  char *buffer = NULL;
+  buffer = ALLOCATE(char, size + 1);
   size_t bytes_read = fread(buffer, sizeof(char), size, file);
   buffer[bytes_read] = '\0';                                      
 
@@ -46,14 +47,7 @@ static char* read_file(const char* path)
 
 void run_file(const char* path)
 {
-    char *pathname = malloc(sizeof(strlen(path)));
-    strcpy(pathname, path);
-    
-    //strcat(strtok(pathname, "."), ".aric");
-
-    FILE* file = fopen(pathname, "rb");
-    if (!file) {
-        char* source = read_file(path);
-		interpret(source);
-    }
+    char* source = read_file(path);
+	interpret(source);
+    FREE(char, source);
 }

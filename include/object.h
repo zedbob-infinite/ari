@@ -51,6 +51,7 @@ typedef struct objprim_t
 	};
 } objprim;
 
+void init_object(object *obj, objtype type, object *next);
 object *create_new_object(objtype type);
 objprim *create_new_primitive(primtype ptype);
 void print_object(object *obj);

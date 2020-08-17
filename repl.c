@@ -23,6 +23,7 @@ void repl(void)
             break;
         }
         interpret_line(vm, line);
+        reset_vm(vm);
     }
     printf("exiting...\n");
     free_vm(vm);

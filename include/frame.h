@@ -7,7 +7,6 @@ typedef struct frame_t
 {
     objhash locals;
     struct frame_t *next;
-    struct frame_t *previous;
 } frame;
 
 void init_frame(frame *f);
