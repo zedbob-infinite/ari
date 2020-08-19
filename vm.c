@@ -193,8 +193,8 @@ int execute(VM *vm, instruct *instructs)
 {
     vm->callstackpos++;
 #ifdef DEBUG_ARI
-        printf("Current Frame is %p\n\n", vm->top);
-        printf("Call Stack Position is %ld\n", vm->callstackpos);
+    printf("Current Frame is %p\n\n", vm->top);
+    printf("Call Stack Position is %ld\n", vm->callstackpos);
 #endif
     objstack *stack = &vm->evalstack;
     while (vm->top->pc < instructs->count) {
@@ -409,8 +409,10 @@ int execute(VM *vm, instruct *instructs)
             {
                 if (vm->top->next != NULL)
                     pop_frame(&vm->top);
-                else
+                else {
+                    vm->top->pc = 0;
                     return INTERPRET_OK;
+                }
                 vm->callstackpos--;
                 advance(vm->top);
 #ifdef DEBUG_ARI
