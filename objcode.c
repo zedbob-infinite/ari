@@ -9,6 +9,7 @@ objcode *init_objcode(int argcount, objprim **arguments)
 	codeobj->obj.type = OBJ_CODE;
 	codeobj->argcount = argcount;
 	codeobj->arguments = arguments;
+    codeobj->depth = 0;
 	init_frame(&codeobj->localframe);
 	init_instruct(&codeobj->instructs);
 	return codeobj;

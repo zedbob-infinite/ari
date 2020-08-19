@@ -283,6 +283,7 @@ static void compile_function(instruct *instructs, stmt *statement)
 
     compile_block(&(codeobj->instructs), statement->block, false);
 
+    emit_instruction(&(codeobj->instructs), OP_RETURN, NULL_VAL);
 	/* Push new code object onto the stack */
 	value valobj = {VAL_EMPTY, {1}};
 	valobj.type = VAL_OBJECT;

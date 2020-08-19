@@ -111,18 +111,17 @@ static inline void set_name(frame *localframe, char *name, object *val)
 static inline object *get_name(frame *localframe, value name)
 {
     frame *current = localframe;
-    object *obj = objhash_get(&current->locals, VAL_AS_STRING(name));
-    while ((!obj) && (current->next)) {
-        current = localframe->next;
-        if (current)
-            obj = objhash_get(&current->locals, VAL_AS_STRING(name));
-    }
+    object *obj = NULL;
+    do {
+        obj = objhash_get(&current->locals, VAL_AS_STRING(name));
+        current = current->next;
+    } while ((!obj) && (current));
     return obj;
 }
 
-static inline void advance(instruct *instructs)
+static inline void advance(frame *callframe)
 {
-	instructs->current++;
+    callframe->pc++;
 }
 
 static void print_bytecode(uint8_t bytecode)
@@ -130,64 +129,61 @@ static void print_bytecode(uint8_t bytecode)
 	char *msg = NULL;
     switch (bytecode) { 
         case OP_POP_FRAME:
-			msg = "OP_POP_FRAME";
+			msg = "POP_FRAME";
             break;
         case OP_PUSH_FRAME:
-            msg ="OP_PUSH_FRAME";
-            break;
-        case OP_LOOP:
-            msg = "OP_LOOP";
+            msg ="PUSH_FRAME";
             break;
         case OP_JMP_LOC:
-            msg = "OP_JMP_LOC";
+            msg = "JMP_LOC";
             break;
         case OP_JMP_AFTER:
-            msg = "OP_JMP_AFTER";
+            msg = "JMP_AFTER";
             break;
         case OP_JMP_FALSE:
-            msg = "OP_JMP_FALSE";
+            msg = "JMP_FALSE";
             break;
         case OP_POP:
-            msg = "OP_POP";
+            msg = "POP";
             break;
         case OP_LOAD_CONSTANT:
-            msg = "OP_LOAD_CONSTANT";
+            msg = "LOAD_CONSTANT";
             break;
         case OP_LOAD_NAME:
-            msg = "OP_LOAD_NAME";
+            msg = "LOAD_NAME";
             break;
         case OP_CALL_FUNCTION:
-            msg = "OP_CALL_FUNCTION";
+            msg = "CALL_FUNCTION";
             break;
         case OP_MAKE_FUNCTION:
-            msg = "OP_MAKE_FUNCTION";
+            msg = "MAKE_FUNCTION";
             break;
         case OP_STORE_NAME:
-            msg = "OP_STORE_NAME";
+            msg = "STORE_NAME";
             break;
         case OP_COMPARE:
-            msg = "OP_COMPARE";
+            msg = "COMPARE";
             break;
         case OP_BINARY_ADD:
-            msg = "OP_BINARY_ADD";
+            msg = "BINARY_ADD";
             break;
         case OP_BINARY_SUB:
-            msg = "OP_BINARY_SUB";
+            msg = "BINARY_SUB";
             break;
         case OP_BINARY_MULT:
-            msg = "OP_BINARY_MULT";
+            msg = "BINARY_MULT";
             break;
         case OP_BINARY_DIVIDE:
-            msg = "OP_BINARY_DIVIDE";
+            msg = "BINARY_DIVIDE";
             break;
         case OP_NEGATE:
-            msg = "OP_NEGATE";
+            msg = "NEGATE";
             break;
         case OP_PRINT:
-            msg = "OP_PRINT";
+            msg = "PRINT";
             break;
         case OP_RETURN:
-            msg = "OP_RETURN";
+            msg = "RETURN";
             break;
     }
 	printf("%-20s", msg);
@@ -195,15 +191,20 @@ static void print_bytecode(uint8_t bytecode)
 
 int execute(VM *vm, instruct *instructs)
 {
+    vm->callstackpos++;
+#ifdef DEBUG_ARI
+        printf("Current Frame is %p\n\n", vm->top);
+        printf("Call Stack Position is %ld\n", vm->callstackpos);
+#endif
     objstack *stack = &vm->evalstack;
-    while (instructs->current < instructs->count) {
-		int current = instructs->current;
+    while (vm->top->pc < instructs->count) {
+		int current = vm->top->pc;
 		code8 *code = instructs->code[current];
         value operand = {VAL_EMPTY, {0}};
         operand = code->operand;
         valtype type = code->operand.type; 
 #ifdef DEBUG_ARI
-        printf("|%d|\t", current);
+        printf("|%d|\t", current + 1);
         print_bytecode(code->bytecode);
         printf("\t(");
         print_value(operand, type);
@@ -216,7 +217,7 @@ int execute(VM *vm, instruct *instructs)
                 frame *newframe = ALLOCATE(frame, 1);
                 init_frame(newframe);
                 push_frame(&vm->top, newframe); 
-                advance(instructs);
+                advance(vm->top);
                 break;
             }
             case OP_POP_FRAME:
@@ -224,20 +225,17 @@ int execute(VM *vm, instruct *instructs)
                 frame *oldframe = pop_frame(&vm->top);
                 reset_frame(oldframe);
                 FREE(frame, oldframe);
-                advance(instructs);
+                advance(vm->top);
                 break;
             }
-            case OP_LOOP:
-                exit(EXIT_FAILURE);
-                break;
             case OP_JMP_LOC:
 			{
-                instructs->current = VAL_AS_INT(operand);
+                vm->top->pc = VAL_AS_INT(operand);
                 break;
 			}
             case OP_JMP_AFTER:
 			{
-                instructs->current = instructs->current + VAL_AS_INT(operand);
+                vm->top->pc = current + VAL_AS_INT(operand);
                 break;
 			}
             case OP_JMP_FALSE:
@@ -245,9 +243,9 @@ int execute(VM *vm, instruct *instructs)
 				objprim *condition = (objprim*)pop_objstack(stack);
 
                 if (PRIM_AS_BOOL(condition))
-                    advance(instructs);
+                    advance(vm->top);
                 else {
-                    instructs->current = VAL_AS_INT(operand);
+                    vm->top->pc = VAL_AS_INT(operand);
                 }
                 break;
 			}
@@ -272,6 +270,10 @@ int execute(VM *vm, instruct *instructs)
                         prim = create_new_primitive(PRIM_STRING);
                         PRIM_AS_STRING(prim) = take_string(operand, strlen(VAL_AS_STRING(operand)));
                         break;
+                    case VAL_NULL:
+                        prim = create_new_primitive(PRIM_NULL);
+                        PRIM_AS_NULL(prim) = VAL_AS_NULL(operand);
+                        break;
 					default:
 					{
 						runtime_error(stack, current, "Cannot load non-constant value.");
@@ -281,7 +283,7 @@ int execute(VM *vm, instruct *instructs)
                 object *obj = (object*)prim;
                 vm_add_object(vm, obj);
 				push_objstack(stack, obj);
-                advance(instructs);
+                advance(vm->top);
                 break;
             }
             case OP_LOAD_NAME:
@@ -294,7 +296,7 @@ int execute(VM *vm, instruct *instructs)
                             VAL_AS_STRING(operand));
                     return INTERPRET_RUNTIME_ERROR;
                 }
-                advance(instructs);
+                advance(vm->top);
                 break;
             }
             case OP_CALL_FUNCTION:
@@ -316,9 +318,16 @@ int execute(VM *vm, instruct *instructs)
                 printf("\n");
 #endif
 				objcode *funcobj = (objcode*)pop_objstack(stack);
-                vm_add_object(vm, (object*)funcobj);
-				
-                frame *localframe = &funcobj->localframe;
+                frame *localframe = NULL;
+
+                if (funcobj->depth == 0) {
+                    vm_add_object(vm, (object*)funcobj);    
+                    localframe = &funcobj->localframe;
+                }
+                else {
+                    localframe = ALLOCATE(frame, 1);
+                    init_frame(localframe);
+                }
                 push_frame(&vm->top, localframe); 
 
 				for (int k = 0, i = argcount - 1; k < argcount; k++) {
@@ -326,24 +335,24 @@ int execute(VM *vm, instruct *instructs)
                     printf("   \tcode object argument %d: %s\n", k + 1,
                             PRIM_AS_STRING(funcobj->arguments[k]));
 #endif
-					set_name(localframe, 
+					set_name(vm->top, 
 							PRIM_AS_STRING(funcobj->arguments[k]),
 							arguments[i--]);
 				}
 #ifdef DEBUG_ARI
                 printf("\n");
 #endif
-				execute(vm, &funcobj->instructs);
+				funcobj->depth++;
                 funcobj->instructs.current = 0;
-                pop_frame(&vm->top);
+                execute(vm, &funcobj->instructs);
+                funcobj->depth--;
                 FREE(object*, arguments);
-                advance(instructs);
                 break;
 			}
             case OP_MAKE_FUNCTION:
 			{
 				push_objstack(stack, VAL_AS_OBJECT(operand));
-                advance(instructs);
+                advance(vm->top);
                 break;
 			}
             case OP_STORE_NAME:
@@ -351,30 +360,30 @@ int execute(VM *vm, instruct *instructs)
                 object *obj = pop_objstack(stack);
                 char *string = VAL_AS_STRING(operand);
                 set_name(vm->top, string, obj);
-                advance(instructs);
+                advance(vm->top);
                 break;
             }
             case OP_COMPARE:
             {
                 binary_comp(vm, stack, VAL_AS_INT(operand));
-                advance(instructs);
+                advance(vm->top);
                 break;
             }
             case OP_BINARY_ADD:
 				binary_op(vm, stack, '+');
-                advance(instructs);
+                advance(vm->top);
                 break;
             case OP_BINARY_SUB:
                 binary_op(vm, stack, '-');
-                advance(instructs);
+                advance(vm->top);
                 break;
             case OP_BINARY_MULT:
                 binary_op(vm, stack, '*');
-                advance(instructs);
+                advance(vm->top);
                 break;
             case OP_BINARY_DIVIDE:
                 binary_op(vm, stack, '/');
-                advance(instructs);
+                advance(vm->top);
                 break;
             case OP_NEGATE:
             {
@@ -382,27 +391,34 @@ int execute(VM *vm, instruct *instructs)
                 vm_add_object(vm, (object*)obj);
                 push_objstack(stack, (object*)obj);
                 binary_op(vm, stack, '*');
-                advance(instructs);
+                advance(vm->top);
                 break;
             }
             case OP_POP:
-                //printpop = pop_objstack(stack);
-                advance(instructs);
+                advance(vm->top);
                 break;
             case OP_PRINT:
             {
                 if (peek_objstack(stack)) {
                     print_object(pop_objstack(stack));
-                    //printf("\n");
                 }
-                advance(instructs);
+                advance(vm->top);
                 break;
             }
             case OP_RETURN:
-                //if (printpop)
-                //print_object(pop_objstack(stack));
-                advance(instructs);
+            {
+                if (vm->top->next != NULL)
+                    pop_frame(&vm->top);
+                else
+                    return INTERPRET_OK;
+                vm->callstackpos--;
+                advance(vm->top);
+#ifdef DEBUG_ARI
+                printf("\n\n");
+                printf("Call Stack Position is %ld\n", vm->callstackpos);
+#endif
                 break;
+            }
         }
     }
     return INTERPRET_OK;
@@ -438,6 +454,7 @@ VM *init_vm(void)
     vm->top = &vm->global.local;
     vm->objs = NULL;
     vm->num_objects = 0;
+    vm->callstackpos = 0;
     return vm;
 }
 
@@ -456,6 +473,11 @@ void print_value(value val, valtype type)
 		case VAL_STRING:
 			printf("%-4s", VAL_AS_STRING(val));
 			break;
+        case VAL_NULL:
+            printf("%-4s", "null");
+            break;
+        case VAL_OBJECT:
+            print_object(VAL_AS_OBJECT(val));
 		default:
 			break;
 	}

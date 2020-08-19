@@ -8,4 +8,4 @@ fun Fibo(n)
 		return Fibo(n-1) + Fibo(n-2);
 }
 
-print(Fibo(3));
+print(Fibo(10));
