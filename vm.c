@@ -407,19 +407,19 @@ int execute(VM *vm, instruct *instructs)
             }
             case OP_RETURN:
             {
-                if (vm->top->next != NULL)
+                vm->callstackpos--;
+                if (vm->top->next != NULL) {
                     pop_frame(&vm->top);
+                    advance(vm->top);
+                }
                 else {
                     vm->top->pc = 0;
-                    return INTERPRET_OK;
                 }
-                vm->callstackpos--;
-                advance(vm->top);
 #ifdef DEBUG_ARI
-                printf("\n\n");
-                printf("Call Stack Position is %ld\n", vm->callstackpos);
+                printf("Returning to Call Stack: %ld\n", vm->callstackpos);
+                printf("\n");
 #endif
-                break;
+                return INTERPRET_OK;
             }
         }
     }
