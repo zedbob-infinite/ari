@@ -31,6 +31,9 @@ void arimain(int argc, char** argv)
 static char* read_file(const char* path) 
 {                        
   FILE* file = fopen(path, "rb");
+  
+  if (!file)
+      return NULL;
 
   fseek(file, 0L, SEEK_END);                                     
   size_t size = ftell(file);                                 
@@ -48,6 +51,12 @@ static char* read_file(const char* path)
 void run_file(const char* path)
 {
     char* source = read_file(path);
-	interpret(source);
-    FREE(char, source);
+    if (source) {
+	    interpret(source);
+        FREE(char, source);
+    }
+    else {
+        printf("Could not read file %s\n", path);
+        exit(EXIT_FAILURE);
+    }
 }

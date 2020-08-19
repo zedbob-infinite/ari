@@ -1,6 +1,7 @@
 #include <stdio.h>
 
 #include "memory.h"
+#include "objcode.h"
 #include "object.h"
 
 static void inline init_int(objprim *obj)
@@ -80,24 +81,30 @@ void print_object(object *obj)
 			objprim *prim = (objprim*)obj;
 			switch (prim->ptype) {
 				case PRIM_INT:
-					printf("%d\n", PRIM_AS_INT(prim));
+					printf("%d", PRIM_AS_INT(prim));
 					break;
 				case PRIM_DOUBLE:
-					printf("%f\n", PRIM_AS_DOUBLE(prim));
+					printf("%f", PRIM_AS_DOUBLE(prim));
 					break;
 				case PRIM_STRING:
-					printf("%s\n", PRIM_AS_STRING(prim));
+					printf("%s", PRIM_AS_STRING(prim));
 					break;
 				case PRIM_BOOL:
-					printf("%s\n", PRIM_AS_BOOL(prim) ? "true" : "false");
+					printf("%s", PRIM_AS_BOOL(prim) ? "true" : "false");
 					break;
 				case PRIM_NULL:
-					printf("null\n");
+					printf("null");
 					break;
 				default:
 					break;
 			}
 			break;
+        case OBJ_CODE:
+        {
+            objcode *codeobj = (objcode*)obj;
+            printf("<code object> at %p", codeobj);
+            break;
+        }
 		default:
 			break;
 		}
