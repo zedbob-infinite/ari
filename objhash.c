@@ -40,7 +40,7 @@ static objentry *objhash_find_entry(objentry **entries, uint32_t size,
     uint32_t bin = objhash_hash(size, key);
     objentry *next = entries[bin];
 
-    while (next && next->key && strcmp(key, next->key) > 0) {
+    while (next && next->key && strcmp(key, next->key) != 0) {
         if (bin < size)
             bin++;
         else
