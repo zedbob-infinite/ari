@@ -1,12 +1,9 @@
-INC=-I./include
+INC=-I./include -I./objects -I./parser
 CC = gcc
 CFLAGS = -g -Wall -Wshadow
 
 vmmake: main.c object.o objstack.o objhash.o objcode.o frame.o module.o interpret.o instruct.o repl.o vm.o compiler.o tokenizer.o parser.o memory.o
 	$(CC) $(CFLAGS) $(INC) instruct.o frame.o objcode.o interpret.o module.o tokenizer.o objhash.o objstack.o compiler.o repl.o object.o vm.o parser.o memory.o main.c -o ari
-
-objcode.o: objcode.c
-	$(CC) $(CFLAGS) $(INC) -c objcode.c
 
 frame.o: frame.c
 	$(CC) $(CFLAGS) $(INC) -c frame.c
@@ -26,17 +23,20 @@ memory.o: memory.c
 interpret.o: interpret.c
 	$(CC) $(CFLAGS) $(INC) -c interpret.c
 
-parser.o: parser.c
-	$(CC) $(CFLAGS) $(INC) -c parser.c
+parser.o: parser/parser.c
+	$(CC) $(CFLAGS) $(INC) -c parser/parser.c
+
+tokenizer.o: parser/tokenizer.c
+	$(CC) $(CFLAGS) $(INC) -c parser/tokenizer.c
 
 compiler.o: compiler.c
 	$(CC) $(CFLAGS) $(INC) -c compiler.c
 
-tokenizer.o: tokenizer.c
-	$(CC) $(CFLAGS) $(INC) -c tokenizer.c
+object.o: objects/object.c
+	$(CC) $(CFLAGS) $(INC) -c objects/object.c
 
-object.o: object.c
-	$(CC) $(CFLAGS) $(INC) -c object.c
+objcode.o: objects/objcode.c
+	$(CC) $(CFLAGS) $(INC) -c objects/objcode.c
 
 objstack.o: objstack.c
 	$(CC) $(CFLAGS) $(INC) -c objstack.c
