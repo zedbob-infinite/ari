@@ -1,9 +1,10 @@
 INC=-I./include -I./objects -I./parser
 CC = gcc
 CFLAGS = -g -Wall -Wshadow
+LDFLAGS = -g
 
-vmmake: main.c object.o objstack.o objhash.o objcode.o frame.o module.o interpret.o instruct.o repl.o vm.o compiler.o tokenizer.o parser.o memory.o
-	$(CC) $(CFLAGS) $(INC) instruct.o frame.o objcode.o interpret.o module.o tokenizer.o objhash.o objstack.o compiler.o repl.o object.o vm.o parser.o memory.o main.c -o ari
+vmmake: main.c object.o objclass.o objstack.o objhash.o objcode.o frame.o module.o interpret.o instruct.o repl.o vm.o compiler.o tokenizer.o parser.o memory.o
+	$(CC) $(LDFLAGS) $(INC) instruct.o objclass.o frame.o objcode.o interpret.o module.o tokenizer.o objhash.o objstack.o compiler.o repl.o object.o vm.o parser.o memory.o main.c -o ari
 
 frame.o: frame.c
 	$(CC) $(CFLAGS) $(INC) -c frame.c
@@ -37,6 +38,9 @@ object.o: objects/object.c
 
 objcode.o: objects/objcode.c
 	$(CC) $(CFLAGS) $(INC) -c objects/objcode.c
+
+objclass.o: objects/objclass.c
+	$(CC) $(CFLAGS) $(INC) -c objects/objclass.c
 
 objstack.o: objstack.c
 	$(CC) $(CFLAGS) $(INC) -c objstack.c

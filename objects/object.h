@@ -1,6 +1,8 @@
 #ifndef ari_object_h
 #define ari_object_h
 
+#include "objhash.h"
+
 #define PRIM_AS_BOOL(obj)		(obj->val_int)
 #define PRIM_AS_INT(obj)		(obj->val_int)
 #define PRIM_AS_DOUBLE(obj)		(obj->val_double)
@@ -37,6 +39,7 @@ typedef struct object_t
 {
 	objtype type;
     struct object_t* next;
+    objhash *__attrs__;
 } object;
 
 typedef struct objprim_t
@@ -51,7 +54,7 @@ typedef struct objprim_t
 	};
 } objprim;
 
-void init_object(object *obj, objtype type, object *next);
+void init_object(object *obj, objtype type);
 object *create_new_object(objtype type);
 objprim *create_new_primitive(primtype ptype);
 void print_object(object *obj);

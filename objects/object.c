@@ -63,10 +63,11 @@ objprim *create_new_primitive(primtype ptype)
 	return obj;
 }
 
-void init_object(object *obj, objtype type, object *next)
+void init_object(object *obj, objtype type)
 {
     obj->type = type;
-    obj->next = next;
+    obj->next = NULL;
+    obj->__attrs__ = NULL;
 }
 
 void print_object(object *obj)

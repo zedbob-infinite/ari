@@ -119,9 +119,12 @@ static inline object *get_name(frame *localframe, value name)
     return obj;
 }
 
-static inline void advance(frame *callframe)
+static inline void advance(frame *callframe, size_t count)
 {
-    callframe->pc++;
+    /*if (callframe->pc + 1 > count)
+        callframe->pc = 0;
+    else*/
+        callframe->pc++;
 }
 
 static void print_bytecode(uint8_t bytecode)
@@ -198,13 +201,14 @@ int execute(VM *vm, instruct *instructs)
 #endif
     objstack *stack = &vm->evalstack;
     while (vm->top->pc < instructs->count) {
-		int current = vm->top->pc;
+		size_t current = vm->top->pc;
+        size_t count = instructs->count;
 		code8 *code = instructs->code[current];
         value operand = {VAL_EMPTY, {0}};
         operand = code->operand;
         valtype type = code->operand.type; 
 #ifdef DEBUG_ARI
-        printf("|%d|\t", current + 1);
+        printf("|%ld|\t", current + 1);
         print_bytecode(code->bytecode);
         printf("\t(");
         print_value(operand, type);
@@ -216,16 +220,18 @@ int execute(VM *vm, instruct *instructs)
             {
                 frame *newframe = ALLOCATE(frame, 1);
                 init_frame(newframe);
+                newframe->pc = vm->top->pc;
                 push_frame(&vm->top, newframe); 
-                advance(vm->top);
+                advance(vm->top, count);
                 break;
             }
             case OP_POP_FRAME:
             {
                 frame *oldframe = pop_frame(&vm->top);
+                vm->top->pc = oldframe->pc;
                 reset_frame(oldframe);
                 FREE(frame, oldframe);
-                advance(vm->top);
+                advance(vm->top, count);
                 break;
             }
             case OP_JMP_LOC:
@@ -243,7 +249,7 @@ int execute(VM *vm, instruct *instructs)
 				objprim *condition = (objprim*)pop_objstack(stack);
 
                 if (PRIM_AS_BOOL(condition))
-                    advance(vm->top);
+                    advance(vm->top, instructs->count);
                 else {
                     vm->top->pc = VAL_AS_INT(operand);
                 }
@@ -283,7 +289,7 @@ int execute(VM *vm, instruct *instructs)
                 object *obj = (object*)prim;
                 vm_add_object(vm, obj);
 				push_objstack(stack, obj);
-                advance(vm->top);
+                advance(vm->top, count);
                 break;
             }
             case OP_LOAD_NAME:
@@ -296,7 +302,7 @@ int execute(VM *vm, instruct *instructs)
                             VAL_AS_STRING(operand));
                     return INTERPRET_RUNTIME_ERROR;
                 }
-                advance(vm->top);
+                advance(vm->top, count);
                 break;
             }
             case OP_CALL_FUNCTION:
@@ -327,6 +333,7 @@ int execute(VM *vm, instruct *instructs)
                 else {
                     localframe = ALLOCATE(frame, 1);
                     init_frame(localframe);
+                    localframe->is_recursed = true;
                 }
                 push_frame(&vm->top, localframe); 
 
@@ -352,7 +359,7 @@ int execute(VM *vm, instruct *instructs)
             case OP_MAKE_FUNCTION:
 			{
 				push_objstack(stack, VAL_AS_OBJECT(operand));
-                advance(vm->top);
+                advance(vm->top, count);
                 break;
 			}
             case OP_STORE_NAME:
@@ -360,30 +367,30 @@ int execute(VM *vm, instruct *instructs)
                 object *obj = pop_objstack(stack);
                 char *string = VAL_AS_STRING(operand);
                 set_name(vm->top, string, obj);
-                advance(vm->top);
+                advance(vm->top, count);
                 break;
             }
             case OP_COMPARE:
             {
                 binary_comp(vm, stack, VAL_AS_INT(operand));
-                advance(vm->top);
+                advance(vm->top, count);
                 break;
             }
             case OP_BINARY_ADD:
 				binary_op(vm, stack, '+');
-                advance(vm->top);
+                advance(vm->top, count);
                 break;
             case OP_BINARY_SUB:
                 binary_op(vm, stack, '-');
-                advance(vm->top);
+                advance(vm->top, count);
                 break;
             case OP_BINARY_MULT:
                 binary_op(vm, stack, '*');
-                advance(vm->top);
+                advance(vm->top, count);
                 break;
             case OP_BINARY_DIVIDE:
                 binary_op(vm, stack, '/');
-                advance(vm->top);
+                advance(vm->top, count);
                 break;
             case OP_NEGATE:
             {
@@ -391,26 +398,31 @@ int execute(VM *vm, instruct *instructs)
                 vm_add_object(vm, (object*)obj);
                 push_objstack(stack, (object*)obj);
                 binary_op(vm, stack, '*');
-                advance(vm->top);
+                advance(vm->top, count);
                 break;
             }
             case OP_POP:
-                advance(vm->top);
+                advance(vm->top, count);
                 break;
             case OP_PRINT:
             {
                 if (peek_objstack(stack)) {
                     print_object(pop_objstack(stack));
+                    printf("\n");
                 }
-                advance(vm->top);
+                advance(vm->top, count);
                 break;
             }
             case OP_RETURN:
             {
                 vm->callstackpos--;
-                if (vm->top->next != NULL) {
-                    pop_frame(&vm->top);
-                    advance(vm->top);
+                if (vm->top->next) {
+                    frame* popped = pop_frame(&vm->top);
+                    if (popped->is_recursed) {
+                        reset_frame(popped);
+                        FREE(frame, popped);
+                    }
+                    advance(vm->top, count);
                 }
                 else {
                     vm->top->pc = 0;

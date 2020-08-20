@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stddef.h>
 
 #include "frame.h"
@@ -8,6 +9,7 @@ void init_frame(frame *f)
     init_objhash(&f->locals, DEFAULT_HT_SIZE);
     f->pc = 0;
     f->next = NULL;
+    f->is_recursed = false;
 }
 
 void reset_frame(frame *f)
@@ -15,6 +17,7 @@ void reset_frame(frame *f)
     reset_objhash(&f->locals);
     f->pc = 0;
     f->next = NULL;
+    f->is_recursed = false;
 }
 
 void push_frame(frame **top, frame *newframe)
