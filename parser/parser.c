@@ -16,23 +16,103 @@ static token *advance(parser *analyzer);
 static stmt *block(parser *analyzer);
 static char *token_type(int type);
 
-static void check_parser_capacity(parser* analyzer)
+static stmt_expr *init_stmt_expr(void)
 {
-    int oldcapacity = analyzer->capacity;
-    analyzer->capacity = GROW_CAPACITY(analyzer->capacity);
-    analyzer->statements = GROW_ARRAY(analyzer->statements, 
-                    stmt*, oldcapacity, analyzer->capacity);
-    for (int i = oldcapacity; i < analyzer->capacity; ++i)
-        analyzer->statements[i] = NULL;
+    stmt_expr *new_stmt = ALLOCATE(stmt_expr, 1);
+    new_stmt->header.type = STMT_EXPR;
+    new_stmt->expression = NULL;
+    return new_stmt;
 }
 
-static char *take_string(token *tok)
+static stmt_block *init_stmt_block(void)
 {
-    int length = tok->length;
-    char *buffer = ALLOCATE(char, length + 1);
-    buffer = strncpy(buffer, tok->start, tok->length);
-    buffer[tok->length] = '\0';
-    return buffer;
+    stmt_block *new_stmt = ALLOCATE(stmt_block, 1);
+    new_stmt->header.type = STMT_BLOCK;
+    new_stmt->count = 0;
+    new_stmt->capacity = 0;
+    new_stmt->stmts = NULL;
+    return new_stmt;
+}
+
+static stmt_if *init_stmt_if(void)
+{
+    stmt_if *new_stmt = ALLOCATE(stmt_if, 1);
+    new_stmt->header.type = STMT_IF;
+    new_stmt->condition = NULL;
+    new_stmt->thenbranch = NULL;
+    new_stmt->elsebranch = NULL;
+    return new_stmt;
+}
+
+static stmt_while *init_stmt_while(void)
+{
+    stmt_while *new_stmt = ALLOCATE(stmt_while, 1);
+    new_stmt->header.type = STMT_WHILE;
+    new_stmt->condition = NULL;
+    new_stmt->loopbody = NULL;
+    return new_stmt;
+}
+
+static stmt_for *init_stmt_for(void)
+{
+    stmt_for *new_stmt = ALLOCATE(stmt_for, 1);
+    new_stmt->header.type = STMT_FOR;
+    new_stmt->count = 0;
+    new_stmt->capacity = 0;
+    new_stmt->stmts = NULL;
+    new_stmt->loopbody = NULL;
+    return new_stmt;
+}
+
+static stmt_print *init_stmt_print(void)
+{
+    stmt_print *new_stmt = ALLOCATE(stmt_print, 1);
+    new_stmt->header.type = STMT_PRINT;
+    new_stmt->value = NULL;
+    return new_stmt;
+}
+
+static stmt_function *init_stmt_function(void)
+{
+    stmt_function *new_stmt = ALLOCATE(stmt_function, 1);
+    new_stmt->header.type = STMT_FUNCTION;
+    new_stmt->name = NULL;
+    new_stmt->num_parameters = 0;
+    new_stmt->parameters = NULL;
+    new_stmt->block = NULL;
+    return new_stmt;
+}
+
+static stmt_return *init_stmt_return(void)
+{
+    stmt_return *new_stmt = ALLOCATE(stmt_return, 1);
+    new_stmt->header.type = STMT_RETURN;
+    new_stmt->value = NULL;
+    return new_stmt;
+}
+
+static void *init_stmt(stmttype type)
+{
+    switch (type) {
+        case STMT_EXPR:
+            return init_stmt_expr();
+        case STMT_BLOCK:
+            return init_stmt_block();
+        case STMT_IF:
+            return init_stmt_if();
+        case STMT_WHILE:
+            return init_stmt_while();
+        case STMT_FOR:
+            return init_stmt_for();
+        case STMT_PRINT:
+            return init_stmt_print();
+        case STMT_FUNCTION:
+            return init_stmt_function();
+        case STMT_RETURN:
+            return init_stmt_return();
+    }
+    // Should be unreachable
+    return NULL;
 }
 
 static expr *init_expr(void)
@@ -50,27 +130,6 @@ static expr *init_expr(void)
     new_expr->left = NULL;
     new_expr->right = NULL;
     return new_expr;
-}
-
-static stmt *init_stmt(void)
-{
-    stmt *new_stmt = ALLOCATE(stmt, 1);
-    new_stmt->type = 0;
-    new_stmt->name = NULL;
-	new_stmt->num_parameters = 0;
-    new_stmt->parameters = NULL;
-    new_stmt->initializer = NULL;
-    new_stmt->expression = NULL;
-    new_stmt->condition = NULL;
-    new_stmt->value = NULL;
-    new_stmt->loopbody = NULL;
-    new_stmt->thenbranch = NULL;
-    new_stmt->elsebranch = NULL;
-    new_stmt->block = NULL;
-    new_stmt->count = 0;
-    new_stmt->capacity = 0;
-    new_stmt->stmts = NULL;
-    return new_stmt;
 }
 
 static void delete_expression(expr *pexpr)
@@ -97,51 +156,94 @@ static void delete_expression(expr *pexpr)
 
 static void delete_statements(stmt *pstmt)
 {
-    if (pstmt->expression)
-        delete_expression(pstmt->expression);
-    if (pstmt->condition)
-        delete_expression(pstmt->condition);
-    if (pstmt->value)
-        delete_expression(pstmt->value);
-    switch (pstmt->type) {
-        case STMT_FUNCTION:
-            FREE(token*, pstmt->parameters);
-            delete_statements(pstmt->block);
-            break;
-        case STMT_BLOCK:
-            for (int i = 0; i < pstmt->count; i++)
-                delete_statements(pstmt->stmts[i]);
-            FREE(stmt*, pstmt->stmts);
-            break;
-        case STMT_EXPR:
-            break;
-        case STMT_IF:
-            delete_statements(pstmt->thenbranch);
-            if (pstmt->elsebranch)
-                delete_statements(pstmt->elsebranch);
-            break;
-        case STMT_WHILE:
-            delete_statements(pstmt->loopbody);
-            break;
-        case STMT_FOR:
-        {
-            for (int i = 0; i < 3; i++)
-                delete_statements(pstmt->stmts[i]);
-            FREE(stmt*, pstmt->stmts);
-            delete_statements(pstmt->loopbody);
-            break;
+    if (pstmt) {
+        switch (pstmt->type) {
+            case STMT_EXPR:
+            {
+                stmt_expr *del = (stmt_expr*)pstmt;
+                delete_expression(del->expression);
+                FREE(stmt_expr, del);
+                break;
+            }
+            case STMT_BLOCK:
+            {
+                stmt_block *del = (stmt_block*)pstmt;
+                for (int i = 0; i < del->count; i++)
+                    delete_statements(del->stmts[i]);
+                FREE(stmt*, del->stmts);
+                FREE(stmt_block, del);
+                break;
+            }
+            case STMT_IF:
+            {
+                stmt_if *del = (stmt_if*)pstmt;
+                delete_expression(del->condition);
+                delete_statements(del->thenbranch);
+                delete_statements(del->elsebranch);
+                FREE(stmt_if, del);
+                break;
+            }
+            case STMT_WHILE:
+            {
+                stmt_while *del = (stmt_while*)pstmt;
+                delete_expression(del->condition);
+                delete_statements(del->loopbody);
+                FREE(stmt_while, del);
+                break;
+            }
+            case STMT_FOR:
+            {
+                stmt_for *del = (stmt_for*)pstmt;
+                delete_statements(del->loopbody);
+                for (int i = 0; i < 3; i++)
+                    delete_statements(del->stmts[i]);
+                FREE(stmt*, del->stmts);
+                FREE(stmt_for, del);
+                break;
+            }
+            case STMT_PRINT:
+            {
+                stmt_print *del = (stmt_print*)pstmt;
+                delete_expression(del->value);
+                FREE(stmt_print, del);
+                break;
+            }
+            case STMT_FUNCTION:
+            {
+                stmt_function *del = (stmt_function*)pstmt;
+                delete_statements(del->block);
+                FREE(token*, del->parameters);
+                FREE(stmt_function, del);
+                break;
+            }
+            case STMT_RETURN:
+            {
+                stmt_return *del = (stmt_return*)pstmt;
+                delete_expression(del->value);
+                FREE(stmt_return, del);
+                break;
+            }
         }
-        case STMT_VAR:
-            delete_statements(pstmt->initializer);
-            break;
-        case STMT_PRINT:
-            break;
-        case STMT_RETURN:
-            break;
-        default:
-            break;
     }
-    FREE(stmt, pstmt);
+}
+
+static char *take_string(token *tok)
+{
+    int length = tok->length;
+    char *buffer = ALLOCATE(char, length + 1);
+    buffer = strncpy(buffer, tok->start, tok->length);
+    buffer[tok->length] = '\0';
+    return buffer;
+}
+
+static void check_parser_capacity(parser* analyzer)
+{
+    int oldcapacity = analyzer->capacity;
+    analyzer->capacity = GROW_CAPACITY(analyzer->capacity);
+    analyzer->statements = GROW_ARRAY(analyzer->statements, 
+                    stmt*, oldcapacity, analyzer->capacity);
+    for (int i = oldcapacity; i < analyzer->capacity; ++i)
+        analyzer->statements[i] = NULL;
 }
 
 static void synchronize(parser *analyzer)
@@ -166,7 +268,6 @@ static void synchronize(parser *analyzer)
         advance(analyzer);
     }
 }
-
 
 static void error_at(parser *analyzer, token *tok, const char *msg)
 {
@@ -244,73 +345,65 @@ static bool match(parser *analyzer, tokentype type)
 
 static stmt *get_expression_statement(expr *new_expr)
 {
-    stmt *new_stmt = init_stmt();
-    new_stmt->type = STMT_EXPR;
+    stmt_expr *new_stmt = init_stmt(STMT_EXPR);
     new_stmt->expression = new_expr;
-    return new_stmt;
-}
-
-static stmt *get_for_statement(stmt *initializer, stmt *condition,
-        stmt *iterator, stmt *loopbody)
-{
-    stmt *new_stmt = init_stmt();
-    new_stmt->stmts = ALLOCATE(stmt*, 3);
-    new_stmt->capacity = 3;
-    new_stmt->count = 3;
-    new_stmt->type = STMT_FOR;
-    new_stmt->stmts[0] = initializer;
-    new_stmt->stmts[1] = condition;
-    new_stmt->stmts[2] = iterator;
-    new_stmt->loopbody = loopbody;
-    return new_stmt;
-}
-
-static stmt *get_while_statement(expr *condition, stmt *loopbody)
-{
-    stmt *new_stmt = init_stmt();
-    new_stmt->type = STMT_WHILE;
-    new_stmt->condition = condition;
-    new_stmt->loopbody = loopbody;
-    return new_stmt;
+    return (stmt*)new_stmt;
 }
 
 static stmt *get_if_statement(expr *condition, stmt *thenbranch, 
         stmt *elsebranch)
 {
-    stmt *new_stmt = init_stmt();
-    new_stmt->type = STMT_IF;
+    stmt_if *new_stmt = init_stmt(STMT_IF);
     new_stmt->condition = condition;
     new_stmt->thenbranch = thenbranch;
     new_stmt->elsebranch = elsebranch;
-    return new_stmt;
+    return (stmt*)new_stmt;
 }
 
+static stmt *get_while_statement(expr *condition, stmt *loopbody)
+{
+    stmt_while *new_stmt = init_stmt(STMT_WHILE);
+    new_stmt->condition = condition;
+    new_stmt->loopbody = loopbody;
+    return (stmt*)new_stmt;
+}
+
+static stmt *get_for_statement(stmt *initializer, stmt *condition,
+        stmt *iterator, stmt *loopbody)
+{
+    stmt_for *new_stmt = init_stmt(STMT_FOR);
+    new_stmt->stmts = ALLOCATE(stmt*, 3);
+    new_stmt->capacity = 3;
+    new_stmt->count = 3;
+    new_stmt->stmts[0] = initializer;
+    new_stmt->stmts[1] = condition;
+    new_stmt->stmts[2] = iterator;
+    new_stmt->loopbody = loopbody;
+    return (stmt*)new_stmt;
+}
 static stmt *get_print_statement(expr *value)
 {
-    stmt *new_stmt = init_stmt();
-    new_stmt->type = STMT_PRINT;
+    stmt_print *new_stmt = init_stmt(STMT_PRINT);
     new_stmt->value = value;
-    return new_stmt;
+    return (stmt*)new_stmt;
 }
 
 static stmt *get_function_statement(token *name, int num_parameters, token **parameters, 
         stmt *body)
 {
-    stmt *new_stmt = init_stmt();
-    new_stmt->type = STMT_FUNCTION;
+    stmt_function *new_stmt = init_stmt(STMT_FUNCTION);
     new_stmt->name = name;
 	new_stmt->num_parameters = num_parameters;
     new_stmt->parameters = parameters;
     new_stmt->block = body;
-    return new_stmt;
+    return (stmt*)new_stmt;
 }
 
 static stmt *get_return_statement(expr *value)
 {
-    stmt *new_stmt = init_stmt();
-    new_stmt->type = STMT_RETURN;
+    stmt_return *new_stmt = init_stmt(STMT_RETURN);
     new_stmt->value = value;
-    return new_stmt;
+    return (stmt*)new_stmt;
 }
 
 static expr *get_binary_expr(token *operator, expr *left, expr *right)
@@ -569,12 +662,12 @@ static stmt *declaration(parser *analyzer)
     return statement(analyzer);
 }
 
-static inline void check_stmt_capacity(stmt *block_stmt)
+static inline void check_stmt_capacity(stmt_block *block_stmt)
 {
     int oldcapacity = block_stmt->capacity;
     if (block_stmt->capacity < block_stmt->count + 1) {
         block_stmt->capacity = GROW_CAPACITY(block_stmt->capacity);
-        block_stmt->stmts = realloc(block_stmt->stmts, sizeof(stmt) * block_stmt->capacity);
+        block_stmt->stmts = realloc(block_stmt->stmts, sizeof(stmt*) * block_stmt->capacity);
     }
     for (int i = oldcapacity; i < block_stmt->capacity; ++i)
         block_stmt->stmts[i] = NULL;
@@ -582,18 +675,15 @@ static inline void check_stmt_capacity(stmt *block_stmt)
 
 static stmt *block(parser *analyzer)
 {
-    stmt *new_stmt = init_stmt();
-    new_stmt->type = STMT_BLOCK;
+    stmt_block *new_stmt = init_stmt(STMT_BLOCK);
 
-    int i = 0;
     while (!check(analyzer, TOKEN_RIGHT_BRACE) && !is_at_end(analyzer)) {
         check_stmt_capacity(new_stmt);
-        new_stmt->stmts[i++] = declaration(analyzer);
-        new_stmt->count++;
+        new_stmt->stmts[new_stmt->count++] = declaration(analyzer);
     }
 
     consume(analyzer, TOKEN_RIGHT_BRACE, "Expect '}' after block.");
-    return new_stmt;
+    return (stmt*)new_stmt;
 }
 
 static stmt *if_statement(parser *analyzer)

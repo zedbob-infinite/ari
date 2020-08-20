@@ -65,9 +65,7 @@ static int emit_instruction(instruct *instructs, uint8_t bytecode, value operand
 static void compile_expression(instruct *instructs, expr *expression)
 {
     uint8_t byte = 0;
-    value operand;
-    operand.type = VAL_EMPTY;
-    VAL_AS_INT(operand) = 0;
+    value operand = {.type = VAL_EMPTY, .val_int = 0};
     switch (expression->type) {
 		case EXPR_CALL:
 		{
@@ -175,8 +173,68 @@ static void compile_expression(instruct *instructs, expr *expression)
 	emit_instruction(instructs, byte, operand);
 }
 
+static void compile_expression_stmt(instruct *instructs, stmt *statement)
+{
+    stmt_expr *expr_stmt = (stmt_expr*)statement;
+    compile_expression(instructs, expr_stmt->expression);
+}
+
+static void compile_block(instruct *instructs, stmt *statement, bool makeframe)
+{
+    stmt_block *block_stmt = (stmt_block*)statement;
+    
+    if (makeframe)
+        emit_instruction(instructs, OP_PUSH_FRAME, EMPTY_VAL);
+
+    int i = 0;
+    stmt *current = NULL;
+    while ((current = block_stmt->stmts[i++]))
+        compile_statement(instructs, current);
+
+    if (makeframe)
+        emit_instruction(instructs, OP_POP_FRAME, EMPTY_VAL);
+}
+
+static void compile_if(instruct *instructs, stmt *statement)
+{
+    stmt_if *if_stmt = (stmt_if*)statement;
+    int jmpfalse = 0;
+
+    compile_expression(instructs, if_stmt->condition);
+    jmpfalse = emit_instruction(instructs, OP_JMP_FALSE, EMPTY_VAL);
+
+    compile_statement(instructs, if_stmt->thenbranch);
+
+    if (if_stmt->elsebranch) {
+        patch_jump(instructs, jmpfalse, instructs->count);
+        compile_statement(instructs, if_stmt->elsebranch);
+    }
+    else 
+        patch_jump(instructs, jmpfalse, instructs->count);
+}
+
+static void compile_while(instruct *instructs, stmt *statement)
+{
+    stmt_while *while_stmt = (stmt_while*)statement;
+    int compare = 0;
+    int jmpfalse = 0;
+    int jmpbegin = 0;
+
+    compare = instructs->count;
+
+    compile_expression(instructs, while_stmt->condition);
+
+    jmpfalse = emit_instruction(instructs, OP_JMP_FALSE, EMPTY_VAL);
+    compile_block(instructs, while_stmt->loopbody, false);
+    
+    jmpbegin = emit_instruction(instructs, OP_JMP_LOC, EMPTY_VAL);
+    patch_jump(instructs, jmpbegin, compare);
+    patch_jump(instructs, jmpfalse, instructs->count);
+}
+
 static void compile_for(instruct *instructs, stmt *statement)
 {
+    stmt_for *for_stmt = (stmt_for*)statement;
     int forbegin = 0;
     int jmpbegin = 0;
     int jmpfalse = 0;
@@ -184,15 +242,15 @@ static void compile_for(instruct *instructs, stmt *statement)
     emit_instruction(instructs, OP_PUSH_FRAME, EMPTY_VAL);
 
     // Initializer_statement
-    compile_statement(instructs, statement->stmts[0]);
+    compile_statement(instructs, for_stmt->stmts[0]);
     // thenbranch used for compare statement
     forbegin = instructs->count;
-    compile_statement(instructs, statement->stmts[1]);
+    compile_statement(instructs, for_stmt->stmts[1]);
     jmpfalse = emit_instruction(instructs, OP_JMP_FALSE, EMPTY_VAL);
     // loop body
-    compile_block(instructs, statement->loopbody, false);
+    compile_block(instructs, for_stmt->loopbody, false);
     // elsebranch used for iterator statement
-    compile_statement(instructs, statement->stmts[2]);
+    compile_statement(instructs, for_stmt->stmts[2]);
 
     jmpbegin = emit_instruction(instructs, OP_JMP_LOC, EMPTY_VAL);
 
@@ -203,73 +261,18 @@ static void compile_for(instruct *instructs, stmt *statement)
     emit_instruction(instructs, OP_POP_FRAME, EMPTY_VAL);
 }
 
-static void compile_while(instruct *instructs, stmt *statement)
+static void compile_print(instruct *instructs, stmt *statement)
 {
-    int compare = 0;
-    int jmpfalse = 0;
-    int jmpbegin = 0;
-
-    compare = instructs->count;
-
-    compile_expression(instructs, statement->condition);
-
-    jmpfalse = emit_instruction(instructs, OP_JMP_FALSE, EMPTY_VAL);
-    compile_block(instructs, statement->loopbody, false);
-    
-    jmpbegin = emit_instruction(instructs, OP_JMP_LOC, EMPTY_VAL);
-    patch_jump(instructs, jmpbegin, compare);
-    
-    patch_jump(instructs, jmpfalse, instructs->count);
-}
-
-static void compile_if(instruct *instructs, stmt *statement)
-{
-    int jmpfalse = 0;
-
-    compile_expression(instructs, statement->condition);
-    jmpfalse = emit_instruction(instructs, OP_JMP_FALSE, EMPTY_VAL);
-
-    compile_statement(instructs, statement->thenbranch);
-
-    if (statement->elsebranch) {
-        patch_jump(instructs, jmpfalse, instructs->count);
-        compile_statement(instructs, statement->elsebranch);
-    }
-    else 
-        patch_jump(instructs, jmpfalse, instructs->count);
-}
-
-static void compile_variable(instruct *instructs, stmt *statement)
-{
-    token *name = statement->name;
-    if (statement->initializer)
-        compile_statement(instructs, statement->initializer);
-
-    value operand;
-	operand.type = VAL_STRING;
-    VAL_AS_STRING(operand) = take_string(name);
-
-    emit_instruction(instructs, OP_STORE_NAME, operand);
-}
-
-static void compile_block(instruct *instructs, stmt *statement, bool makeframe)
-{
-    int i = 0;
-    stmt *current = NULL;
-    if (makeframe)
-        emit_instruction(instructs, OP_PUSH_FRAME, EMPTY_VAL);
-
-    while ((current = statement->stmts[i++]))
-        compile_statement(instructs, current);
-
-    if (makeframe)
-        emit_instruction(instructs, OP_POP_FRAME, EMPTY_VAL);
+    stmt_print *print_stmt = (stmt_print*)statement;
+    compile_expression(instructs, print_stmt->value);
+    emit_instruction(instructs, OP_PRINT, EMPTY_VAL);
 }
 
 static void compile_function(instruct *instructs, stmt *statement)
 {
-	int argcount = statement->num_parameters;
-	token **parameters = statement->parameters;
+    stmt_function *function_stmt = (stmt_function*)statement;
+	int argcount = function_stmt->num_parameters;
+	token **parameters = function_stmt->parameters;
 
 	objprim **arguments = ALLOCATE(objprim*, argcount);
 
@@ -281,65 +284,69 @@ static void compile_function(instruct *instructs, stmt *statement)
 	
 	objcode *codeobj = init_objcode(argcount, arguments);
 
-    compile_block(&(codeobj->instructs), statement->block, false);
+    compile_block(&(codeobj->instructs), function_stmt->block, false);
 
     emit_instruction(&(codeobj->instructs), OP_RETURN, NULL_VAL);
 	/* Push new code object onto the stack */
-	value valobj = {VAL_EMPTY, {1}};
-	valobj.type = VAL_OBJECT;
-
-	VAL_AS_OBJECT(valobj) = (object*)codeobj;
+	value valobj = {.type = VAL_OBJECT, .val_obj = (object*)codeobj};
 	emit_instruction(instructs, OP_MAKE_FUNCTION, valobj);
 
 	/* Store object*/
-    token *name = statement->name;
-    value operand;
-	operand.type = VAL_STRING;
-    VAL_AS_STRING(operand) = take_string(name);
+    token *name = function_stmt->name;
+    value operand = {.type = VAL_STRING, .val_string = take_string(name)};
     emit_instruction(instructs, OP_STORE_NAME, operand);
 }
 
 static void compile_return(instruct *instructs, stmt *statement)
 {
-    compile_expression(instructs, statement->value);
+    stmt_return *return_stmt = (stmt_return*)statement;
+    compile_expression(instructs, return_stmt->value);
     emit_instruction(instructs, OP_RETURN, EMPTY_VAL);
 }
 
 static void compile_statement(instruct *instructs, stmt *statement)
 {
     switch (statement->type) {
-        case STMT_RETURN:
-            compile_return(instructs, statement);
-            break;
-        case STMT_FUNCTION:
-            compile_function(instructs, statement);
-            break;
-        case STMT_FOR:
-            compile_for(instructs, statement);
-            break;
-        case STMT_WHILE:
-            compile_while(instructs, statement);
-            break;
-        case STMT_BLOCK:
-            compile_block(instructs, statement, true);
-            break;
         case STMT_EXPR:
-            compile_expression(instructs, statement->expression);
-            break;
-        case STMT_PRINT:
         {
-            compile_expression(instructs, statement->value);
-            emit_instruction(instructs, OP_PRINT, EMPTY_VAL);
+            compile_expression_stmt(instructs, statement);
+            break;
+        }
+        case STMT_BLOCK:
+        {
+            compile_block(instructs, statement, true);
             break;
         }
         case STMT_IF:
+        {
             compile_if(instructs, statement);
             break;
-        case STMT_VAR:
-            compile_variable(instructs, statement);
+        }
+        case STMT_WHILE:
+        {
+            compile_while(instructs, statement);
             break;
-        default:
+        }
+        case STMT_FOR:
+        {
+            compile_for(instructs, statement);
             break;
+        }
+        case STMT_PRINT:
+        {
+            compile_print(instructs, statement);
+            break;
+        }
+        case STMT_FUNCTION:
+        {
+            compile_function(instructs, statement);
+            break;
+        }
+        case STMT_RETURN:
+        {
+            compile_return(instructs, statement);
+            break;
+        }
     }
 }
 
