@@ -115,42 +115,156 @@ static void *init_stmt(stmttype type)
     return NULL;
 }
 
-static expr *init_expr(void)
+static expr_assign *init_expr_assign(void)
 {
-    expr *new_expr = ALLOCATE(expr, 1);
-    new_expr->type = 0;
+    expr_assign *new_expr = ALLOCATE(expr_assign, 1);
+    new_expr->header.type = EXPR_ASSIGN;
     new_expr->name = NULL;
-    new_expr->operator = NULL;
-    new_expr->literal = NULL;
-    new_expr->count = 0;
-    new_expr->capacity = 0;
-	new_expr->arguments = NULL;
-    new_expr->expression= NULL;
     new_expr->value = NULL;
+    new_expr->expression = NULL;
+    return new_expr;
+}
+
+static expr_binary *init_expr_binary(void)
+{
+    expr_binary *new_expr = ALLOCATE(expr_binary, 1);
+    new_expr->header.type = EXPR_BINARY;
+    new_expr->operator = NULL;
     new_expr->left = NULL;
     new_expr->right = NULL;
     return new_expr;
 }
 
+static expr_grouping *init_expr_grouping(void)
+{
+    expr_grouping *new_expr = ALLOCATE(expr_grouping, 1);
+    new_expr->header.type = EXPR_GROUPING;
+    new_expr->expression = NULL;
+    return new_expr;
+}
+
+static expr_literal *init_expr_literal(exprtype type)
+{
+    expr_literal *new_expr = ALLOCATE(expr_literal, 1);
+    new_expr->header.type = type;
+    new_expr->literal = NULL;
+    return new_expr;
+}
+
+static expr_unary *init_expr_unary(void)
+{
+    expr_unary *new_expr = ALLOCATE(expr_unary, 1);
+    new_expr->header.type = EXPR_UNARY;
+    new_expr->operator = NULL;
+    new_expr->right = NULL;
+    return new_expr;
+}
+
+static expr_var *init_expr_variable(void)
+{
+    expr_var *new_expr = ALLOCATE(expr_var, 1);
+    new_expr->header.type = EXPR_VARIABLE;
+    new_expr->name = NULL;
+    return new_expr;
+}
+
+static expr_call *init_expr_call(void)
+{
+    expr_call *new_expr = ALLOCATE(expr_call, 1);
+    new_expr->header.type = EXPR_CALL;
+    new_expr->count = 0;
+    new_expr->capacity = 0;
+    new_expr->arguments = 0;
+    new_expr->expression = 0;
+    return new_expr;
+}
+
+static void *init_expr(exprtype type)
+{
+    switch (type) {
+        case EXPR_ASSIGN:
+            return init_expr_assign();
+        case EXPR_BINARY:
+            return init_expr_binary();
+        case EXPR_GROUPING:
+            return init_expr_grouping();
+        case EXPR_LITERAL_STRING:
+        case EXPR_LITERAL_NUMBER:
+        case EXPR_LITERAL_BOOL:
+        case EXPR_LITERAL_NULL:
+            return init_expr_literal(type);
+        case EXPR_UNARY:
+            return init_expr_unary();
+        case EXPR_VARIABLE:
+            return init_expr_variable();
+        case EXPR_CALL:
+            return init_expr_call();
+    }
+    // Not reachable.
+    return NULL;
+}
+
 static void delete_expression(expr *pexpr)
 {
     if (pexpr) {
-        if (pexpr->expression)
-            delete_expression(pexpr->expression);
-        if (pexpr->value)
-            delete_expression(pexpr->value);
-        if (pexpr->left)
-            delete_expression(pexpr->left);
-        if (pexpr->right)
-            delete_expression(pexpr->right);
-        if (pexpr->literal)
-            FREE(char, pexpr->literal);
-        if (pexpr->arguments) {
-            for (int i = 0; i < pexpr->count; i++)
-                delete_expression(pexpr->arguments[i]);
-            FREE(expr*, pexpr->arguments);
+        switch (pexpr->type) {
+            case EXPR_ASSIGN:
+            {
+                expr_assign *del = (expr_assign*)pexpr;
+                delete_expression(del->value);
+                delete_expression(del->expression);
+                FREE(expr_assign, del);
+                break;
+            }
+            case EXPR_BINARY:
+            {
+                expr_binary *del = (expr_binary*)pexpr;
+                delete_expression(del->left);
+                delete_expression(del->right);
+                FREE(expr_binary, del);
+                break;
+            }
+            case EXPR_GROUPING:
+            {
+                expr_grouping *del = (expr_grouping*)pexpr;
+                delete_expression(del->expression);
+                FREE(expr_grouping, del);
+                break;
+            }
+            case EXPR_LITERAL_STRING:
+            case EXPR_LITERAL_NUMBER:
+            case EXPR_LITERAL_BOOL:
+            case EXPR_LITERAL_NULL:
+            {
+                expr_literal *del = (expr_literal*)pexpr;
+                FREE(char, del->literal);
+                FREE(expr_literal, del);
+                break;
+            }
+            case EXPR_UNARY:
+            {
+                expr_unary *del = (expr_unary*)pexpr;
+                delete_expression(del->right);
+                FREE(expr_unary, del);
+                break;
+            }
+            case EXPR_VARIABLE:
+            {
+                expr_var *del = (expr_var*)pexpr;
+                FREE(expr_var, del);
+                break;
+            }
+            case EXPR_CALL:
+            {
+                expr_call *del = (expr_call*)pexpr;
+                delete_expression(del->expression);
+                for (size_t i = 0; i < del->count; i++)
+                    delete_expression(del->arguments[i]);
+                FREE(expr*, del->arguments);
+                FREE(expr_call, del);
+                break;
+            }
         }
-    FREE(expr, pexpr);
     }
 }
 
@@ -406,68 +520,62 @@ static stmt *get_return_statement(expr *value)
     return (stmt*)new_stmt;
 }
 
+static expr *get_assign_expr(expr *assign_expr, expr *value)
+{
+    expr_var *var_expr = (expr_var*)assign_expr;
+    expr_assign *new_expr = init_expr(EXPR_ASSIGN);
+    new_expr->name = var_expr->name;
+    new_expr->value = value;
+    new_expr->expression = assign_expr;
+    return (expr*)new_expr;
+}
+
 static expr *get_binary_expr(token *operator, expr *left, expr *right)
 {
-    expr *new_expr = init_expr();
-    new_expr->type = EXPR_BINARY;
+    expr_binary *new_expr = init_expr(EXPR_BINARY);
     new_expr->left = left;
     new_expr->right = right;
     new_expr->operator = operator;
-    return new_expr;
-}
-
-static expr *get_unary_expr(token *opcode, expr *right)
-{
-    expr *new_expr = init_expr();
-    new_expr->type = EXPR_UNARY;
-    new_expr->operator = opcode;
-    new_expr->right = right;
-    return new_expr;
-}
-
-static expr *get_variable_expr(token *name)
-{
-    expr *new_expr = init_expr();
-    new_expr->type = EXPR_VARIABLE;
-    new_expr->name = name;
-    return new_expr;
-}
-
-static expr *get_literal_expr(char *value, exprtype type)
-{
-    expr *new_expr = init_expr();
-    new_expr->type = type;
-    new_expr->literal = value;
-    return new_expr;
+    return (expr*)new_expr;
 }
 
 static expr *get_grouping_expr(expr *group_expr)
 {
-    expr *new_expr = init_expr();
-    new_expr->type = EXPR_GROUPING;
+    expr_grouping *new_expr = init_expr(EXPR_GROUPING);
     new_expr->expression = group_expr;
-    return new_expr;
+    return (expr*)new_expr;
 }
 
-static expr *get_assign_expr(expr *assign_expr, expr *value)
+static expr *get_literal_expr(char *value, exprtype type)
 {
-    expr *new_expr = init_expr();
-    new_expr->name = assign_expr->name;
-    new_expr->value = value;
-    new_expr->type = EXPR_ASSIGN;
-    new_expr->expression = assign_expr;
-    return new_expr;
+    expr_literal *new_expr = init_expr(type);
+    new_expr->literal = value;
+    return (expr*)new_expr;
+}
+
+static expr *get_unary_expr(token *opcode, expr *right)
+{
+    expr_unary *new_expr = init_expr(EXPR_UNARY);
+    new_expr->operator = opcode;
+    new_expr->right = right;
+    return (expr*)new_expr;
+}
+
+static expr *get_variable_expr(token *name)
+{
+    expr_var *new_expr = init_expr(EXPR_VARIABLE);
+    new_expr->name = name;
+    return (expr*)new_expr;
 }
 
 static expr *get_call_expression(expr *callee, expr **arguments, int num_arguments, int capacity)
 {
-	expr *new_expr = init_expr();
-	new_expr->type = EXPR_CALL;
+	expr_call *new_expr = init_expr(EXPR_CALL);
 	new_expr->expression = callee;
 	new_expr->arguments = arguments;
     new_expr->count = num_arguments;
     new_expr->capacity = capacity;
-	return new_expr;
+	return (expr*)new_expr;
 }
 
 static expr *primary(parser *analyzer)

@@ -67,54 +67,21 @@ static void compile_expression(instruct *instructs, expr *expression)
     uint8_t byte = 0;
     value operand = {.type = VAL_EMPTY, .val_int = 0};
     switch (expression->type) {
-		case EXPR_CALL:
-		{
-			byte = OP_CALL_FUNCTION;
-			compile_expression(instructs, expression->expression);
-			
-            int i = 0;
-            for (i = 0; i < expression->count; i++)
-                compile_expression(instructs, expression->arguments[i]);
-			operand.type = VAL_INT;
-			VAL_AS_INT(operand) = i;
-			break;
-		}
-        case EXPR_UNARY:
-            switch (expression->operator->type) {
-                case TOKEN_BANG:
-                    break;
-                case TOKEN_MINUS:
-                    compile_expression(instructs, expression->right);
-                    byte = OP_NEGATE;
-                    break;
-				default:
-					// future error code here
-					break;
-			}
-            break;
-        case EXPR_GROUPING:
-            compile_expression(instructs, expression->expression);
-            return;
         case EXPR_ASSIGN: 
         {
+            expr_assign *assign_expr = (expr_assign*)expression;
             byte = OP_STORE_NAME;
-            compile_expression(instructs, expression->value);
-			VAL_AS_STRING(operand) = take_string(expression->name);
-			operand.type = VAL_STRING;
-            break;
-        }
-        case EXPR_VARIABLE:
-        {
-            byte = OP_LOAD_NAME;
-			VAL_AS_STRING(operand) = take_string(expression->name);
+            compile_expression(instructs, assign_expr->value);
+			VAL_AS_STRING(operand) = take_string(assign_expr->name);
 			operand.type = VAL_STRING;
             break;
         }
         case EXPR_BINARY:
 		{
-            compile_expression(instructs, expression->left);
-            compile_expression(instructs, expression->right);
-            switch (expression->operator->type) {
+            expr_binary *binary_expr = (expr_binary*)expression;
+            compile_expression(instructs, binary_expr->left);
+            compile_expression(instructs, binary_expr->right);
+            switch (binary_expr->operator->type) {
                 case TOKEN_PLUS:
                     byte = OP_BINARY_ADD;
                     break;
@@ -133,7 +100,7 @@ static void compile_expression(instruct *instructs, expr *expression)
                 case TOKEN_LESS:
                 case TOKEN_LESS_EQUAL:
                     byte = OP_COMPARE;
-                    VAL_AS_INT(operand) = expression->operator->type;
+                    VAL_AS_INT(operand) = binary_expr->operator->type;
 					operand.type = VAL_INT;
                     break;
                 default:
@@ -141,34 +108,83 @@ static void compile_expression(instruct *instructs, expr *expression)
 			}
             break;
 		}
-		case EXPR_LITERAL_NUMBER:
-		{
-			byte = OP_LOAD_CONSTANT;
-            VAL_AS_DOUBLE(operand) = atof(expression->literal);
-			operand.type = VAL_DOUBLE;
-			break;
-		}
+        case EXPR_GROUPING:
+        {
+            expr_grouping *grouping_expr = (expr_grouping*)expression;
+            compile_expression(instructs, grouping_expr->expression);
+            return;
+        }
 		case EXPR_LITERAL_STRING:
 		{
+            expr_literal *literal_expr = (expr_literal*)expression;
             byte = OP_LOAD_CONSTANT;
-            int length = strlen(expression->literal);
+            int length = strlen(literal_expr->literal);
             char *buffer = ALLOCATE(char, length + 1);
-            buffer = strncpy(buffer, expression->literal, length);
+            buffer = strncpy(buffer, literal_expr->literal, length);
             buffer[length] = '\0';
 			VAL_AS_STRING(operand) = buffer;
 			operand.type = VAL_STRING;
 			break;
 		}
+		case EXPR_LITERAL_NUMBER:
+		{
+            expr_literal *literal_expr = (expr_literal*)expression;
+			byte = OP_LOAD_CONSTANT;
+            VAL_AS_DOUBLE(operand) = atof(literal_expr->literal);
+			operand.type = VAL_DOUBLE;
+			break;
+		}
 		case EXPR_LITERAL_BOOL:
 		{
+            expr_literal *literal_expr = (expr_literal*)expression;
 			byte = OP_LOAD_CONSTANT;
-            VAL_AS_INT(operand) = atoi(expression->literal);
+            VAL_AS_INT(operand) = atoi(literal_expr->literal);
 			operand.type = VAL_INT;
 			break;
 		}
-		default:
-			// future error code here
+		case EXPR_LITERAL_NULL:
+		{
+			byte = OP_LOAD_CONSTANT;
+			operand.type = VAL_NULL;
 			break;
+		}
+        case EXPR_UNARY:
+        {
+            expr_unary *unary_expr = (expr_unary*)expression;
+            switch (unary_expr->operator->type) {
+                case TOKEN_BANG:
+                    break;
+                case TOKEN_MINUS:
+                    compile_expression(instructs, unary_expr->right);
+                    byte = OP_NEGATE;
+                    break;
+				default:
+					// future error code here
+					break;
+			}
+            break;
+        }
+        case EXPR_VARIABLE:
+        {
+            expr_var *var_expr = (expr_var*)expression;
+            byte = OP_LOAD_NAME;
+			VAL_AS_STRING(operand) = take_string(var_expr->name);
+			operand.type = VAL_STRING;
+            break;
+        }
+		case EXPR_CALL:
+		{
+            expr_call *call_expr = (expr_call*)expression;
+			byte = OP_CALL_FUNCTION;
+			compile_expression(instructs, call_expr->expression);
+			
+            int i = 0;
+            for (i = 0; i < call_expr->count; i++)
+                compile_expression(instructs, call_expr->arguments[i]);
+			operand.type = VAL_INT;
+			VAL_AS_INT(operand) = i;
+			break;
+		}
 	}
 	emit_instruction(instructs, byte, operand);
 }
