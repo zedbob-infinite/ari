@@ -49,9 +49,9 @@ static void runtime_error(objstack *stack, size_t line, const char *format, ...)
 
 static char *take_string(value val, int length)
 {
-    char *buffer = ALLOCATE(char, length + 1);
-    buffer = strncpy(buffer, VAL_AS_STRING(val), length);
-    buffer[length] = '\0';
+    char *buffer = ALLOCATE(char, length);
+    buffer = memcpy(buffer, VAL_AS_STRING(val) + 1, length - 1);
+    buffer[length - 2] = '\0';
     return buffer;
 }
 
@@ -318,6 +318,7 @@ int execute(VM *vm, instruct *instructs)
                     printf("   \targument %d: ", i + 1);
                     printf("\tvalue: ");
                     print_object(arguments[i]);
+                    printf("\n");
 #endif
 				}
 #ifdef DEBUG_ARI

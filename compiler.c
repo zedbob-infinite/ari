@@ -39,7 +39,7 @@ static char *take_string(token *tok)
 {
     int length = tok->length;
     char *buffer = ALLOCATE(char, length + 1);
-    buffer = strncpy(buffer, tok->start, tok->length);
+    buffer = memcpy(buffer, tok->start, tok->length);
     buffer[tok->length] = '\0';
     return buffer;
 }
