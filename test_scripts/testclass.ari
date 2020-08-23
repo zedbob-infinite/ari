@@ -1,0 +1,12 @@
+class Test {a = 5; fun greeting(hello) {print(hello);}}
+
+apple = Test();
+print(apple.a);
+
+apple.a = 600;
+print(apple.a);
+
+beast = Test();
+print(beast.a);
+
+// beast.greeting("good morning!");

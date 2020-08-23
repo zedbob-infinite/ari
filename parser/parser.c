@@ -204,11 +204,21 @@ static expr_call *init_expr_call(void)
     return new_expr;
 }
 
-static expr_get *init_expr_get_prop(void)
+static expr_get *init_expr_getprop(void)
 {
     expr_get *new_expr = ALLOCATE(expr_get, 1);
     new_expr->header.type = EXPR_GET_PROP;
     new_expr->name = NULL;
+    return new_expr;
+}
+
+static expr_set *init_expr_setprop(void)
+{
+    expr_set *new_expr = ALLOCATE(expr_set, 1);
+    new_expr->header.type = EXPR_SET_PROP;
+    new_expr->name = NULL;
+    new_expr->value = NULL;
+    new_expr->refobj = NULL;
     return new_expr;
 }
 
@@ -233,7 +243,9 @@ static void *init_expr(exprtype type)
         case EXPR_CALL:
             return init_expr_call();
         case EXPR_GET_PROP:
-            return init_expr_get_prop();
+            return init_expr_getprop();
+        case EXPR_SET_PROP:
+            return init_expr_setprop();
     }
     // Not reachable.
     return NULL;
@@ -303,6 +315,12 @@ static void delete_expression(expr *pexpr)
             {
                 expr_get *del = (expr_get*)pexpr;
                 FREE(expr_get, del);
+                break;
+            }
+            case EXPR_SET_PROP:
+            {
+                expr_set *del = (expr_set*)pexpr;
+                FREE(expr_set, del);
                 break;
             }
         }
@@ -659,11 +677,22 @@ static expr *get_call_expression(expr *callee, expr **arguments, int num_argumen
 	return (expr*)new_expr;
 }
 
-static expr *get_property_expr(parser *analyzer, token *name, token *calling)
+static expr *get_getproperty_expr(parser *analyzer, token *name, 
+        token *calling)
 {
     expr_get *new_expr = init_expr(EXPR_GET_PROP);
     new_expr->name = name;
     new_expr->calling = calling;
+    return (expr*)new_expr;
+}
+
+static expr *get_setproperty_expr(parser *analyzer, token *name, 
+        token *refobj, expr *value)
+{
+    expr_set *new_expr = init_expr(EXPR_SET_PROP);
+    new_expr->name = name;
+    new_expr->refobj = refobj;
+    new_expr->value = value;
     return (expr*)new_expr;
 }
 
@@ -706,11 +735,6 @@ static expr *primary(parser *analyzer)
     return NULL;
 }
 
-static expr *set_property(parser *analyzer, token *name)
-{
-    /*return get_set_property_expr(analyzer, name);*/
-    return NULL;
-}
 
 static expr *get_method(parser *analyzer, token *name)
 {
@@ -718,9 +742,15 @@ static expr *get_method(parser *analyzer, token *name)
     return NULL;
 }
 
+static expr *set_property(parser *analyzer, token *name, token *refobj, 
+        expr *value)
+{
+    return get_setproperty_expr(analyzer, name, refobj, value);
+}
+
 static expr *get_property(parser *analyzer, token *name, token* calling)
 {
-    return get_property_expr(analyzer, name, calling);
+    return get_getproperty_expr(analyzer, name, calling);
 }
 
 static expr *dot(parser *analyzer, expr *callee)
@@ -730,7 +760,8 @@ static expr *dot(parser *analyzer, expr *callee)
             , "Expect property name after '.'.");
 
     if (match(analyzer, TOKEN_EQUAL)) {
-        return set_property(analyzer, name);
+        expr *value = expression(analyzer);
+        return set_property(analyzer, name, calling, value);
     }
     else if (match(analyzer, TOKEN_LEFT_PAREN)) {
         return get_method(analyzer, name);

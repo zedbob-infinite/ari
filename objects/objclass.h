@@ -9,7 +9,7 @@
 typedef struct
 {
     object header;
-    objprim *name;
+    char *name;
     frame localframe;
     objhash methods;
     // For compiling the class
@@ -19,7 +19,7 @@ typedef struct
 typedef struct
 {
     object header;
-    objclass *oclass;
+    objclass *class;
     frame localframe;
 } objinstance;
 

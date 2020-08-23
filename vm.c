@@ -61,6 +61,13 @@ static void runtime_error(VM *vm, objstack *stack, size_t line, const char *form
         vm_pop_frame(vm); 
 }
 
+static void runtime_error_loadname(VM *vm, char *name, uint64_t current)
+{
+    char msg[100];
+    sprintf(msg, "Name %s not found...", name);
+    runtime_error(vm, &vm->evalstack, current, msg);
+}
+
 static char *take_string(value val, int length)
 {
     char *buffer = ALLOCATE(char, length);
@@ -133,12 +140,9 @@ static inline object *get_name(frame *localframe, value name)
     return obj;
 }
 
-static inline void advance(frame *callframe, size_t count)
+static inline void advance(frame *callframe)
 {
-    /*if (callframe->pc + 1 > count)
-        callframe->pc = 0;
-    else*/
-        callframe->pc++;
+    callframe->pc++;
 }
 
 static void print_bytecode(uint8_t bytecode)
@@ -221,6 +225,50 @@ static void print_bytecode(uint8_t bytecode)
 	printf("%-20s", msg);
 }
 
+static void create_new_instance(VM *vm, object *obj, int argcount, object **arguments)
+{
+    objclass *classobj = (objclass*)obj;
+    objinstance *new_instance = init_objinstance(classobj);
+
+    /* Future code for init method will go here */
+	push_objstack(&vm->evalstack, (object*)new_instance);
+}
+
+static void call_function(VM *vm, object *obj, int argcount, object **arguments)
+{
+    objcode *funcobj = (objcode*)obj;
+    frame *localframe = NULL;
+
+    if (funcobj->depth == 0) {
+        vm_add_object(vm, (object*)funcobj);    
+        localframe = &funcobj->localframe;
+    }
+    else {
+        localframe = ALLOCATE(frame, 1);
+        init_frame(localframe);
+        localframe->is_adhoc = true;
+    }
+    push_frame(&vm->top, localframe); 
+
+    for (int k = 0, i = argcount - 1; k < argcount; k++) {
+#ifdef DEBUG_ARI
+        printf("   \tcode object argument %d: %s\n", k + 1,
+                PRIM_AS_STRING(funcobj->arguments[k]));
+#endif
+        set_name(vm->top, 
+                PRIM_AS_STRING(funcobj->arguments[k]),
+                arguments[i--]);
+    }
+#ifdef DEBUG_ARI
+    printf("\n");
+#endif
+    funcobj->depth++;
+    funcobj->instructs.current = 0;
+    execute(vm, &funcobj->instructs);
+    funcobj->depth--;
+    FREE(object*, arguments);
+}
+
 int execute(VM *vm, instruct *instructs)
 {
     vm->callstackpos++;
@@ -251,7 +299,7 @@ int execute(VM *vm, instruct *instructs)
                 init_frame(newframe);
                 newframe->pc = vm->top->pc;
                 push_frame(&vm->top, newframe); 
-                advance(vm->top, count);
+                advance(vm->top);
                 break;
             }
             case OP_POP_FRAME:
@@ -260,7 +308,7 @@ int execute(VM *vm, instruct *instructs)
                 vm->top->pc = oldframe->pc;
                 reset_frame(oldframe);
                 FREE(frame, oldframe);
-                advance(vm->top, count);
+                advance(vm->top);
                 break;
             }
             case OP_JMP_LOC:
@@ -278,7 +326,7 @@ int execute(VM *vm, instruct *instructs)
 				objprim *condition = (objprim*)pop_objstack(stack);
 
                 if (PRIM_AS_BOOL(condition))
-                    advance(vm->top, instructs->count);
+                    advance(vm->top);
                 else {
                     vm->top->pc = VAL_AS_INT(operand);
                 }
@@ -319,7 +367,7 @@ int execute(VM *vm, instruct *instructs)
                 object *obj = (object*)prim;
                 vm_add_object(vm, obj);
 				push_objstack(stack, obj);
-                advance(vm->top, count);
+                advance(vm->top);
                 break;
             }
             case OP_LOAD_NAME:
@@ -334,7 +382,7 @@ int execute(VM *vm, instruct *instructs)
 					runtime_error(vm, stack, current, msg);
                     return INTERPRET_RUNTIME_ERROR;
                 }
-                advance(vm->top, count);
+                advance(vm->top);
                 break;
             }
             case OP_CALL_FUNCTION:
@@ -356,43 +404,19 @@ int execute(VM *vm, instruct *instructs)
 #ifdef DEBUG_ARI
                 printf("\n");
 #endif
-				objcode *funcobj = (objcode*)pop_objstack(stack);
-                frame *localframe = NULL;
+                object *popped = pop_objstack(stack);
 
-                if (funcobj->depth == 0) {
-                    vm_add_object(vm, (object*)funcobj);    
-                    localframe = &funcobj->localframe;
-                }
-                else {
-                    localframe = ALLOCATE(frame, 1);
-                    init_frame(localframe);
-                    localframe->is_adhoc = true;
-                }
-                push_frame(&vm->top, localframe); 
-
-				for (int k = 0, i = argcount - 1; k < argcount; k++) {
-#ifdef DEBUG_ARI
-                    printf("   \tcode object argument %d: %s\n", k + 1,
-                            PRIM_AS_STRING(funcobj->arguments[k]));
-#endif
-					set_name(vm->top, 
-							PRIM_AS_STRING(funcobj->arguments[k]),
-							arguments[i--]);
-				}
-#ifdef DEBUG_ARI
-                printf("\n");
-#endif
-				funcobj->depth++;
-                funcobj->instructs.current = 0;
-                execute(vm, &funcobj->instructs);
-                funcobj->depth--;
-                FREE(object*, arguments);
+                if (OBJ_IS_CLASS(popped))
+                    create_new_instance(vm, popped, argcount, arguments);
+                else if (OBJ_IS_CODE(popped))
+                    call_function(vm, popped, argcount, arguments);
+                advance(vm->top);
                 break;
 			}
             case OP_MAKE_FUNCTION:
 			{
 				push_objstack(stack, VAL_AS_OBJECT(operand));
-                advance(vm->top, count);
+                advance(vm->top);
                 break;
 			}
             case OP_MAKE_CLASS:
@@ -401,46 +425,71 @@ int execute(VM *vm, instruct *instructs)
                 push_frame(&vm->top, &classobj->localframe);
                 execute(vm, &classobj->instructs);
                 push_objstack(stack, VAL_AS_OBJECT(operand));
-                //advance(vm->top, count);
                 break;
             }
             case OP_CALL_METHOD:
             {
-                advance(vm->top, count);
+                advance(vm->top);
                 break;
             }
             case OP_MAKE_METHOD:
             {
 				push_objstack(stack, VAL_AS_OBJECT(operand));
-                advance(vm->top, count);
+                advance(vm->top);
                 break;
             }
             case OP_GET_PROPERTY:
             {
                 object *obj = pop_objstack(stack);
+                char *name = VAL_AS_STRING(operand);
                 switch (obj->type) {
                     case OBJ_CLASS:
                     {
                         objclass *classobj = (objclass*)obj;
                         object *prop = objhash_get(classobj->header.__attrs__, 
-                                VAL_AS_STRING(operand));
+                                name);
                         if (prop)
                             push_objstack(stack, prop);
                         else {
-                            char msg[100];
-                            sprintf(msg, "Name %s not found...",
-                                        VAL_AS_STRING(operand));
-                            runtime_error(vm, stack, current, msg);
+                            runtime_error_loadname(vm, name, current);
                             return INTERPRET_RUNTIME_ERROR;
                         }
                         break;
                     }
                     case OBJ_INSTANCE:
                     {
+                        objinstance *instobj = (objinstance*)obj;
+                        object *prop = objhash_get(instobj->header.__attrs__, 
+                                name);
+                        if (!prop) {
+                            objclass *classobj = instobj->class;
+                            prop = objhash_get(classobj->header.__attrs__,
+                                    name);
+                        }
+                        if (!prop) {
+                            runtime_error_loadname(vm, name, current);
+                            return INTERPRET_RUNTIME_ERROR;
+                        }
+                        push_objstack(stack, prop);
                         break;
                     }
+                    default:
+                    {
+                        runtime_error(vm, stack, current, 
+                            "Invalid Operation: object has no attributes.");
+                        return INTERPRET_RUNTIME_ERROR;
+                    }
                 }
-                advance(vm->top, count);
+                advance(vm->top);
+                break;
+            }
+            case OP_SET_PROPERTY:
+            {
+                char *name = VAL_AS_STRING(operand);
+                objinstance *instobj = (objinstance*)pop_objstack(stack);
+                object *val = pop_objstack(stack);
+                objhash_set(instobj->header.__attrs__, name, val);
+                advance(vm->top);
                 break;
             }
             case OP_STORE_NAME:
@@ -448,30 +497,30 @@ int execute(VM *vm, instruct *instructs)
                 object *obj = pop_objstack(stack);
                 char *string = VAL_AS_STRING(operand);
                 set_name(vm->top, string, obj);
-                advance(vm->top, count);
+                advance(vm->top);
                 break;
             }
             case OP_COMPARE:
             {
                 binary_comp(vm, stack, VAL_AS_INT(operand));
-                advance(vm->top, count);
+                advance(vm->top);
                 break;
             }
             case OP_BINARY_ADD:
 				binary_op(vm, stack, '+');
-                advance(vm->top, count);
+                advance(vm->top);
                 break;
             case OP_BINARY_SUB:
                 binary_op(vm, stack, '-');
-                advance(vm->top, count);
+                advance(vm->top);
                 break;
             case OP_BINARY_MULT:
                 binary_op(vm, stack, '*');
-                advance(vm->top, count);
+                advance(vm->top);
                 break;
             case OP_BINARY_DIVIDE:
                 binary_op(vm, stack, '/');
-                advance(vm->top, count);
+                advance(vm->top);
                 break;
             case OP_NEGATE:
             {
@@ -479,11 +528,11 @@ int execute(VM *vm, instruct *instructs)
                 vm_add_object(vm, (object*)obj);
                 push_objstack(stack, (object*)obj);
                 binary_op(vm, stack, '*');
-                advance(vm->top, count);
+                advance(vm->top);
                 break;
             }
             case OP_POP:
-                advance(vm->top, count);
+                advance(vm->top);
                 break;
             case OP_PRINT:
             {
@@ -491,14 +540,14 @@ int execute(VM *vm, instruct *instructs)
                     print_object(pop_objstack(stack));
                     printf("\n");
                 }
-                advance(vm->top, count);
+                advance(vm->top);
                 break;
             }
             case OP_RETURN:
             {
                 if (vm->top->next) {
                     vm_pop_frame(vm);
-                    advance(vm->top, count);
+                    advance(vm->top);
                 }
                 else {
                     vm->callstackpos--;

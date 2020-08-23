@@ -198,6 +198,23 @@ static void compile_expression(instruct *instructs, expr *expression)
 			operand.type = VAL_STRING;
             break;
         }
+        case EXPR_SET_PROP:
+        {
+            expr_set *set_expr = (expr_set*)expression;
+            
+            /* Put new value on stack */
+            compile_expression(instructs, set_expr->value);
+            
+            /* Put reference object on stack */
+            value refobj = {VAL_STRING, .val_string = 
+                take_string(set_expr->refobj)};
+            emit_instruction(instructs, OP_LOAD_NAME, refobj); 
+            
+            byte = OP_SET_PROPERTY;
+            VAL_AS_STRING(operand) = take_string(set_expr->name);
+            operand.type = VAL_STRING;
+            break;
+        }
 	}
 	emit_instruction(instructs, byte, operand);
 }
@@ -359,8 +376,10 @@ static void compile_class(instruct *instructs, stmt *statement)
 {
     stmt_class *class_stmt = (stmt_class*)statement;
 	objclass *classobj = init_objclass();
-
-    /* Process attributes */
+    
+    token *name = class_stmt->name;
+    classobj->name = take_string(name);
+    /* Process attributes and methods */
     size_t num_attributes = class_stmt->num_attributes;
     size_t num_methods = class_stmt->num_methods;
 
@@ -370,14 +389,13 @@ static void compile_class(instruct *instructs, stmt *statement)
     for (size_t i = 0; i < num_methods; i++)
         compile_statement(&classobj->instructs, class_stmt->methods[i]);
 
-
     emit_instruction(&classobj->instructs, OP_RETURN, EMPTY_VAL);
+    
 	/* Push new code object onto the stack */
     value valobj = {.type = VAL_OBJECT, .val_obj = (object*)classobj};
 	emit_instruction(instructs, OP_MAKE_CLASS, valobj);
 
 	/* Store object*/
-    token *name = class_stmt->name;
     value operand = {.type = VAL_STRING, .val_string = take_string(name)};
     emit_instruction(instructs, OP_STORE_NAME, operand);
 }

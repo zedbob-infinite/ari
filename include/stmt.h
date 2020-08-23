@@ -101,23 +101,4 @@ typedef struct stmt_return_t
     expr *value;
 } stmt_return;
 
-/*typedef struct stmt_t
-{
-    stmttype type;
-    token *name;
-	int num_parameters;
-    token **parameters;
-    struct stmt_t *initializer;
-    expr *expression;
-    expr *condition;
-    expr *value;
-    struct stmt_t *loopbody;
-    struct stmt_t *thenbranch;
-    struct stmt_t *elsebranch;
-    struct stmt_t *block;
-    int count;
-    int capacity;
-    struct stmt_t **stmts;
-} stmt;*/
-
 #endif

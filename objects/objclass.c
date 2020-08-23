@@ -35,6 +35,7 @@ objclass *init_objclass(void)
 objinstance *init_objinstance(objclass *class)
 {
     objinstance *instobj = ALLOCATE(objinstance, 1);
+    instobj->class = class;
     init_object(&instobj->header, OBJ_INSTANCE);
     init_frame(&instobj->localframe);
     instobj->header.__attrs__ = &instobj->localframe.locals;

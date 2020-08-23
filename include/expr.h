@@ -79,6 +79,7 @@ typedef struct expr_set_t
 {
     expr header;
     token *name;
+    token *refobj;
     expr *value;
 } expr_set;
 

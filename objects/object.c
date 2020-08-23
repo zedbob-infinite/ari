@@ -113,6 +113,13 @@ void print_object(object *obj)
             printf("<class object> at %p", classobj);
             break;
         }
+        case OBJ_INSTANCE:
+        {
+            objinstance *instanceobj = (objinstance*)obj;
+            char *name = instanceobj->class->name;
+            printf("<instance object: %s class> at %p", name, instanceobj);
+            break;
+        }
 		default:
 			break;
 		}

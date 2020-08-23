@@ -3,6 +3,12 @@
 
 #include "objhash.h"
 
+#define OBJ_IS_PRIMITIVE(obj)   (obj->type == OBJ_PRIMITIVE)
+#define OBJ_IS_CLASS(obj)       (obj->type == OBJ_CLASS)
+#define OBJ_IS_INSTANCE(obj)    (obj->type == OBJ_INSTANCE)
+#define OBJ_IS_MODULE(obj)      (obj->type == OBJ_MODULE)
+#define OBJ_IS_CODE(obj)        (obj->type == OBJ_CODE)
+
 #define PRIM_AS_BOOL(obj)		(obj->val_int)
 #define PRIM_AS_INT(obj)		(obj->val_int)
 #define PRIM_AS_DOUBLE(obj)		(obj->val_double)
