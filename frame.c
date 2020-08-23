@@ -10,6 +10,7 @@ void init_frame(frame *f)
     f->pc = 0;
     f->next = NULL;
     f->is_recursed = false;
+    f->is_adhoc = false;
 }
 
 void reset_frame(frame *f)

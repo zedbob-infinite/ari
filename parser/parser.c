@@ -13,8 +13,397 @@
 static stmt *statement(parser *analyzer);
 static expr *expression(parser *analyzer);
 static token *advance(parser *analyzer);
-static stmt *block(parser *analyzer);
+static stmt *block(parser *analyzer, char *blockname);
 static char *token_type(int type);
+static stmt *expression_statement(parser *analyzer);
+
+
+static stmt_expr *init_stmt_expr(void)
+{
+    stmt_expr *new_stmt = ALLOCATE(stmt_expr, 1);
+    new_stmt->header.type = STMT_EXPR;
+    new_stmt->expression = NULL;
+    return new_stmt;
+}
+
+static stmt_block *init_stmt_block(void)
+{
+    stmt_block *new_stmt = ALLOCATE(stmt_block, 1);
+    new_stmt->header.type = STMT_BLOCK;
+    new_stmt->count = 0;
+    new_stmt->capacity = 0;
+    new_stmt->stmts = NULL;
+    return new_stmt;
+}
+
+static stmt_if *init_stmt_if(void)
+{
+    stmt_if *new_stmt = ALLOCATE(stmt_if, 1);
+    new_stmt->header.type = STMT_IF;
+    new_stmt->condition = NULL;
+    new_stmt->thenbranch = NULL;
+    new_stmt->elsebranch = NULL;
+    return new_stmt;
+}
+
+static stmt_while *init_stmt_while(void)
+{
+    stmt_while *new_stmt = ALLOCATE(stmt_while, 1);
+    new_stmt->header.type = STMT_WHILE;
+    new_stmt->condition = NULL;
+    new_stmt->loopbody = NULL;
+    return new_stmt;
+}
+
+static stmt_for *init_stmt_for(void)
+{
+    stmt_for *new_stmt = ALLOCATE(stmt_for, 1);
+    new_stmt->header.type = STMT_FOR;
+    new_stmt->count = 0;
+    new_stmt->capacity = 0;
+    new_stmt->stmts = NULL;
+    new_stmt->loopbody = NULL;
+    return new_stmt;
+}
+
+static stmt_print *init_stmt_print(void)
+{
+    stmt_print *new_stmt = ALLOCATE(stmt_print, 1);
+    new_stmt->header.type = STMT_PRINT;
+    new_stmt->value = NULL;
+    return new_stmt;
+}
+
+static stmt_function *init_stmt_function(void)
+{
+    stmt_function *new_stmt = ALLOCATE(stmt_function, 1);
+    new_stmt->header.type = STMT_FUNCTION;
+    new_stmt->name = NULL;
+    new_stmt->num_parameters = 0;
+    new_stmt->parameters = NULL;
+    new_stmt->block = NULL;
+    return new_stmt;
+}
+
+static stmt_method *init_stmt_method(void)
+{
+    stmt_method *new_stmt = ALLOCATE(stmt_method, 1);
+    new_stmt->header.type = STMT_METHOD;
+    new_stmt->name = NULL;
+    new_stmt->num_parameters = 0;
+    new_stmt->parameters = NULL;
+    new_stmt->block = NULL;
+    return new_stmt;
+}
+
+static stmt_class *init_stmt_class(void)
+{
+    stmt_class *new_stmt = ALLOCATE(stmt_class, 1);
+    new_stmt->header.type = STMT_CLASS;
+    new_stmt->name = NULL;
+    return new_stmt;
+}
+
+static stmt_return *init_stmt_return(void)
+{
+    stmt_return *new_stmt = ALLOCATE(stmt_return, 1);
+    new_stmt->header.type = STMT_RETURN;
+    new_stmt->value = NULL;
+    return new_stmt;
+}
+
+static void *init_stmt(stmttype type)
+{
+    switch (type) {
+        case STMT_EXPR:
+            return init_stmt_expr();
+        case STMT_BLOCK:
+            return init_stmt_block();
+        case STMT_IF:
+            return init_stmt_if();
+        case STMT_WHILE:
+            return init_stmt_while();
+        case STMT_FOR:
+            return init_stmt_for();
+        case STMT_PRINT:
+            return init_stmt_print();
+        case STMT_FUNCTION:
+            return init_stmt_function();
+        case STMT_METHOD:
+            return init_stmt_method();
+        case STMT_CLASS:
+            return init_stmt_class();
+        case STMT_RETURN:
+            return init_stmt_return();
+    }
+    // Should be unreachable
+    return NULL;
+}
+
+static expr_assign *init_expr_assign(void)
+{
+    expr_assign *new_expr = ALLOCATE(expr_assign, 1);
+    new_expr->header.type = EXPR_ASSIGN;
+    new_expr->name = NULL;
+    new_expr->value = NULL;
+    new_expr->expression = NULL;
+    return new_expr;
+}
+
+static expr_binary *init_expr_binary(void)
+{
+    expr_binary *new_expr = ALLOCATE(expr_binary, 1);
+    new_expr->header.type = EXPR_BINARY;
+    new_expr->operator = NULL;
+    new_expr->left = NULL;
+    new_expr->right = NULL;
+    return new_expr;
+}
+
+static expr_grouping *init_expr_grouping(void)
+{
+    expr_grouping *new_expr = ALLOCATE(expr_grouping, 1);
+    new_expr->header.type = EXPR_GROUPING;
+    new_expr->expression = NULL;
+    return new_expr;
+}
+
+static expr_literal *init_expr_literal(exprtype type)
+{
+    expr_literal *new_expr = ALLOCATE(expr_literal, 1);
+    new_expr->header.type = type;
+    new_expr->literal = NULL;
+    return new_expr;
+}
+
+static expr_unary *init_expr_unary(void)
+{
+    expr_unary *new_expr = ALLOCATE(expr_unary, 1);
+    new_expr->header.type = EXPR_UNARY;
+    new_expr->operator = NULL;
+    new_expr->right = NULL;
+    return new_expr;
+}
+
+static expr_var *init_expr_variable(void)
+{
+    expr_var *new_expr = ALLOCATE(expr_var, 1);
+    new_expr->header.type = EXPR_VARIABLE;
+    new_expr->name = NULL;
+    return new_expr;
+}
+
+static expr_call *init_expr_call(void)
+{
+    expr_call *new_expr = ALLOCATE(expr_call, 1);
+    new_expr->header.type = EXPR_CALL;
+    new_expr->count = 0;
+    new_expr->capacity = 0;
+    new_expr->arguments = 0;
+    new_expr->expression = 0;
+    return new_expr;
+}
+
+static expr_get *init_expr_get_prop(void)
+{
+    expr_get *new_expr = ALLOCATE(expr_get, 1);
+    new_expr->header.type = EXPR_GET_PROP;
+    new_expr->name = NULL;
+    return new_expr;
+}
+
+static void *init_expr(exprtype type)
+{
+    switch (type) {
+        case EXPR_ASSIGN:
+            return init_expr_assign();
+        case EXPR_BINARY:
+            return init_expr_binary();
+        case EXPR_GROUPING:
+            return init_expr_grouping();
+        case EXPR_LITERAL_STRING:
+        case EXPR_LITERAL_NUMBER:
+        case EXPR_LITERAL_BOOL:
+        case EXPR_LITERAL_NULL:
+            return init_expr_literal(type);
+        case EXPR_UNARY:
+            return init_expr_unary();
+        case EXPR_VARIABLE:
+            return init_expr_variable();
+        case EXPR_CALL:
+            return init_expr_call();
+        case EXPR_GET_PROP:
+            return init_expr_get_prop();
+    }
+    // Not reachable.
+    return NULL;
+}
+
+static void delete_expression(expr *pexpr)
+{
+    if (pexpr) {
+        switch (pexpr->type) {
+            case EXPR_ASSIGN:
+            {
+                expr_assign *del = (expr_assign*)pexpr;
+                delete_expression(del->value);
+                delete_expression(del->expression);
+                FREE(expr_assign, del);
+                break;
+            }
+            case EXPR_BINARY:
+            {
+                expr_binary *del = (expr_binary*)pexpr;
+                delete_expression(del->left);
+                delete_expression(del->right);
+                FREE(expr_binary, del);
+                break;
+            }
+            case EXPR_GROUPING:
+            {
+                expr_grouping *del = (expr_grouping*)pexpr;
+                delete_expression(del->expression);
+                FREE(expr_grouping, del);
+                break;
+            }
+            case EXPR_LITERAL_STRING:
+            case EXPR_LITERAL_NUMBER:
+            case EXPR_LITERAL_BOOL:
+            case EXPR_LITERAL_NULL:
+            {
+                expr_literal *del = (expr_literal*)pexpr;
+                FREE(char, del->literal);
+                FREE(expr_literal, del);
+                break;
+            }
+            case EXPR_UNARY:
+            {
+                expr_unary *del = (expr_unary*)pexpr;
+                delete_expression(del->right);
+                FREE(expr_unary, del);
+                break;
+            }
+            case EXPR_VARIABLE:
+            {
+                expr_var *del = (expr_var*)pexpr;
+                FREE(expr_var, del);
+                break;
+            }
+            case EXPR_CALL:
+            {
+                expr_call *del = (expr_call*)pexpr;
+                delete_expression(del->expression);
+                for (size_t i = 0; i < del->count; i++)
+                    delete_expression(del->arguments[i]);
+                FREE(expr*, del->arguments);
+                FREE(expr_call, del);
+                break;
+            }
+            case EXPR_GET_PROP:
+            {
+                expr_get *del = (expr_get*)pexpr;
+                FREE(expr_get, del);
+                break;
+            }
+        }
+    }
+}
+
+static void delete_statements(stmt *pstmt)
+{
+    if (pstmt) {
+        switch (pstmt->type) {
+            case STMT_EXPR:
+            {
+                stmt_expr *del = (stmt_expr*)pstmt;
+                delete_expression(del->expression);
+                FREE(stmt_expr, del);
+                break;
+            }
+            case STMT_BLOCK:
+            {
+                stmt_block *del = (stmt_block*)pstmt;
+                for (int i = 0; i < del->count; i++)
+                    delete_statements(del->stmts[i]);
+                FREE(stmt*, del->stmts);
+                FREE(stmt_block, del);
+                break;
+            }
+            case STMT_IF:
+            {
+                stmt_if *del = (stmt_if*)pstmt;
+                delete_expression(del->condition);
+                delete_statements(del->thenbranch);
+                delete_statements(del->elsebranch);
+                FREE(stmt_if, del);
+                break;
+            }
+            case STMT_WHILE:
+            {
+                stmt_while *del = (stmt_while*)pstmt;
+                delete_expression(del->condition);
+                delete_statements(del->loopbody);
+                FREE(stmt_while, del);
+                break;
+            }
+            case STMT_FOR:
+            {
+                stmt_for *del = (stmt_for*)pstmt;
+                delete_statements(del->loopbody);
+                for (int i = 0; i < 3; i++)
+                    delete_statements(del->stmts[i]);
+                FREE(stmt*, del->stmts);
+                FREE(stmt_for, del);
+                break;
+            }
+            case STMT_PRINT:
+            {
+                stmt_print *del = (stmt_print*)pstmt;
+                delete_expression(del->value);
+                FREE(stmt_print, del);
+                break;
+            }
+            case STMT_FUNCTION:
+            {
+                stmt_function *del = (stmt_function*)pstmt;
+                delete_statements(del->block);
+                FREE(token*, del->parameters);
+                FREE(stmt_function, del);
+                break;
+            }
+            case STMT_METHOD:
+            {
+                stmt_method *del = (stmt_method*)pstmt;
+                delete_statements(del->block);
+                FREE(token*, del->parameters);
+                FREE(stmt_method, del);
+                break;
+            }
+            case STMT_CLASS:
+            {
+                stmt_class *del = (stmt_class*)pstmt;
+                FREE(stmt_class, del);
+                break;
+            }
+            case STMT_RETURN:
+            {
+                stmt_return *del = (stmt_return*)pstmt;
+                delete_expression(del->value);
+                FREE(stmt_return, del);
+                break;
+            }
+        }
+    }
+}
+
+static char *take_string(token *tok)
+{
+    int length = tok->length;
+    char *buffer = ALLOCATE(char, length + 1);
+    buffer = memcpy(buffer, tok->start, tok->length);
+    buffer[tok->length] = '\0';
+    return buffer;
+}
 
 static void check_parser_capacity(parser* analyzer)
 {
@@ -24,124 +413,6 @@ static void check_parser_capacity(parser* analyzer)
                     stmt*, oldcapacity, analyzer->capacity);
     for (int i = oldcapacity; i < analyzer->capacity; ++i)
         analyzer->statements[i] = NULL;
-}
-
-static char *take_string(token *tok)
-{
-    int length = tok->length;
-    char *buffer = ALLOCATE(char, length + 1);
-    buffer = strncpy(buffer, tok->start, tok->length);
-    buffer[tok->length] = '\0';
-    return buffer;
-}
-
-static expr *init_expr(void)
-{
-    expr *new_expr = ALLOCATE(expr, 1);
-    new_expr->type = 0;
-    new_expr->name = NULL;
-    new_expr->operator = NULL;
-    new_expr->literal = NULL;
-    new_expr->count = 0;
-    new_expr->capacity = 0;
-	new_expr->arguments = NULL;
-    new_expr->expression= NULL;
-    new_expr->value = NULL;
-    new_expr->left = NULL;
-    new_expr->right = NULL;
-    return new_expr;
-}
-
-static stmt *init_stmt(void)
-{
-    stmt *new_stmt = ALLOCATE(stmt, 1);
-    new_stmt->type = 0;
-    new_stmt->name = NULL;
-	new_stmt->num_parameters = 0;
-    new_stmt->parameters = NULL;
-    new_stmt->initializer = NULL;
-    new_stmt->expression = NULL;
-    new_stmt->condition = NULL;
-    new_stmt->value = NULL;
-    new_stmt->loopbody = NULL;
-    new_stmt->thenbranch = NULL;
-    new_stmt->elsebranch = NULL;
-    new_stmt->block = NULL;
-    new_stmt->count = 0;
-    new_stmt->capacity = 0;
-    new_stmt->stmts = NULL;
-    return new_stmt;
-}
-
-static void delete_expression(expr *pexpr)
-{
-    if (pexpr) {
-        if (pexpr->expression)
-            delete_expression(pexpr->expression);
-        if (pexpr->value)
-            delete_expression(pexpr->value);
-        if (pexpr->left)
-            delete_expression(pexpr->left);
-        if (pexpr->right)
-            delete_expression(pexpr->right);
-        if (pexpr->literal)
-            FREE(char, pexpr->literal);
-        if (pexpr->arguments) {
-            for (int i = 0; i < pexpr->count; i++)
-                delete_expression(pexpr->arguments[i]);
-            FREE(expr*, pexpr->arguments);
-        }
-    FREE(expr, pexpr);
-    }
-}
-
-static void delete_statements(stmt *pstmt)
-{
-    if (pstmt->expression)
-        delete_expression(pstmt->expression);
-    if (pstmt->condition)
-        delete_expression(pstmt->condition);
-    if (pstmt->value)
-        delete_expression(pstmt->value);
-    switch (pstmt->type) {
-        case STMT_FUNCTION:
-            FREE(token*, pstmt->parameters);
-            delete_statements(pstmt->block);
-            break;
-        case STMT_BLOCK:
-            for (int i = 0; i < pstmt->count; i++)
-                delete_statements(pstmt->stmts[i]);
-            FREE(stmt*, pstmt->stmts);
-            break;
-        case STMT_EXPR:
-            break;
-        case STMT_IF:
-            delete_statements(pstmt->thenbranch);
-            if (pstmt->elsebranch)
-                delete_statements(pstmt->elsebranch);
-            break;
-        case STMT_WHILE:
-            delete_statements(pstmt->loopbody);
-            break;
-        case STMT_FOR:
-        {
-            for (int i = 0; i < 3; i++)
-                delete_statements(pstmt->stmts[i]);
-            FREE(stmt*, pstmt->stmts);
-            delete_statements(pstmt->loopbody);
-            break;
-        }
-        case STMT_VAR:
-            delete_statements(pstmt->initializer);
-            break;
-        case STMT_PRINT:
-            break;
-        case STMT_RETURN:
-            break;
-        default:
-            break;
-    }
-    FREE(stmt, pstmt);
 }
 
 static void synchronize(parser *analyzer)
@@ -167,21 +438,18 @@ static void synchronize(parser *analyzer)
     }
 }
 
-
 static void error_at(parser *analyzer, token *tok, const char *msg)
 {
     if (analyzer->panicmode) return;
     analyzer->panicmode = true;
 
     fprintf(stderr, "[line %d] Error", tok->line);
-    fprintf(stderr, " for token %s\n", token_type(tok->type));
     if (tok->type == TOKEN_EOF)
         fprintf(stderr, " at end");
-    else if (tok->type == TOKEN_ERROR)
-        fprintf(stderr, ": %.*s", tok->length, tok->start);
     else
         fprintf(stderr, " at '%.*s'", tok->length, tok->start);
-    fprintf(stderr, "\n");
+
+    fprintf(stderr, ": %s\n", msg);
     analyzer->haderror = true;
 }
 
@@ -210,6 +478,11 @@ static bool check(parser *analyzer, tokentype type)
     if (is_at_end(analyzer))
         return false;
     return peek(analyzer)->type == type;
+}
+
+static token *previous_token(parser *analyzer, int offset)
+{
+    return analyzer->scan.tokens[analyzer->current + offset];
 }
 
 static token *previous(parser *analyzer)
@@ -244,137 +517,154 @@ static bool match(parser *analyzer, tokentype type)
 
 static stmt *get_expression_statement(expr *new_expr)
 {
-    stmt *new_stmt = init_stmt();
-    new_stmt->type = STMT_EXPR;
+    stmt_expr *new_stmt = init_stmt(STMT_EXPR);
     new_stmt->expression = new_expr;
-    return new_stmt;
-}
-
-static stmt *get_for_statement(stmt *initializer, stmt *condition,
-        stmt *iterator, stmt *loopbody)
-{
-    stmt *new_stmt = init_stmt();
-    new_stmt->stmts = ALLOCATE(stmt*, 3);
-    new_stmt->capacity = 3;
-    new_stmt->count = 3;
-    new_stmt->type = STMT_FOR;
-    new_stmt->stmts[0] = initializer;
-    new_stmt->stmts[1] = condition;
-    new_stmt->stmts[2] = iterator;
-    new_stmt->loopbody = loopbody;
-    return new_stmt;
-}
-
-static stmt *get_while_statement(expr *condition, stmt *loopbody)
-{
-    stmt *new_stmt = init_stmt();
-    new_stmt->type = STMT_WHILE;
-    new_stmt->condition = condition;
-    new_stmt->loopbody = loopbody;
-    return new_stmt;
+    return (stmt*)new_stmt;
 }
 
 static stmt *get_if_statement(expr *condition, stmt *thenbranch, 
         stmt *elsebranch)
 {
-    stmt *new_stmt = init_stmt();
-    new_stmt->type = STMT_IF;
+    stmt_if *new_stmt = init_stmt(STMT_IF);
     new_stmt->condition = condition;
     new_stmt->thenbranch = thenbranch;
     new_stmt->elsebranch = elsebranch;
-    return new_stmt;
+    return (stmt*)new_stmt;
 }
 
+static stmt *get_while_statement(expr *condition, stmt *loopbody)
+{
+    stmt_while *new_stmt = init_stmt(STMT_WHILE);
+    new_stmt->condition = condition;
+    new_stmt->loopbody = loopbody;
+    return (stmt*)new_stmt;
+}
+
+static stmt *get_for_statement(stmt *initializer, stmt *condition,
+        stmt *iterator, stmt *loopbody)
+{
+    stmt_for *new_stmt = init_stmt(STMT_FOR);
+    new_stmt->stmts = ALLOCATE(stmt*, 3);
+    new_stmt->capacity = 3;
+    new_stmt->count = 3;
+    new_stmt->stmts[0] = initializer;
+    new_stmt->stmts[1] = condition;
+    new_stmt->stmts[2] = iterator;
+    new_stmt->loopbody = loopbody;
+    return (stmt*)new_stmt;
+}
 static stmt *get_print_statement(expr *value)
 {
-    stmt *new_stmt = init_stmt();
-    new_stmt->type = STMT_PRINT;
+    stmt_print *new_stmt = init_stmt(STMT_PRINT);
     new_stmt->value = value;
-    return new_stmt;
+    return (stmt*)new_stmt;
 }
 
-static stmt *get_function_statement(token *name, int num_parameters, token **parameters, 
-        stmt *body)
+static stmt *get_function_statement(token *name, int num_parameters, 
+        token **parameters, stmt *body)
 {
-    stmt *new_stmt = init_stmt();
-    new_stmt->type = STMT_FUNCTION;
+    stmt_function *new_stmt = init_stmt(STMT_FUNCTION);
     new_stmt->name = name;
 	new_stmt->num_parameters = num_parameters;
     new_stmt->parameters = parameters;
     new_stmt->block = body;
-    return new_stmt;
+    return (stmt*)new_stmt;
+}
+
+static stmt *get_method_statement(token *name, int num_parameters, 
+        token **parameters, stmt *body)
+{
+    stmt_method *new_stmt = init_stmt(STMT_METHOD);
+    new_stmt->name = name;
+	new_stmt->num_parameters = num_parameters;
+    new_stmt->parameters = parameters;
+    new_stmt->block = body;
+    return (stmt*)new_stmt;
+}
+
+static stmt *get_class_statement(token *name, uint16_t num_attributes,
+        stmt **attributes, uint16_t num_methods, stmt **methods)
+{
+    stmt_class *new_stmt = init_stmt(STMT_CLASS);
+    new_stmt->name = name;
+    new_stmt->num_attributes = num_attributes;
+    new_stmt->attributes = attributes;
+    new_stmt->num_methods = num_methods;
+    new_stmt->methods = methods;
+    return (stmt*)new_stmt;
 }
 
 static stmt *get_return_statement(expr *value)
 {
-    stmt *new_stmt = init_stmt();
-    new_stmt->type = STMT_RETURN;
+    stmt_return *new_stmt = init_stmt(STMT_RETURN);
     new_stmt->value = value;
-    return new_stmt;
-}
-
-static expr *get_binary_expr(token *operator, expr *left, expr *right)
-{
-    expr *new_expr = init_expr();
-    new_expr->type = EXPR_BINARY;
-    new_expr->left = left;
-    new_expr->right = right;
-    new_expr->operator = operator;
-    return new_expr;
-}
-
-static expr *get_unary_expr(token *opcode, expr *right)
-{
-    expr *new_expr = init_expr();
-    new_expr->type = EXPR_UNARY;
-    new_expr->operator = opcode;
-    new_expr->right = right;
-    return new_expr;
-}
-
-static expr *get_variable_expr(token *name)
-{
-    expr *new_expr = init_expr();
-    new_expr->type = EXPR_VARIABLE;
-    new_expr->name = name;
-    return new_expr;
-}
-
-static expr *get_literal_expr(char *value, exprtype type)
-{
-    expr *new_expr = init_expr();
-    new_expr->type = type;
-    new_expr->literal = value;
-    return new_expr;
-}
-
-static expr *get_grouping_expr(expr *group_expr)
-{
-    expr *new_expr = init_expr();
-    new_expr->type = EXPR_GROUPING;
-    new_expr->expression = group_expr;
-    return new_expr;
+    return (stmt*)new_stmt;
 }
 
 static expr *get_assign_expr(expr *assign_expr, expr *value)
 {
-    expr *new_expr = init_expr();
-    new_expr->name = assign_expr->name;
+    expr_var *var_expr = (expr_var*)assign_expr;
+    expr_assign *new_expr = init_expr(EXPR_ASSIGN);
+    new_expr->name = var_expr->name;
     new_expr->value = value;
-    new_expr->type = EXPR_ASSIGN;
     new_expr->expression = assign_expr;
-    return new_expr;
+    return (expr*)new_expr;
+}
+
+static expr *get_binary_expr(token *operator, expr *left, expr *right)
+{
+    expr_binary *new_expr = init_expr(EXPR_BINARY);
+    new_expr->left = left;
+    new_expr->right = right;
+    new_expr->operator = operator;
+    return (expr*)new_expr;
+}
+
+static expr *get_grouping_expr(expr *group_expr)
+{
+    expr_grouping *new_expr = init_expr(EXPR_GROUPING);
+    new_expr->expression = group_expr;
+    return (expr*)new_expr;
+}
+
+static expr *get_literal_expr(char *value, exprtype type)
+{
+    expr_literal *new_expr = init_expr(type);
+    new_expr->literal = value;
+    return (expr*)new_expr;
+}
+
+static expr *get_unary_expr(token *opcode, expr *right)
+{
+    expr_unary *new_expr = init_expr(EXPR_UNARY);
+    new_expr->operator = opcode;
+    new_expr->right = right;
+    return (expr*)new_expr;
+}
+
+static expr *get_variable_expr(token *name)
+{
+    expr_var *new_expr = init_expr(EXPR_VARIABLE);
+    new_expr->name = name;
+    return (expr*)new_expr;
 }
 
 static expr *get_call_expression(expr *callee, expr **arguments, int num_arguments, int capacity)
 {
-	expr *new_expr = init_expr();
-	new_expr->type = EXPR_CALL;
+	expr_call *new_expr = init_expr(EXPR_CALL);
 	new_expr->expression = callee;
 	new_expr->arguments = arguments;
     new_expr->count = num_arguments;
     new_expr->capacity = capacity;
-	return new_expr;
+	return (expr*)new_expr;
+}
+
+static expr *get_property_expr(parser *analyzer, token *name, token *calling)
+{
+    expr_get *new_expr = init_expr(EXPR_GET_PROP);
+    new_expr->name = name;
+    new_expr->calling = calling;
+    return (expr*)new_expr;
 }
 
 static expr *primary(parser *analyzer)
@@ -394,7 +684,7 @@ static expr *primary(parser *analyzer)
     if (match(analyzer, TOKEN_NULL)) {
         char *buffer = ALLOCATE(char, 5);
         char *null = "NULL";
-        strncpy(buffer, null, 4);
+        memcpy(buffer, null, 4);
         return get_literal_expr(buffer, EXPR_LITERAL_NULL);
     }
     if (match(analyzer, TOKEN_NUMBER))
@@ -412,7 +702,40 @@ static expr *primary(parser *analyzer)
     }
 
     error(analyzer, "Expect expression.");
+    /* Unreachable */
     return NULL;
+}
+
+static expr *set_property(parser *analyzer, token *name)
+{
+    /*return get_set_property_expr(analyzer, name);*/
+    return NULL;
+}
+
+static expr *get_method(parser *analyzer, token *name)
+{
+    /*return get_method_expr(analyzer, name);*/
+    return NULL;
+}
+
+static expr *get_property(parser *analyzer, token *name, token* calling)
+{
+    return get_property_expr(analyzer, name, calling);
+}
+
+static expr *dot(parser *analyzer, expr *callee)
+{
+    token *calling = previous_token(analyzer, -2);
+    token *name = consume(analyzer, TOKEN_IDENTIFIER
+            , "Expect property name after '.'.");
+
+    if (match(analyzer, TOKEN_EQUAL)) {
+        return set_property(analyzer, name);
+    }
+    else if (match(analyzer, TOKEN_LEFT_PAREN)) {
+        return get_method(analyzer, name);
+    }
+    return get_property(analyzer, name, calling);
 }
 
 static expr *finish_call(parser *analyzer, expr *callee)
@@ -445,10 +768,12 @@ static expr *finish_call(parser *analyzer, expr *callee)
 
 static expr *call(parser *analyzer)
 {
-	expr *new_expr = primary(analyzer);
-	if (match(analyzer, TOKEN_LEFT_PAREN))
-		return finish_call(analyzer, new_expr);
-	return new_expr;
+    expr *new_expr = primary(analyzer);
+    if (match(analyzer, TOKEN_LEFT_PAREN))
+        return finish_call(analyzer, new_expr);
+    if (match(analyzer, TOKEN_DOT))
+        return dot(analyzer, new_expr);
+    return new_expr;
 }
 
 static expr *unary(parser *analyzer)
@@ -557,43 +882,146 @@ static stmt *function(parser *analyzer)
 
     consume(analyzer, TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
     consume(analyzer, TOKEN_LEFT_BRACE, "Expect '{' before function body.");
-    stmt *body = block(analyzer);
+    stmt *body = block(analyzer, "function body");
     return get_function_statement(name, i, parameters, body);
+}
+
+static stmt *method(parser *analyzer)
+{
+    token *name = consume(analyzer, TOKEN_IDENTIFIER, "Expect method name.");
+    consume(analyzer, TOKEN_LEFT_PAREN, "Expect '(' after method name.");
+
+    int i = 0;
+    int oldsize = 0;
+    int size = 8;
+    token **parameters = ALLOCATE(token*, size);
+    if (!check(analyzer, TOKEN_RIGHT_PAREN)) {
+        do {
+            if (i > size) {
+                oldsize = size;
+                size *= 2;
+                parameters = GROW_ARRAY(parameters, token*, oldsize, size);
+                for (int j = oldsize; j < size; j++)
+                    parameters[j] = NULL;
+            }
+            parameters[i++] = consume(analyzer, TOKEN_IDENTIFIER, 
+                    "Expect parameter name.");
+        } while (match(analyzer, TOKEN_COMMA));
+    }
+
+    consume(analyzer, TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
+    consume(analyzer, TOKEN_LEFT_BRACE, "Expect '{' before method body.");
+    stmt *body = block(analyzer, "method body");
+    return get_method_statement(name, i, parameters, body);
+}
+
+static stmt *class(parser *analyzer)
+{
+    token *name = consume(analyzer, TOKEN_IDENTIFIER, "Expect class name.");
+    consume(analyzer, TOKEN_LEFT_BRACE, "Expect '{' before class body.");
+    
+    /* class attributes */
+    int i = 0;
+    int oldsize = 0;
+    int size = 8;
+    stmt **attributes  = ALLOCATE(stmt*, size);
+    while (!(check(analyzer, TOKEN_FUN)) && !(check(analyzer, TOKEN_EOF)) &&
+                !(check(analyzer, TOKEN_RIGHT_BRACE))) {
+        if (i > size) {
+            if (i >= UINT16_MAX) {
+                {
+                    char msg[100];
+                    sprintf(msg, 
+                            "Objects cannot have more than %d attributes.", 
+                            UINT16_MAX);
+                    error(analyzer, msg);
+                }
+            }
+            oldsize = size;
+            size *= 2;
+            attributes = GROW_ARRAY(attributes, stmt*, oldsize, size);
+            for (int j = oldsize; j < size; j++)
+                attributes[j] = NULL;
+        }
+        attributes[i++] = expression_statement(analyzer);
+        if (analyzer->panicmode) {
+            synchronize(analyzer);
+            return NULL;
+        }
+    }
+    printf("num_attributes: %d\n", i);
+    int num_attributes = i;
+    /* class methods */
+
+    i = 0;
+    oldsize = 0;
+    size = 8;
+    stmt **methods  = ALLOCATE(stmt*, size);
+    while (match(analyzer, TOKEN_FUN) && !(check(analyzer, TOKEN_EOF)) &&
+                !(check(analyzer, TOKEN_RIGHT_BRACE))) {
+        if (i > size) {
+            if (i >= UINT16_MAX) {
+                char msg[100];
+                sprintf(msg, 
+                        "Objects cannot have more than %d methods.", 
+                        UINT16_MAX);
+                error(analyzer, msg);
+            }
+            oldsize = size;
+            size *= 2;
+            methods = GROW_ARRAY(attributes, stmt*, oldsize, size);
+            for (int j = oldsize; j < size; j++)
+                methods[j] = NULL;
+        }
+        methods[i++] = method(analyzer);
+        if (analyzer->panicmode) {
+            synchronize(analyzer);
+            return NULL;
+        }
+    }
+
+    consume(analyzer, TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
+    return get_class_statement(name, num_attributes, attributes, i, methods);
 }
 
 static stmt *declaration(parser *analyzer)
 {
+    if (match(analyzer, TOKEN_CLASS))
+        return class(analyzer);
     if (match(analyzer, TOKEN_FUN))
         return function(analyzer);
     if (analyzer->panicmode) synchronize(analyzer);
     return statement(analyzer);
 }
 
-static inline void check_stmt_capacity(stmt *block_stmt)
+static inline void check_stmt_capacity(stmt_block *block_stmt)
 {
     int oldcapacity = block_stmt->capacity;
     if (block_stmt->capacity < block_stmt->count + 1) {
         block_stmt->capacity = GROW_CAPACITY(block_stmt->capacity);
-        block_stmt->stmts = realloc(block_stmt->stmts, sizeof(stmt) * block_stmt->capacity);
+        block_stmt->stmts = realloc(block_stmt->stmts, sizeof(stmt*) * block_stmt->capacity);
     }
     for (int i = oldcapacity; i < block_stmt->capacity; ++i)
         block_stmt->stmts[i] = NULL;
 }
 
-static stmt *block(parser *analyzer)
+static stmt *block(parser *analyzer, char *blockname)
 {
-    stmt *new_stmt = init_stmt();
-    new_stmt->type = STMT_BLOCK;
+    stmt_block *new_stmt = init_stmt(STMT_BLOCK);
 
-    int i = 0;
     while (!check(analyzer, TOKEN_RIGHT_BRACE) && !is_at_end(analyzer)) {
         check_stmt_capacity(new_stmt);
-        new_stmt->stmts[i++] = declaration(analyzer);
-        new_stmt->count++;
+        new_stmt->stmts[new_stmt->count++] = declaration(analyzer);
+        if (analyzer->panicmode) {
+            synchronize(analyzer);
+            return NULL;
+        }
     }
 
-    consume(analyzer, TOKEN_RIGHT_BRACE, "Expect '}' after block.");
-    return new_stmt;
+    char msg[50];
+    sprintf(msg, "Expect '{' after %s.", blockname);
+    consume(analyzer, TOKEN_RIGHT_BRACE, msg);
+    return (stmt*)new_stmt;
 }
 
 static stmt *if_statement(parser *analyzer)
@@ -674,7 +1102,7 @@ static stmt *statement(parser *analyzer)
     if (match(analyzer, TOKEN_IF))
         return if_statement(analyzer);
     if (match(analyzer, TOKEN_LEFT_BRACE))
-        return block(analyzer);
+        return block(analyzer, "block");
     return expression_statement(analyzer);
 }
 

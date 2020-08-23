@@ -1,7 +1,5 @@
-#ifndef ari_object_h
-#define ari_object_h
-
-#include "objhash.h"
+#ifndef ari_objprim_h
+#define ari_objprim_h
 
 #define PRIM_AS_BOOL(obj)		(obj->val_int)
 #define PRIM_AS_INT(obj)		(obj->val_int)
@@ -17,14 +15,7 @@
 #define ALLOCATE_PRIM_STRING(obj, length)	(obj->val_string = ALLOCATE(char, length + 1))
 #define COPY_PRIM_STRING(obj, string, length)		(strncpy(obj->val_string, string, length))
 
-typedef enum
-{
-	OBJ_PRIMITIVE,
-	OBJ_CLASS,
-	OBJ_INSTANCE,
-    OBJ_MODULE,
-	OBJ_CODE,
-} objtype;
+typedef struct object;
 
 typedef enum
 {
@@ -34,13 +25,6 @@ typedef enum
 	PRIM_BOOL,
 	PRIM_NULL,
 } primtype;
-
-typedef struct object_t
-{
-	objtype type;
-    struct object_t* next;
-    objhash *__attrs__;
-} object;
 
 typedef struct objprim_t
 {
@@ -54,9 +38,6 @@ typedef struct objprim_t
 	};
 } objprim;
 
-void init_object(object *obj, objtype type);
-object *create_new_object(objtype type);
 objprim *create_new_primitive(primtype ptype);
-void print_object(object *obj);
 
 #endif
