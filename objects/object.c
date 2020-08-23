@@ -1,40 +1,41 @@
 #include <stdio.h>
 
 #include "memory.h"
+#include "objclass.h"
 #include "objcode.h"
 #include "object.h"
 
 static void inline init_int(objprim *obj)
 {
-	obj->obj.type = OBJ_PRIMITIVE;
+	obj->header.type = OBJ_PRIMITIVE;
 	obj->ptype = PRIM_INT;
 	obj->val_int = 0;
 }
 
 static void inline init_double(objprim *obj)
 {
-	obj->obj.type = OBJ_PRIMITIVE;
+	obj->header.type = OBJ_PRIMITIVE;
 	obj->ptype = PRIM_DOUBLE;
 	obj->val_double = 0;
 }
 
 static void inline init_bool(objprim *obj)
 {
-	obj->obj.type = OBJ_PRIMITIVE;
+	obj->header.type = OBJ_PRIMITIVE;
 	obj->ptype = PRIM_BOOL;
 	obj->val_int = 0;
 }
 
 static void inline init_null(objprim *obj)
 {
-	obj->obj.type = OBJ_PRIMITIVE;
+	obj->header.type = OBJ_PRIMITIVE;
 	obj->ptype = PRIM_NULL;
 	obj->val_int = 0;
 }
 
 static void inline init_string(objprim *obj)
 {
-	obj->obj.type = OBJ_PRIMITIVE;
+	obj->header.type = OBJ_PRIMITIVE;
 	obj->ptype = PRIM_STRING;
 	obj->val_string = NULL;
 }
@@ -104,6 +105,12 @@ void print_object(object *obj)
         {
             objcode *codeobj = (objcode*)obj;
             printf("<code object> at %p", codeobj);
+            break;
+        }
+        case OBJ_CLASS:
+        {
+            objclass *classobj = (objclass*)obj;
+            printf("<class object> at %p", classobj);
             break;
         }
 		default:

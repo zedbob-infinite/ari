@@ -11,6 +11,7 @@ typedef struct frame_t
     objhash locals;
     size_t pc;
     struct frame_t *next;
+    bool is_adhoc;
     bool is_recursed;
 } frame;
 

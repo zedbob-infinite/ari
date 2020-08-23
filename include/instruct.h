@@ -5,6 +5,7 @@
 
 #include "object.h"
 
+#define VAL_IS_EMPTY(value)     (value.type == VAL_INT)
 #define VAL_IS_INT(value)		(value.type == VAL_INT)
 #define VAL_IS_DOUBLE(value)	(value.type == VAL_DOUBLE)
 #define VAL_IS_STRING(value)	(value.type == VAL_STRING)

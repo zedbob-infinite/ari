@@ -6,6 +6,7 @@
 #include "instruct.h"
 #include "memory.h"
 #include "object.h"
+#include "objclass.h"
 #include "objcode.h"
 #include "opcode.h"
 #include "parser.h"
@@ -185,6 +186,18 @@ static void compile_expression(instruct *instructs, expr *expression)
 			VAL_AS_INT(operand) = i;
 			break;
 		}
+        case EXPR_GET_PROP:
+        {
+            expr_get *get_expr = (expr_get*)expression;
+            value calling = {VAL_STRING, .val_string = 
+                take_string(get_expr->calling)};
+            emit_instruction(instructs, OP_LOAD_NAME, calling); 
+            byte = OP_GET_PROPERTY;
+
+			VAL_AS_STRING(operand) = take_string(get_expr->name);
+			operand.type = VAL_STRING;
+            break;
+        }
 	}
 	emit_instruction(instructs, byte, operand);
 }
@@ -313,6 +326,62 @@ static void compile_function(instruct *instructs, stmt *statement)
     emit_instruction(instructs, OP_STORE_NAME, operand);
 }
 
+static void compile_method(instruct *instructs, stmt *statement)
+{
+    stmt_method *method_stmt = (stmt_method*)statement;
+	int argcount = method_stmt->num_parameters;
+	token **parameters = method_stmt->parameters;
+
+	objprim **arguments = ALLOCATE(objprim*, argcount);
+
+	for (int i = 0; i < argcount; ++i) {
+		objprim *prim = create_new_primitive(PRIM_STRING);
+		PRIM_AS_STRING(prim) = take_string(parameters[i]);
+		arguments[i] = prim;
+	}
+	
+	objcode *codeobj = init_objcode(argcount, arguments);
+
+    compile_block(&(codeobj->instructs), method_stmt->block, false);
+
+    emit_instruction(&(codeobj->instructs), OP_RETURN, NULL_VAL);
+	/* Push new code object onto the stack */
+	value valobj = {.type = VAL_OBJECT, .val_obj = (object*)codeobj};
+	emit_instruction(instructs, OP_MAKE_METHOD, valobj);
+
+	/* Store object*/
+    token *name = method_stmt->name;
+    value operand = {.type = VAL_STRING, .val_string = take_string(name)};
+    emit_instruction(instructs, OP_STORE_NAME, operand);
+}
+
+static void compile_class(instruct *instructs, stmt *statement)
+{
+    stmt_class *class_stmt = (stmt_class*)statement;
+	objclass *classobj = init_objclass();
+
+    /* Process attributes */
+    size_t num_attributes = class_stmt->num_attributes;
+    size_t num_methods = class_stmt->num_methods;
+
+    for (size_t i = 0; i < num_attributes; i++)
+        compile_statement(&classobj->instructs, class_stmt->attributes[i]);
+    
+    for (size_t i = 0; i < num_methods; i++)
+        compile_statement(&classobj->instructs, class_stmt->methods[i]);
+
+
+    emit_instruction(&classobj->instructs, OP_RETURN, EMPTY_VAL);
+	/* Push new code object onto the stack */
+    value valobj = {.type = VAL_OBJECT, .val_obj = (object*)classobj};
+	emit_instruction(instructs, OP_MAKE_CLASS, valobj);
+
+	/* Store object*/
+    token *name = class_stmt->name;
+    value operand = {.type = VAL_STRING, .val_string = take_string(name)};
+    emit_instruction(instructs, OP_STORE_NAME, operand);
+}
+
 static void compile_return(instruct *instructs, stmt *statement)
 {
     stmt_return *return_stmt = (stmt_return*)statement;
@@ -356,6 +425,16 @@ static void compile_statement(instruct *instructs, stmt *statement)
         case STMT_FUNCTION:
         {
             compile_function(instructs, statement);
+            break;
+        }
+        case STMT_METHOD:
+        {
+            compile_method(instructs, statement);
+            break;
+        }
+        case STMT_CLASS:
+        {
+            compile_class(instructs, statement);
             break;
         }
         case STMT_RETURN:

@@ -1,3 +1,4 @@
+#include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,6 +9,7 @@
 #include "instruct.h"
 #include "frame.h"
 #include "memory.h"
+#include "objclass.h"
 #include "objcode.h"
 #include "objstack.h"
 #include "opcode.h"
@@ -34,7 +36,17 @@ static void vm_add_object(VM *vm, object *obj)
    obj->next = NULL;
 }
 
-static void runtime_error(objstack *stack, size_t line, const char *format, ...)
+static void vm_pop_frame(VM *vm)
+{
+    frame* popped = pop_frame(&vm->top);
+    if (popped->is_adhoc) {
+        reset_frame(popped);
+        FREE(frame, popped);
+    }
+    vm->callstackpos--;
+}
+
+static void runtime_error(VM *vm, objstack *stack, size_t line, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -45,6 +57,8 @@ static void runtime_error(objstack *stack, size_t line, const char *format, ...)
     fprintf(stderr, "[line %ld] in script\n", line);
 
     reset_objstack(stack);
+    while (vm->callstackpos > 0)
+        vm_pop_frame(vm); 
 }
 
 static char *take_string(value val, int length)
@@ -161,6 +175,21 @@ static void print_bytecode(uint8_t bytecode)
         case OP_MAKE_FUNCTION:
             msg = "MAKE_FUNCTION";
             break;
+        case OP_CALL_METHOD:
+            msg = "CALL_METHOD";
+            break;
+        case OP_MAKE_METHOD:
+            msg = "MAKE_METHOD";
+            break;
+        case OP_MAKE_CLASS:
+            msg = "MAKE_CLASS";
+            break;
+        case OP_SET_PROPERTY:
+            msg = "SET_PROPERTY";
+            break;
+        case OP_GET_PROPERTY:
+            msg = "GET_PROPERTY";
+            break;
         case OP_STORE_NAME:
             msg = "STORE_NAME";
             break;
@@ -195,20 +224,20 @@ static void print_bytecode(uint8_t bytecode)
 int execute(VM *vm, instruct *instructs)
 {
     vm->callstackpos++;
+    uint64_t count = instructs->count;
 #ifdef DEBUG_ARI
+    int compress = (int)log10(count);
     printf("Current Frame is %p\n\n", vm->top);
     printf("Call Stack Position is %ld\n", vm->callstackpos);
 #endif
     objstack *stack = &vm->evalstack;
     while (vm->top->pc < instructs->count) {
-		size_t current = vm->top->pc;
-        size_t count = instructs->count;
+		uint64_t current = vm->top->pc;
 		code8 *code = instructs->code[current];
-        value operand = {VAL_EMPTY, {0}};
-        operand = code->operand;
+        value operand = code->operand;
         valtype type = code->operand.type; 
 #ifdef DEBUG_ARI
-        printf("|%ld|\t", current + 1);
+        printf("|%*ld|\t", compress, current + 1);
         print_bytecode(code->bytecode);
         printf("\t(");
         print_value(operand, type);
@@ -261,7 +290,7 @@ int execute(VM *vm, instruct *instructs)
                 switch (type) {
                     case VAL_EMPTY:
                     {
-                        runtime_error(stack, current, "No object found.");
+                        runtime_error(vm, stack, current, "No object found.");
                         return INTERPRET_RUNTIME_ERROR;
                     }
                     case VAL_INT:
@@ -282,7 +311,8 @@ int execute(VM *vm, instruct *instructs)
                         break;
 					default:
 					{
-						runtime_error(stack, current, "Cannot load non-constant value.");
+						runtime_error(vm, stack, current, 
+                                "Cannot load non-constant value.");
 						return INTERPRET_RUNTIME_ERROR;
 					}
                 }
@@ -297,9 +327,11 @@ int execute(VM *vm, instruct *instructs)
                 object *obj = get_name(vm->top, operand);
                 if (obj)
                     push_objstack(stack, obj);
-                else {
-                    printf("Name %s not found...\n",
-                            VAL_AS_STRING(operand));
+                else { 
+                    char msg[100];
+                    sprintf(msg, "Name %s not found...",
+                                VAL_AS_STRING(operand));
+					runtime_error(vm, stack, current, msg);
                     return INTERPRET_RUNTIME_ERROR;
                 }
                 advance(vm->top, count);
@@ -334,7 +366,7 @@ int execute(VM *vm, instruct *instructs)
                 else {
                     localframe = ALLOCATE(frame, 1);
                     init_frame(localframe);
-                    localframe->is_recursed = true;
+                    localframe->is_adhoc = true;
                 }
                 push_frame(&vm->top, localframe); 
 
@@ -363,6 +395,54 @@ int execute(VM *vm, instruct *instructs)
                 advance(vm->top, count);
                 break;
 			}
+            case OP_MAKE_CLASS:
+            {
+				objclass *classobj = (objclass*)VAL_AS_OBJECT(operand);
+                push_frame(&vm->top, &classobj->localframe);
+                execute(vm, &classobj->instructs);
+                push_objstack(stack, VAL_AS_OBJECT(operand));
+                //advance(vm->top, count);
+                break;
+            }
+            case OP_CALL_METHOD:
+            {
+                advance(vm->top, count);
+                break;
+            }
+            case OP_MAKE_METHOD:
+            {
+				push_objstack(stack, VAL_AS_OBJECT(operand));
+                advance(vm->top, count);
+                break;
+            }
+            case OP_GET_PROPERTY:
+            {
+                object *obj = pop_objstack(stack);
+                switch (obj->type) {
+                    case OBJ_CLASS:
+                    {
+                        objclass *classobj = (objclass*)obj;
+                        object *prop = objhash_get(classobj->header.__attrs__, 
+                                VAL_AS_STRING(operand));
+                        if (prop)
+                            push_objstack(stack, prop);
+                        else {
+                            char msg[100];
+                            sprintf(msg, "Name %s not found...",
+                                        VAL_AS_STRING(operand));
+                            runtime_error(vm, stack, current, msg);
+                            return INTERPRET_RUNTIME_ERROR;
+                        }
+                        break;
+                    }
+                    case OBJ_INSTANCE:
+                    {
+                        break;
+                    }
+                }
+                advance(vm->top, count);
+                break;
+            }
             case OP_STORE_NAME:
             {
                 object *obj = pop_objstack(stack);
@@ -416,16 +496,12 @@ int execute(VM *vm, instruct *instructs)
             }
             case OP_RETURN:
             {
-                vm->callstackpos--;
                 if (vm->top->next) {
-                    frame* popped = pop_frame(&vm->top);
-                    if (popped->is_recursed) {
-                        reset_frame(popped);
-                        FREE(frame, popped);
-                    }
+                    vm_pop_frame(vm);
                     advance(vm->top, count);
                 }
                 else {
+                    vm->callstackpos--;
                     vm->top->pc = 0;
                 }
 #ifdef DEBUG_ARI

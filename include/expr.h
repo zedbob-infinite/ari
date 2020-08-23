@@ -15,6 +15,9 @@ typedef enum exprtype_t
     EXPR_UNARY,
     EXPR_VARIABLE,
 	EXPR_CALL,
+    EXPR_SET_PROP,
+    EXPR_GET_PROP,
+    EXPR_METHOD,
 } exprtype;
 
 typedef struct expr_t
@@ -71,5 +74,19 @@ typedef struct expr_call_t
     expr **arguments;
     expr *expression;
 } expr_call;
+
+typedef struct expr_set_t
+{
+    expr header;
+    token *name;
+    expr *value;
+} expr_set;
+
+typedef struct expr_get_t
+{
+    expr header;
+    token *name;
+    token *calling;
+} expr_get;
 
 #endif

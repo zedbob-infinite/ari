@@ -1,23 +1,29 @@
 #ifndef ari_objclass_h
 #define ari_objclass_h
 
+#include "frame.h"
+#include "instruct.h"
 #include "object.h"
 #include "objhash.h"
 
 typedef struct
 {
-    object obj;
+    object header;
     objprim *name;
+    frame localframe;
     objhash methods;
+    // For compiling the class
+    instruct instructs;
 } objclass;
 
 typedef struct
 {
-    object obj;
+    object header;
     objclass *oclass;
-    objhash fields;
+    frame localframe;
 } objinstance;
 
-void init_objclass(objclass *ocls);
+objclass *init_objclass(void);
+objinstance *init_objinstance(objclass *class);
 
 #endif

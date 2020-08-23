@@ -13,6 +13,8 @@ typedef enum stmttype_t
     STMT_FOR,
     STMT_PRINT,
     STMT_FUNCTION,
+    STMT_METHOD,
+    STMT_CLASS,
     STMT_RETURN,
 } stmttype;
 
@@ -71,8 +73,27 @@ typedef struct stmt_function_t
     token *name;
 	int num_parameters;
     token **parameters;
-    struct stmt_t *block;
+    stmt *block;
 } stmt_function;
+
+typedef struct stmt_method_t
+{
+    stmt header;
+    token *name;
+	int num_parameters;
+    token **parameters;
+    stmt *block;
+} stmt_method;
+
+typedef struct stmt_class_t
+{
+    stmt header;
+    token *name;
+    uint16_t num_attributes;
+    stmt **attributes;  
+    uint16_t num_methods;
+    stmt **methods;
+} stmt_class;
 
 typedef struct stmt_return_t
 {
