@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "builtin.h"
 #include "compiler.h"
 #include "debug.h"
 #include "instruct.h"
@@ -16,6 +17,31 @@
 #include "token.h"
 #include "tokenizer.h"
 #include "vm.h"
+
+static void call_builtin(VM *vm, object *obj, int argcount, 
+        object **arguments)
+{
+    objbuiltin *builtinobj = (objbuiltin*)obj;
+    object *result = builtinobj->func(argcount, arguments);
+}
+
+static void load_builtin(VM *vm, char *name, builtin function)
+{
+    objbuiltin *builtin_obj = ALLOCATE(objbuiltin, 1);
+    init_object(&builtin_obj->header, OBJ_BUILTIN);
+    builtin_obj->func = function;
+
+    frame *global = &vm->global.local;
+    objhash_set(&global->locals, name, (object*)builtin_obj);
+}
+
+static object *builtin_println(int argcount, object **args)
+{
+    for (int i = argcount - 1; i >= 0; i--)
+        print_object(args[i]);
+    printf("\n");
+    return NULL;
+}
 
 static inline void delete_value(value *val, valtype type)
 {
@@ -273,6 +299,7 @@ int execute(VM *vm, instruct *instructs)
 {
     vm->callstackpos++;
     uint64_t count = instructs->count;
+    frame *global = &vm->global.local;
 #ifdef DEBUG_ARI
     int compress = (int)log10(count);
     printf("Current Frame is %p\n\n", vm->top);
@@ -410,6 +437,8 @@ int execute(VM *vm, instruct *instructs)
                     create_new_instance(vm, popped, argcount, arguments);
                 else if (OBJ_IS_CODE(popped))
                     call_function(vm, popped, argcount, arguments);
+                else if (OBJ_IS_BUILTIN(popped))
+                    call_builtin(vm, popped, argcount, arguments);
                 advance(vm->top);
                 break;
 			}
@@ -485,10 +514,31 @@ int execute(VM *vm, instruct *instructs)
             }
             case OP_SET_PROPERTY:
             {
+                object *obj = pop_objstack(stack);
                 char *name = VAL_AS_STRING(operand);
-                objinstance *instobj = (objinstance*)pop_objstack(stack);
                 object *val = pop_objstack(stack);
-                objhash_set(instobj->header.__attrs__, name, val);
+                switch (obj->type) {
+                    case OBJ_CLASS:
+                    {
+                        objclass *classobj = (objclass*)obj;
+                        objhash_set(classobj->header.__attrs__, name, val);
+                        break;
+                    }
+                    case OBJ_INSTANCE:
+                    {
+                        objinstance *instobj = (objinstance*)obj;
+                        objhash_set(instobj->header.__attrs__, name, val);
+                        break;
+                    }
+                    default:
+                    {
+                        char msg[100];
+                        sprintf(msg, "Error: object has no attribute %s.",
+                                name);
+                        runtime_error(vm, stack, current, msg);
+                        return INTERPRET_RUNTIME_ERROR;
+                    }
+                }
                 advance(vm->top);
                 break;
             }
@@ -595,6 +645,9 @@ VM *init_vm(void)
     vm->objs = NULL;
     vm->num_objects = 0;
     vm->callstackpos = 0;
+    
+    load_builtin(vm, "println", builtin_println);
+    
     return vm;
 }
 

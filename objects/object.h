@@ -8,6 +8,7 @@
 #define OBJ_IS_INSTANCE(obj)    (obj->type == OBJ_INSTANCE)
 #define OBJ_IS_MODULE(obj)      (obj->type == OBJ_MODULE)
 #define OBJ_IS_CODE(obj)        (obj->type == OBJ_CODE)
+#define OBJ_IS_BUILTIN(obj)     (obj->type == OBJ_BUILTIN)
 
 #define PRIM_AS_BOOL(obj)		(obj->val_int)
 #define PRIM_AS_INT(obj)		(obj->val_int)
@@ -30,6 +31,7 @@ typedef enum
 	OBJ_INSTANCE,
     OBJ_MODULE,
 	OBJ_CODE,
+    OBJ_BUILTIN,
 } objtype;
 
 typedef enum
