@@ -1,5 +1,6 @@
 #include <stdio.h>
 
+#include "builtin.h"
 #include "memory.h"
 #include "objclass.h"
 #include "objcode.h"
@@ -118,6 +119,12 @@ void print_object(object *obj)
             objinstance *instanceobj = (objinstance*)obj;
             char *name = instanceobj->class->name;
             printf("<instance object: %s class> at %p", name, instanceobj);
+            break;
+        }
+        case OBJ_BUILTIN:
+        {
+            /*objbuiltin *builtin_obj = (objbuiltin*)obj;*/
+            printf("<builtin>");
             break;
         }
 		default:

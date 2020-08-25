@@ -1,9 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "builtin.h"
 #include "memory.h"
+#include "objclass.h"
 #include "objcode.h"
 #include "object.h"
+#include "objhash.h"
+
 
 void free_object(void *obj, objtype type)
 {
@@ -26,6 +30,31 @@ void free_object(void *obj, objtype type)
             reset_frame(&codeobj->localframe);
             reset_instruct(&codeobj->instructs);
             FREE(objcode, codeobj);
+            break;
+        }
+
+        case OBJ_CLASS:
+        {
+            objclass *classobj = (objclass*)obj;
+            FREE(char, classobj->name);
+            reset_frame(&classobj->localframe);
+            reset_objhash(&classobj->methods);
+            reset_instruct(&classobj->instructs);
+            FREE(objclass, classobj);
+            break;
+        }
+        case OBJ_INSTANCE:
+        {
+            objinstance *instobj = (objinstance*)obj;
+            reset_frame(&instobj->localframe);
+            FREE(objinstance, instobj);
+            break;
+        }
+        case OBJ_BUILTIN:
+        {
+            objbuiltin *builtin_obj = (objbuiltin*)obj;
+            FREE(objbuiltin, builtin_obj);
+            break;
         }
         default:
             break;

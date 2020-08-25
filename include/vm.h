@@ -23,8 +23,9 @@ typedef struct VM_t
     module global;
     frame *top;
     object *objs;
-    size_t num_objects;
-    size_t callstackpos;
+    int num_objects;
+    int callstackpos;
+    int framestackpos; 
 } VM;
 
 void interpret(char *source);

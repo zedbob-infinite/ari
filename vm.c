@@ -18,6 +18,20 @@
 #include "tokenizer.h"
 #include "vm.h"
 
+
+static void vm_add_object(VM *vm, object *obj)
+{
+   if (vm->objs) {
+       object *previous = vm->objs;
+       vm->objs = obj;
+       obj->next = previous;
+       return;
+   }
+   vm->objs = obj;
+   vm->num_objects++;
+   obj->next = NULL;
+}
+
 static void call_builtin(VM *vm, object *obj, int argcount, 
         object **arguments)
 {
@@ -28,6 +42,8 @@ static void call_builtin(VM *vm, object *obj, int argcount,
 static void load_builtin(VM *vm, char *name, builtin function)
 {
     objbuiltin *builtin_obj = ALLOCATE(objbuiltin, 1);
+    vm_add_object(vm, (object*)builtin_obj);
+
     init_object(&builtin_obj->header, OBJ_BUILTIN);
     builtin_obj->func = function;
 
@@ -49,27 +65,22 @@ static inline void delete_value(value *val, valtype type)
         FREE(char, val->val_string);
 }
 
-static void vm_add_object(VM *vm, object *obj)
+static void vm_push_frame(VM *vm, frame *newframe)
 {
-   if (vm->objs) {
-       object *previous = vm->objs;
-       vm->objs = obj;
-       obj->next = previous;
-       return;
-   }
-   vm->objs = obj;
-   vm->num_objects++;
-   obj->next = NULL;
+    push_frame(&vm->top, newframe);
+    vm->framestackpos++;
 }
 
-static void vm_pop_frame(VM *vm)
+static int vm_pop_frame(VM *vm)
 {
     frame* popped = pop_frame(&vm->top);
+    int current = popped->pc;
     if (popped->is_adhoc) {
         reset_frame(popped);
         FREE(frame, popped);
     }
-    vm->callstackpos--;
+    vm->framestackpos--;
+    return current;
 }
 
 static void runtime_error(VM *vm, objstack *stack, size_t line, const char *format, ...)
@@ -83,7 +94,7 @@ static void runtime_error(VM *vm, objstack *stack, size_t line, const char *form
     fprintf(stderr, "[line %ld] in script\n", line);
 
     reset_objstack(stack);
-    while (vm->callstackpos > 0)
+    while (vm->framestackpos > 0)
         vm_pop_frame(vm); 
 }
 
@@ -274,7 +285,7 @@ static void call_function(VM *vm, object *obj, int argcount, object **arguments)
         init_frame(localframe);
         localframe->is_adhoc = true;
     }
-    push_frame(&vm->top, localframe); 
+    vm_push_frame(vm, localframe); 
 
     for (int k = 0, i = argcount - 1; k < argcount; k++) {
 #ifdef DEBUG_ARI
@@ -302,8 +313,9 @@ int execute(VM *vm, instruct *instructs)
     frame *global = &vm->global.local;
 #ifdef DEBUG_ARI
     int compress = (int)log10(count);
-    printf("Current Frame is %p\n\n", vm->top);
-    printf("Call Stack Position is %ld\n", vm->callstackpos);
+    printf("\nCurrent Frame: %p\n", vm->top);
+    printf("Frame\tInstruct   OP\t\t\toperand\n");
+    printf("-----\t--------   ----------\t\t--------\n");
 #endif
     objstack *stack = &vm->evalstack;
     while (vm->top->pc < instructs->count) {
@@ -312,7 +324,8 @@ int execute(VM *vm, instruct *instructs)
         value operand = code->operand;
         valtype type = code->operand.type; 
 #ifdef DEBUG_ARI
-        printf("|%*ld|\t", compress, current + 1);
+        printf("|%03d|\t", vm->framestackpos);
+        printf("|%*ld|\t   ", compress, current + 1);
         print_bytecode(code->bytecode);
         printf("\t(");
         print_value(operand, type);
@@ -325,16 +338,14 @@ int execute(VM *vm, instruct *instructs)
                 frame *newframe = ALLOCATE(frame, 1);
                 init_frame(newframe);
                 newframe->pc = vm->top->pc;
-                push_frame(&vm->top, newframe); 
+                newframe->is_adhoc = true;
+                vm_push_frame(vm, newframe); 
                 advance(vm->top);
                 break;
             }
             case OP_POP_FRAME:
             {
-                frame *oldframe = pop_frame(&vm->top);
-                vm->top->pc = oldframe->pc;
-                reset_frame(oldframe);
-                FREE(frame, oldframe);
+                vm->top->pc = vm_pop_frame(vm);
                 advance(vm->top);
                 break;
             }
@@ -444,14 +455,15 @@ int execute(VM *vm, instruct *instructs)
 			}
             case OP_MAKE_FUNCTION:
 			{
-				push_objstack(stack, VAL_AS_OBJECT(operand));
+                object *func = VAL_AS_OBJECT(operand);
+				push_objstack(stack, func);
                 advance(vm->top);
                 break;
 			}
             case OP_MAKE_CLASS:
             {
 				objclass *classobj = (objclass*)VAL_AS_OBJECT(operand);
-                push_frame(&vm->top, &classobj->localframe);
+                vm_push_frame(vm, &classobj->localframe);
                 execute(vm, &classobj->instructs);
                 push_objstack(stack, VAL_AS_OBJECT(operand));
                 break;
@@ -604,7 +616,6 @@ int execute(VM *vm, instruct *instructs)
                     vm->top->pc = 0;
                 }
 #ifdef DEBUG_ARI
-                printf("Returning to Call Stack: %ld\n", vm->callstackpos);
                 printf("\n");
 #endif
                 return INTERPRET_OK;
@@ -645,7 +656,8 @@ VM *init_vm(void)
     vm->objs = NULL;
     vm->num_objects = 0;
     vm->callstackpos = 0;
-    
+    vm->framestackpos = 0;
+
     load_builtin(vm, "println", builtin_println);
     
     return vm;
