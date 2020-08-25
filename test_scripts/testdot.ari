@@ -4,6 +4,6 @@ class dog {a = moot;}
 
 
 
-//println("dog.a is ", dog.a);
-//println("moot.a is ", moot.a);
-dog.a;
+println("dog.a is ", dog.a);
+println("moot.a is ", moot.a);
+dog.a.a;

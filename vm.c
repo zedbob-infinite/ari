@@ -269,6 +269,7 @@ static void create_new_instance(VM *vm, object *obj, int argcount, object **argu
 
     /* Future code for init method will go here */
 	push_objstack(&vm->evalstack, (object*)new_instance);
+    advance(vm->top);
 }
 
 static void call_function(VM *vm, object *obj, int argcount, object **arguments)
@@ -450,7 +451,6 @@ int execute(VM *vm, instruct *instructs)
                     call_function(vm, popped, argcount, arguments);
                 else if (OBJ_IS_BUILTIN(popped))
                     call_builtin(vm, popped, argcount, arguments);
-                advance(vm->top);
                 break;
 			}
             case OP_MAKE_FUNCTION:
