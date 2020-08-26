@@ -1,10 +1,10 @@
-INC=-I./include -I./objects -I./parser
+INC=-I./include -I./objects -I./parser -I./builtins
 CC = gcc
 CFLAGS = -g -Wall -Wshadow
 LDFLAGS = -g
 
-vmmake: main.c object.o objclass.o objstack.o objhash.o objcode.o frame.o module.o interpret.o instruct.o repl.o vm.o compiler.o tokenizer.o parser.o memory.o
-	$(CC) $(LDFLAGS) $(INC) instruct.o objclass.o frame.o objcode.o interpret.o module.o tokenizer.o objhash.o objstack.o compiler.o repl.o object.o vm.o parser.o memory.o main.c -o ari -lm
+vmmake: main.c object.o objclass.o objstack.o objhash.o objcode.o builtin.o frame.o module.o interpret.o instruct.o repl.o vm.o compiler.o tokenizer.o parser.o memory.o
+	$(CC) $(LDFLAGS) $(INC) instruct.o objclass.o builtin.o frame.o objcode.o interpret.o module.o tokenizer.o objhash.o objstack.o compiler.o repl.o object.o vm.o parser.o memory.o main.c -o ari -lm
 
 frame.o: frame.c
 	$(CC) $(CFLAGS) $(INC) -c frame.c
@@ -24,14 +24,17 @@ memory.o: memory.c
 interpret.o: interpret.c
 	$(CC) $(CFLAGS) $(INC) -c interpret.c
 
+compiler.o: compiler.c
+	$(CC) $(CFLAGS) $(INC) -c compiler.c
+
 parser.o: parser/parser.c
 	$(CC) $(CFLAGS) $(INC) -c parser/parser.c
 
 tokenizer.o: parser/tokenizer.c
 	$(CC) $(CFLAGS) $(INC) -c parser/tokenizer.c
 
-compiler.o: compiler.c
-	$(CC) $(CFLAGS) $(INC) -c compiler.c
+builtin.o: builtins/builtin.c
+	$(CC) $(CFLAGS) $(INC) -c builtins/builtin.c
 
 object.o: objects/object.c
 	$(CC) $(CFLAGS) $(INC) -c objects/object.c

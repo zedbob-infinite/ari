@@ -11,4 +11,8 @@ typedef struct
     builtin func;
 } objbuiltin;
 
+
+object *builtin_println(int argcount, object **args);
+object *builtin_input(int argcount, object **args);
+
 #endif

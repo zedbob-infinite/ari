@@ -1,0 +1,7 @@
+class Test {apple = 5;}
+class Pear {pear = Test;}
+
+pecan = Pear();
+
+print("pecan is ", pecan);
+print(pecan.pear.apple);

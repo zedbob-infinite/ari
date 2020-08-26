@@ -37,12 +37,13 @@ static void vm_add_object(VM *vm, object *obj)
    obj->next = NULL;
 }
 
-static void call_builtin(VM *vm, object *obj, int argcount, 
+static object *call_builtin(VM *vm, object *obj, int argcount, 
         object **arguments)
 {
     objbuiltin *builtinobj = (objbuiltin*)obj;
     object *result = builtinobj->func(argcount, arguments);
     advance(vm->top);
+    return result;
 }
 
 static void load_builtin(VM *vm, char *name, builtin function)
@@ -55,14 +56,6 @@ static void load_builtin(VM *vm, char *name, builtin function)
 
     frame *global = &vm->global.local;
     objhash_set(&global->locals, name, (object*)builtin_obj);
-}
-
-static object *builtin_println(int argcount, object **args)
-{
-    for (int i = argcount - 1; i >= 0; i--)
-        print_object(args[i]);
-    printf("\n");
-    return NULL;
 }
 
 static inline void delete_value(value *val, valtype type)
@@ -447,10 +440,14 @@ int execute(VM *vm, instruct *instructs)
 
                 if (OBJ_IS_CLASS(popped))
                     create_new_instance(vm, popped, argcount, arguments);
-                else if (OBJ_IS_CODE(popped))
+                else if (OBJ_IS_CODE(popped)) {
                     call_function(vm, popped, argcount, arguments);
-                else if (OBJ_IS_BUILTIN(popped))
-                    call_builtin(vm, popped, argcount, arguments);
+                }
+                else if (OBJ_IS_BUILTIN(popped)) {
+                    object *obj = call_builtin(vm, popped, argcount, arguments);
+                    if (obj)
+                        push_objstack(stack, obj);
+                }
                 break;
 			}
             case OP_MAKE_FUNCTION:
@@ -659,7 +656,8 @@ VM *init_vm(void)
     vm->framestackpos = 0;
 
     load_builtin(vm, "print", builtin_println);
-    
+    load_builtin(vm, "input", builtin_input);
+
     return vm;
 }
 
