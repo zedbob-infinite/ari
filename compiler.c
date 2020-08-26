@@ -189,11 +189,9 @@ static void compile_expression(instruct *instructs, expr *expression)
         case EXPR_GET_PROP:
         {
             expr_get *get_expr = (expr_get*)expression;
-            value calling = {VAL_STRING, .val_string = 
-                take_string(get_expr->calling)};
-            emit_instruction(instructs, OP_LOAD_NAME, calling); 
+            compile_expression(instructs, get_expr->refobj);
+            
             byte = OP_GET_PROPERTY;
-
 			VAL_AS_STRING(operand) = take_string(get_expr->name);
 			operand.type = VAL_STRING;
             break;

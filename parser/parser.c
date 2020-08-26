@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "debug.h"
 #include "expr.h"
 #include "memory.h"
 #include "parser.h"
@@ -65,14 +66,6 @@ static stmt_for *init_stmt_for(void)
     return new_stmt;
 }
 
-static stmt_print *init_stmt_print(void)
-{
-    stmt_print *new_stmt = ALLOCATE(stmt_print, 1);
-    new_stmt->header.type = STMT_PRINT;
-    new_stmt->value = NULL;
-    return new_stmt;
-}
-
 static stmt_function *init_stmt_function(void)
 {
     stmt_function *new_stmt = ALLOCATE(stmt_function, 1);
@@ -124,8 +117,6 @@ static void *init_stmt(stmttype type)
             return init_stmt_while();
         case STMT_FOR:
             return init_stmt_for();
-        case STMT_PRINT:
-            return init_stmt_print();
         case STMT_FUNCTION:
             return init_stmt_function();
         case STMT_METHOD:
@@ -208,6 +199,7 @@ static expr_get *init_expr_getprop(void)
     expr_get *new_expr = ALLOCATE(expr_get, 1);
     new_expr->header.type = EXPR_GET_PROP;
     new_expr->name = NULL;
+    new_expr->refobj = NULL;
     return new_expr;
 }
 
@@ -677,11 +669,11 @@ static expr *get_call_expression(expr *callee, expr **arguments, int num_argumen
 }
 
 static expr *get_getproperty_expr(parser *analyzer, token *name, 
-        token *calling)
+        expr *refobj)
 {
     expr_get *new_expr = init_expr(EXPR_GET_PROP);
     new_expr->name = name;
-    new_expr->calling = calling;
+    new_expr->refobj = refobj;
     return (expr*)new_expr;
 }
 
@@ -697,6 +689,9 @@ static expr *get_setproperty_expr(parser *analyzer, token *name,
 
 static expr *primary(parser *analyzer)
 {
+#ifdef DEBUG_ARI_PARSER
+    printf("primary()\n");
+#endif
     if (match(analyzer, TOKEN_FALSE)) {
         char *buffer = ALLOCATE(char, 2);
         char *number = "0";
@@ -747,25 +742,24 @@ static expr *set_property(parser *analyzer, token *name, token *refobj,
     return get_setproperty_expr(analyzer, name, refobj, value);
 }
 
-static expr *get_property(parser *analyzer, token *name, token* calling)
+static expr *get_property(parser *analyzer, token *name, expr* refobj)
 {
-    return get_getproperty_expr(analyzer, name, calling);
+    return get_getproperty_expr(analyzer, name, refobj);
 }
 
-static expr *dot(parser *analyzer, expr *callee)
+static expr *dot(parser *analyzer, expr *refobj)
 {
-    token *calling = previous_token(analyzer, -2);
     token *name = consume(analyzer, TOKEN_IDENTIFIER
             , "Expect property name after '.'.");
 
     if (match(analyzer, TOKEN_EQUAL)) {
         expr *value = expression(analyzer);
-        return set_property(analyzer, name, calling, value);
+        /*return set_property(analyzer, name, refobj, value);*/
     }
     else if (match(analyzer, TOKEN_LEFT_PAREN)) {
         return get_method(analyzer, name);
     }
-    return get_property(analyzer, name, calling);
+    return get_property(analyzer, name, refobj);
 }
 
 static expr *finish_call(parser *analyzer, expr *callee)
@@ -798,16 +792,26 @@ static expr *finish_call(parser *analyzer, expr *callee)
 
 static expr *call(parser *analyzer)
 {
+#ifdef DEBUG_ARI_PARSER
+    printf("call()\n");
+#endif
     expr *new_expr = primary(analyzer);
-    if (match(analyzer, TOKEN_LEFT_PAREN))
-        return finish_call(analyzer, new_expr);
-    if (match(analyzer, TOKEN_DOT))
-        return dot(analyzer, new_expr);
+    while (true) {
+        if (match(analyzer, TOKEN_LEFT_PAREN))
+            new_expr = finish_call(analyzer, new_expr);
+        else if (match(analyzer, TOKEN_DOT))
+            new_expr = dot(analyzer, new_expr);
+        else
+            break;
+    }
     return new_expr;
 }
 
 static expr *unary(parser *analyzer)
 {
+#ifdef DEBUG_ARI_PARSER
+    printf("unary\n");
+#endif
     if (match(analyzer, TOKEN_BANG) || match(analyzer, TOKEN_MINUS)) {
         token *opcode = previous(analyzer);
         expr *right = unary(analyzer);
@@ -818,6 +822,9 @@ static expr *unary(parser *analyzer)
 
 static expr *multiplication(parser *analyzer)
 {
+#ifdef DEBUG_ARI_PARSER
+    printf("multiplication()\n");
+#endif
     expr *new_expr = unary(analyzer);
 
     while (match(analyzer, TOKEN_SLASH) || match(analyzer, TOKEN_STAR)) {
@@ -831,6 +838,9 @@ static expr *multiplication(parser *analyzer)
 
 static expr *addition(parser *analyzer)
 {
+#ifdef DEBUG_ARI_PARSER
+    printf("addition()\n");
+#endif
     expr *new_expr = multiplication(analyzer);
 
     while (match(analyzer, TOKEN_MINUS) || match(analyzer, TOKEN_PLUS)) {
@@ -844,6 +854,9 @@ static expr *addition(parser *analyzer)
 
 static expr *comparison(parser *analyzer)
 {
+#ifdef DEBUG_ARI_PARSER
+    printf("comparison()\n");
+#endif
     expr *new_expr = addition(analyzer);
     
     while (match(analyzer, TOKEN_GREATER) ||
@@ -860,6 +873,9 @@ static expr *comparison(parser *analyzer)
 
 static expr *equality(parser *analyzer)
 {
+#ifdef DEBUG_ARI_PARSER
+    printf("equality()\n");
+#endif
     expr *new_expr = comparison(analyzer);
     while (match(analyzer, TOKEN_BANG_EQUAL)
             || match(analyzer, TOKEN_EQUAL_EQUAL)) {
@@ -873,6 +889,9 @@ static expr *equality(parser *analyzer)
 
 static expr* assignment(parser *analyzer)
 {
+#ifdef DEBUG_ARI_PARSER
+    printf("assignment()\n");
+#endif
     expr *new_expr = equality(analyzer);
     if (match(analyzer, TOKEN_EQUAL)) {
         if (new_expr->type == EXPR_VARIABLE)
@@ -884,11 +903,17 @@ static expr* assignment(parser *analyzer)
 
 static expr *expression(parser *analyzer)
 {
+#ifdef DEBUG_ARI_PARSER
+    printf("expression()\n");
+#endif
     return assignment(analyzer);
 }
 
 static stmt *function(parser *analyzer)
 {
+#ifdef DEBUG_ARI_PARSER
+    printf("function()\n");
+#endif
     token *name = consume(analyzer, TOKEN_IDENTIFIER, "Expect function name.");
     consume(analyzer, TOKEN_LEFT_PAREN, "Expect '(' after function name.");
 
@@ -918,6 +943,9 @@ static stmt *function(parser *analyzer)
 
 static stmt *method(parser *analyzer)
 {
+#ifdef DEBUG_ARI_PARSER
+    printf("method()\n");
+#endif
     token *name = consume(analyzer, TOKEN_IDENTIFIER, "Expect method name.");
     consume(analyzer, TOKEN_LEFT_PAREN, "Expect '(' after method name.");
 
@@ -947,6 +975,9 @@ static stmt *method(parser *analyzer)
 
 static stmt *class(parser *analyzer)
 {
+#ifdef DEBUG_ARI_PARSER
+    printf("class()\n");
+#endif
     token *name = consume(analyzer, TOKEN_IDENTIFIER, "Expect class name.");
     consume(analyzer, TOKEN_LEFT_BRACE, "Expect '{' before class body.");
     
@@ -1016,6 +1047,9 @@ static stmt *class(parser *analyzer)
 
 static stmt *declaration(parser *analyzer)
 {
+#ifdef DEBUG_ARI_PARSER
+    printf("declaration()\n");
+#endif
     if (match(analyzer, TOKEN_CLASS))
         return class(analyzer);
     if (match(analyzer, TOKEN_FUN))
@@ -1026,6 +1060,9 @@ static stmt *declaration(parser *analyzer)
 
 static inline void check_stmt_capacity(stmt_block *block_stmt)
 {
+#ifdef DEBUG_ARI_PARSER
+    printf("check_stmt_capacity()\n");
+#endif
     int oldcapacity = block_stmt->capacity;
     if (block_stmt->capacity < block_stmt->count + 1) {
         block_stmt->capacity = GROW_CAPACITY(block_stmt->capacity);
@@ -1037,6 +1074,9 @@ static inline void check_stmt_capacity(stmt_block *block_stmt)
 
 static stmt *block(parser *analyzer, char *blockname)
 {
+#ifdef DEBUG_ARI_PARSER
+    printf("block()\n");
+#endif
     stmt_block *new_stmt = init_stmt(STMT_BLOCK);
 
     while (!check(analyzer, TOKEN_RIGHT_BRACE) && !is_at_end(analyzer)) {
@@ -1056,6 +1096,9 @@ static stmt *block(parser *analyzer, char *blockname)
 
 static stmt *if_statement(parser *analyzer)
 {
+#ifdef DEBUG_ARI_PARSER
+    printf("if_statement()\n");
+#endif
     consume(analyzer, TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
     expr *condition = expression(analyzer);
     consume(analyzer, TOKEN_RIGHT_PAREN, "Expect ')' after if condition.");
@@ -1070,12 +1113,18 @@ static stmt *if_statement(parser *analyzer)
 
 static inline stmt *iterator_statement(parser *analyzer)
 {
+#ifdef DEBUG_ARI_PARSER
+    printf("iterator_statement()\n");
+#endif
     expr *new_expr = expression(analyzer);
     return get_expression_statement(new_expr);
 }
 
 static stmt *for_statement(parser *analyzer)
 {
+#ifdef DEBUG_ARI_PARSER
+    printf("for_statement()\n");
+#endif
     consume(analyzer, TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
     stmt *initializer = statement(analyzer);
     stmt *condition = statement(analyzer);
@@ -1087,6 +1136,9 @@ static stmt *for_statement(parser *analyzer)
 
 static stmt *while_statement(parser *analyzer)
 {
+#ifdef DEBUG_ARI_PARSER
+    printf("while_statement()\n");
+#endif
     consume(analyzer, TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
     expr *condition = expression(analyzer);
     consume(analyzer, TOKEN_RIGHT_PAREN,
@@ -1097,20 +1149,19 @@ static stmt *while_statement(parser *analyzer)
 
 static stmt *expression_statement(parser *analyzer)
 {
+#ifdef DEBUG_ARI_PARSER
+    printf("expression_statement()\n");
+#endif
     expr *new_expr = expression(analyzer);
     consume(analyzer, TOKEN_SEMICOLON, "Expect ';' after expression.");
     return get_expression_statement(new_expr);
 }
 
-static stmt *print_statement(parser *analyzer)
-{
-    expr *value = expression(analyzer);
-    consume(analyzer, TOKEN_SEMICOLON, "Expect ';' after expressin.");
-    return get_print_statement(value);
-}
-
 static stmt *return_statement(parser *analyzer)
 {
+#ifdef DEBUG_ARI_PARSER
+    printf("return_statement()\n");
+#endif
     expr *value = NULL;
     if (!check(analyzer, TOKEN_SEMICOLON))
         value = expression(analyzer);
@@ -1121,14 +1172,15 @@ static stmt *return_statement(parser *analyzer)
 
 static stmt *statement(parser *analyzer)
 {
+#ifdef DEBUG_ARI_PARSER
+    printf("statement()\n");
+#endif
     if (match(analyzer, TOKEN_FOR))
         return for_statement(analyzer);
     if (match(analyzer, TOKEN_RETURN))
         return return_statement(analyzer);
     if (match(analyzer, TOKEN_WHILE))
         return while_statement(analyzer);
-    if (match(analyzer, TOKEN_PRINT))
-        return print_statement(analyzer);
     if (match(analyzer, TOKEN_IF))
         return if_statement(analyzer);
     if (match(analyzer, TOKEN_LEFT_BRACE))
@@ -1168,16 +1220,28 @@ bool parse(parser *analyzer, const char *source)
     scan_tokens(&analyzer->scan, source);
 
     check_parser_capacity(analyzer);
+#ifdef DEBUG_ARI_PARSER
+    printf("start parser------------------------------------------\n");
+#endif
     // Parse tokens into AST
     int i = 0;
     while (!is_at_end(analyzer)) {
         if (analyzer->capacity < analyzer->num_statements + 1)
             check_parser_capacity(analyzer);
 
+#ifdef DEBUG_ARI_PARSER
+        printf("\nstart parse statement %d--------------------------\n", i + 1);
+#endif
         analyzer->statements[i++] = declaration(analyzer);
         analyzer->num_statements++;
+#ifdef DEBUG_ARI_PARSER
+        printf("\nend parse statement %d----------------------------\n", i);
+#endif
         if (analyzer->panicmode) synchronize(analyzer);
     }
     is_at_end(analyzer);
+#ifdef DEBUG_ARI_PARSER
+    printf("end parser--------------------------------------------\n");
+#endif
     return analyzer->haderror;
 }

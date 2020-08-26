@@ -87,7 +87,7 @@ typedef struct expr_get_t
 {
     expr header;
     token *name;
-    token *calling;
+    expr *refobj;
 } expr_get;
 
 #endif

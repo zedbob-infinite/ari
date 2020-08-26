@@ -137,7 +137,6 @@ static inline void identifier(scanner *scan)
         case 'i': type = check_keyword(scan, 1, 1, "f", TOKEN_IF); break;
         case 'n': type = check_keyword(scan, 1, 3, "ull", TOKEN_NULL); break;
         case 'o': type = check_keyword(scan, 1, 2, "r", TOKEN_OR); break;
-        case 'p': type = check_keyword(scan, 1, 4, "rint", TOKEN_PRINT); break;
         case 'r': type = check_keyword(scan, 1, 5, "eturn", TOKEN_RETURN); break;
         case 's': type = check_keyword(scan, 1, 4, "uper", TOKEN_SUPER); break;
         case 't':
@@ -286,6 +285,7 @@ void scan_tokens(scanner *scan, const char *source)
     scan_next(scan);
 }
 
+#ifdef DEBUG_TOKENIZER
 void print_token(token *tok)
 {
     char *msg = NULL;
@@ -330,7 +330,6 @@ void print_token(token *tok)
         case TOKEN_TRUE: msg = "TRUE"; break;
         case TOKEN_VAR: msg = "VAR"; break;
         case TOKEN_WHILE: msg = "WHILE"; break;
-        case TOKEN_PRINT: msg = "PRINT"; break;
         case TOKEN_EXIT: msg = "EXIT"; break;
         case TOKEN_ERROR: msg = "ERROR"; break;
         case TOKEN_EOF: msg = "EOF"; break;
@@ -342,3 +341,4 @@ void print_token(token *tok)
     printf("Token type: %-16s\t", msg);
     printf("Lexeme: %.*s\n", tok->length, tok->start);
 }
+#endif

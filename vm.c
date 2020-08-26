@@ -19,6 +19,11 @@
 #include "vm.h"
 
 
+static inline void advance(frame *currentframe)
+{
+    currentframe->pc++;
+}
+
 static void vm_add_object(VM *vm, object *obj)
 {
    if (vm->objs) {
@@ -37,6 +42,7 @@ static void call_builtin(VM *vm, object *obj, int argcount,
 {
     objbuiltin *builtinobj = (objbuiltin*)obj;
     object *result = builtinobj->func(argcount, arguments);
+    advance(vm->top);
 }
 
 static void load_builtin(VM *vm, char *name, builtin function)
@@ -177,11 +183,6 @@ static inline object *get_name(frame *localframe, value name)
     return obj;
 }
 
-static inline void advance(frame *callframe)
-{
-    callframe->pc++;
-}
-
 static void print_bytecode(uint8_t bytecode)
 {
 	char *msg = NULL;
@@ -311,7 +312,6 @@ int execute(VM *vm, instruct *instructs)
 {
     vm->callstackpos++;
     uint64_t count = instructs->count;
-    frame *global = &vm->global.local;
 #ifdef DEBUG_ARI
     int compress = (int)log10(count);
     printf("\nCurrent Frame: %p\n", vm->top);
@@ -658,7 +658,7 @@ VM *init_vm(void)
     vm->callstackpos = 0;
     vm->framestackpos = 0;
 
-    load_builtin(vm, "println", builtin_println);
+    load_builtin(vm, "print", builtin_println);
     
     return vm;
 }
