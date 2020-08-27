@@ -1,0 +1,6 @@
+class Test {fun sum(a, b, c) {return a + b + c;}}
+
+summer = Test();
+
+d = summer.sum(5, 6, 7);
+print(d);

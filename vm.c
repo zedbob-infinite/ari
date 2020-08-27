@@ -204,6 +204,9 @@ static void print_bytecode(uint8_t bytecode)
         case OP_LOAD_NAME:
             msg = "LOAD_NAME";
             break;
+        case OP_LOAD_METHOD:
+            msg = "LOAD_METHOD";
+            break;
         case OP_CALL_FUNCTION:
             msg = "CALL_FUNCTION";
             break;
@@ -417,6 +420,11 @@ int execute(VM *vm, instruct *instructs)
                 advance(vm->top);
                 break;
             }
+            case OP_LOAD_METHOD:
+            {
+                advance(vm->top);
+                break;
+            }
             case OP_CALL_FUNCTION:
 			{
 				int argcount = VAL_AS_INT(operand);
@@ -467,6 +475,25 @@ int execute(VM *vm, instruct *instructs)
             }
             case OP_CALL_METHOD:
             {
+                int argcount = VAL_AS_INT(operand);
+				object **arguments = ALLOCATE(object*, argcount);
+#ifdef DEBUG_ARI
+                printf("\n");
+#endif
+				for (int i = 0; i < argcount; ++i) {
+					arguments[i] = pop_objstack(stack);
+#ifdef DEBUG_ARI
+                    printf("   \targument %d: ", i + 1);
+                    printf("\tvalue: ");
+                    print_object(arguments[i]);
+                    printf("\n");
+#endif
+				}
+#ifdef DEBUG_ARI
+                printf("\n");
+#endif
+                object *popped = pop_objstack(stack);
+                call_function(vm, popped, argcount, arguments);
                 advance(vm->top);
                 break;
             }

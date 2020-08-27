@@ -1,0 +1,8 @@
+class Test {apricot = 5; fun apple(help) {print(help);}}
+
+class Test2 {fun a() {return Test();}}
+
+pear = Test2();
+
+//print(pear.a().apricot);
+pear.a().apple("goodness");

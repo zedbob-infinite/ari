@@ -175,11 +175,14 @@ static void compile_expression(instruct *instructs, expr *expression)
         }
 		case EXPR_CALL:
 		{
-			byte = OP_CALL_FUNCTION;
-            
             expr_call *call_expr = (expr_call*)expression;
-
-			compile_expression(instructs, call_expr->expression);
+			
+            if (call_expr->is_method)
+                byte = OP_CALL_METHOD;
+            else {
+                byte = OP_CALL_FUNCTION;
+                compile_expression(instructs, call_expr->expression);
+            }
 			
             int i = 0;
             for (i = 0; i < call_expr->count; i++)
@@ -190,6 +193,18 @@ static void compile_expression(instruct *instructs, expr *expression)
 			VAL_AS_INT(operand) = i;
 			break;
 		}
+        case EXPR_METHOD:
+        {
+            byte = OP_LOAD_METHOD;
+
+            expr_method *method_expr = (expr_method*)expression;
+            token *name = method_expr->name;
+
+            compile_expression(instructs, method_expr->refobj);
+            compile_expression(instructs, method_expr->call);
+
+            break;
+        }
         case EXPR_GET_PROP:
         {
             byte = OP_GET_PROPERTY;

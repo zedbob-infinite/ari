@@ -16,7 +16,7 @@ static expr *expression(parser *analyzer);
 static token *advance(parser *analyzer);
 static stmt *block(parser *analyzer, char *blockname);
 static stmt *expression_statement(parser *analyzer);
-static expr *finish_call(parser *analyzer, expr *callee);
+static expr *finish_call(parser *analyzer, expr *callee, bool is_method);
 
 
 static stmt_expr *init_stmt_expr(void)
@@ -199,7 +199,7 @@ static expr_call *init_expr_call(void)
 static expr_get *init_expr_method(void)
 {
     expr_method *new_expr = ALLOCATE(expr_method, 1);
-    new_expr->header.type = EXPR_GET_PROP;
+    new_expr->header.type = EXPR_METHOD;
     new_expr->name = NULL;
     new_expr->refobj = NULL;
     new_expr->call = NULL;
@@ -672,21 +672,22 @@ static expr *get_variable_expr(token *name)
     return (expr*)new_expr;
 }
 
-static expr *get_call_expression(expr *callee, expr **arguments, int num_arguments, int capacity)
+static expr *get_call_expression(expr *callee, expr **arguments, 
+        int num_arguments, int capacity, bool is_method)
 {
 	expr_call *new_expr = init_expr(EXPR_CALL);
 	new_expr->expression = callee;
 	new_expr->arguments = arguments;
     new_expr->count = num_arguments;
     new_expr->capacity = capacity;
+    new_expr->is_method = is_method;
 	return (expr*)new_expr;
 }
 
-static expr *get_method_expr(parser *analyzer, token *name, 
-        expr *refobj, expr *call)
+static expr *get_method_expr(parser *analyzer, expr *refobj, expr *call)
 {
     expr_method *new_expr = init_expr(EXPR_METHOD);
-    new_expr->name = name;
+    //new_expr->name = name;
     new_expr->refobj = refobj;
     new_expr->call = call;
     return (expr*)new_expr;
@@ -753,14 +754,21 @@ static expr *primary(parser *analyzer)
     return NULL;
 }
 
+static expr *get_property(parser *analyzer, token *name, expr* refobj)
+{
+#ifdef DEBUG_ARI_PARSER
+    printf("get_property()\n");
+#endif
+    return get_getproperty_expr(analyzer, name, refobj);
+}
 
 static expr *get_method(parser *analyzer, token *name, expr *refobj)
 {
 #ifdef DEBUG_ARI_PARSER
     printf("get_method()\n");
 #endif
-    expr *call = finish_call(analyzer, refobj);
-    return get_method_expr(analyzer, name, refobj, call);
+    expr *call = finish_call(analyzer, refobj, true);
+    return get_method_expr(analyzer, get_property(analyzer, name, refobj), call);
 }
 
 static expr *set_property(parser *analyzer, token *name, expr *refobj, 
@@ -770,14 +778,6 @@ static expr *set_property(parser *analyzer, token *name, expr *refobj,
     printf("set_property()\n");
 #endif
     return get_setproperty_expr(analyzer, name, refobj, value);
-}
-
-static expr *get_property(parser *analyzer, token *name, expr* refobj)
-{
-#ifdef DEBUG_ARI_PARSER
-    printf("get_property()\n");
-#endif
-    return get_getproperty_expr(analyzer, name, refobj);
 }
 
 static expr *dot(parser *analyzer, expr *refobj)
@@ -792,12 +792,13 @@ static expr *dot(parser *analyzer, expr *refobj)
         expr *value = expression(analyzer);
         return set_property(analyzer, name, refobj, value);
     }
-    else if (match(analyzer, TOKEN_LEFT_PAREN))
+    else if (match(analyzer, TOKEN_LEFT_PAREN)) {
         return get_method(analyzer, name, refobj);
+    }
     return get_property(analyzer, name, refobj);
 }
 
-static expr *finish_call(parser *analyzer, expr *callee)
+static expr *finish_call(parser *analyzer, expr *callee, bool is_method)
 {
 #ifdef DEBUG_ARI_PARSER
     printf("finish_call()\n");
@@ -825,7 +826,7 @@ static expr *finish_call(parser *analyzer, expr *callee)
         } while (match(analyzer, TOKEN_COMMA));
     }
     consume(analyzer, TOKEN_RIGHT_PAREN, "Expect ')' after arguments.");
-	return get_call_expression(callee, arguments, i, capacity);
+	return get_call_expression(callee, arguments, i, capacity, is_method);
 }
 
 static expr *call(parser *analyzer)
@@ -836,7 +837,7 @@ static expr *call(parser *analyzer)
     expr *new_expr = primary(analyzer);
     while (true) {
         if (match(analyzer, TOKEN_LEFT_PAREN))
-            new_expr = finish_call(analyzer, new_expr);
+            new_expr = finish_call(analyzer, new_expr, false);
         else if (match(analyzer, TOKEN_DOT))
             new_expr = dot(analyzer, new_expr);
         else
@@ -1048,7 +1049,6 @@ static stmt *class(parser *analyzer)
             return NULL;
         }
     }
-    printf("num_attributes: %d\n", i);
     int num_attributes = i;
     /* class methods */
 
