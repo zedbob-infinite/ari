@@ -73,13 +73,14 @@ typedef struct expr_call_t
 	int capacity;
     expr **arguments;
     expr *expression;
+    bool is_method;
 } expr_call;
 
 typedef struct expr_set_t
 {
     expr header;
     token *name;
-    token *refobj;
+    expr *refobj;
     expr *value;
 } expr_set;
 
@@ -89,5 +90,13 @@ typedef struct expr_get_t
     token *name;
     expr *refobj;
 } expr_get;
+
+typedef struct expr_method_t
+{
+    expr header;
+    token *name;
+    expr *refobj;
+    expr *call;
+} expr_method;
 
 #endif

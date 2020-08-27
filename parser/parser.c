@@ -16,6 +16,7 @@ static expr *expression(parser *analyzer);
 static token *advance(parser *analyzer);
 static stmt *block(parser *analyzer, char *blockname);
 static stmt *expression_statement(parser *analyzer);
+static expr *finish_call(parser *analyzer, expr *callee);
 
 
 static stmt_expr *init_stmt_expr(void)
@@ -191,6 +192,17 @@ static expr_call *init_expr_call(void)
     new_expr->capacity = 0;
     new_expr->arguments = 0;
     new_expr->expression = 0;
+    new_expr->is_method = false;
+    return new_expr;
+}
+
+static expr_get *init_expr_method(void)
+{
+    expr_method *new_expr = ALLOCATE(expr_method, 1);
+    new_expr->header.type = EXPR_GET_PROP;
+    new_expr->name = NULL;
+    new_expr->refobj = NULL;
+    new_expr->call = NULL;
     return new_expr;
 }
 
@@ -237,6 +249,8 @@ static void *init_expr(exprtype type)
             return init_expr_getprop();
         case EXPR_SET_PROP:
             return init_expr_setprop();
+        case EXPR_METHOD:
+            return init_expr_method();
     }
     // Not reachable.
     return NULL;
@@ -668,6 +682,16 @@ static expr *get_call_expression(expr *callee, expr **arguments, int num_argumen
 	return (expr*)new_expr;
 }
 
+static expr *get_method_expr(parser *analyzer, token *name, 
+        expr *refobj, expr *call)
+{
+    expr_method *new_expr = init_expr(EXPR_METHOD);
+    new_expr->name = name;
+    new_expr->refobj = refobj;
+    new_expr->call = call;
+    return (expr*)new_expr;
+}
+
 static expr *get_getproperty_expr(parser *analyzer, token *name, 
         expr *refobj)
 {
@@ -678,7 +702,7 @@ static expr *get_getproperty_expr(parser *analyzer, token *name,
 }
 
 static expr *get_setproperty_expr(parser *analyzer, token *name, 
-        token *refobj, expr *value)
+        expr *refobj, expr *value)
 {
     expr_set *new_expr = init_expr(EXPR_SET_PROP);
     new_expr->name = name;
@@ -730,40 +754,54 @@ static expr *primary(parser *analyzer)
 }
 
 
-static expr *get_method(parser *analyzer, token *name)
+static expr *get_method(parser *analyzer, token *name, expr *refobj)
 {
-    /*return get_method_expr(analyzer, name);*/
-    return NULL;
+#ifdef DEBUG_ARI_PARSER
+    printf("get_method()\n");
+#endif
+    expr *call = finish_call(analyzer, refobj);
+    return get_method_expr(analyzer, name, refobj, call);
 }
 
-static expr *set_property(parser *analyzer, token *name, token *refobj, 
+static expr *set_property(parser *analyzer, token *name, expr *refobj, 
         expr *value)
 {
+#ifdef DEBUG_ARI_PARSER
+    printf("set_property()\n");
+#endif
     return get_setproperty_expr(analyzer, name, refobj, value);
 }
 
 static expr *get_property(parser *analyzer, token *name, expr* refobj)
 {
+#ifdef DEBUG_ARI_PARSER
+    printf("get_property()\n");
+#endif
     return get_getproperty_expr(analyzer, name, refobj);
 }
 
 static expr *dot(parser *analyzer, expr *refobj)
 {
+#ifdef DEBUG_ARI_PARSER
+    printf("dot()\n");
+#endif
     token *name = consume(analyzer, TOKEN_IDENTIFIER
             , "Expect property name after '.'.");
 
     if (match(analyzer, TOKEN_EQUAL)) {
         expr *value = expression(analyzer);
-        /*return set_property(analyzer, name, refobj, value);*/
+        return set_property(analyzer, name, refobj, value);
     }
-    else if (match(analyzer, TOKEN_LEFT_PAREN)) {
-        return get_method(analyzer, name);
-    }
+    else if (match(analyzer, TOKEN_LEFT_PAREN))
+        return get_method(analyzer, name, refobj);
     return get_property(analyzer, name, refobj);
 }
 
 static expr *finish_call(parser *analyzer, expr *callee)
 {
+#ifdef DEBUG_ARI_PARSER
+    printf("finish_call()\n");
+#endif
     /* Initialize arguments array */
 	int i = 0;
 	int oldcapacity = 0;
@@ -810,7 +848,7 @@ static expr *call(parser *analyzer)
 static expr *unary(parser *analyzer)
 {
 #ifdef DEBUG_ARI_PARSER
-    printf("unary\n");
+    printf("unary()\n");
 #endif
     if (match(analyzer, TOKEN_BANG) || match(analyzer, TOKEN_MINUS)) {
         token *opcode = previous(analyzer);

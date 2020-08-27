@@ -175,42 +175,47 @@ static void compile_expression(instruct *instructs, expr *expression)
         }
 		case EXPR_CALL:
 		{
-            expr_call *call_expr = (expr_call*)expression;
 			byte = OP_CALL_FUNCTION;
+            
+            expr_call *call_expr = (expr_call*)expression;
+
 			compile_expression(instructs, call_expr->expression);
 			
             int i = 0;
             for (i = 0; i < call_expr->count; i++)
                 compile_expression(instructs, call_expr->arguments[i]);
-			operand.type = VAL_INT;
+			
+            /* argument count is passed as the operand */
+            operand.type = VAL_INT;
 			VAL_AS_INT(operand) = i;
 			break;
 		}
         case EXPR_GET_PROP:
         {
-            expr_get *get_expr = (expr_get*)expression;
-            compile_expression(instructs, get_expr->refobj);
-            
             byte = OP_GET_PROPERTY;
-			VAL_AS_STRING(operand) = take_string(get_expr->name);
+            
+            expr_get *get_expr = (expr_get*)expression;
+            token *name = get_expr->name;
+
+			VAL_AS_STRING(operand) = take_string(name);
 			operand.type = VAL_STRING;
+            
+            compile_expression(instructs, get_expr->refobj);
             break;
         }
         case EXPR_SET_PROP:
         {
+            byte = OP_SET_PROPERTY;
             expr_set *set_expr = (expr_set*)expression;
             
-            /* Put new value on stack */
-            compile_expression(instructs, set_expr->value);
-            
-            /* Put reference object on stack */
-            value refobj = {VAL_STRING, .val_string = 
-                take_string(set_expr->refobj)};
-            emit_instruction(instructs, OP_LOAD_NAME, refobj); 
-            
-            byte = OP_SET_PROPERTY;
             VAL_AS_STRING(operand) = take_string(set_expr->name);
             operand.type = VAL_STRING;
+
+            /* Put new value on stack */
+            compile_expression(instructs, set_expr->value);
+            /* Put reference object on stack */
+            compile_expression(instructs, set_expr->refobj);
+            
             break;
         }
 	}
