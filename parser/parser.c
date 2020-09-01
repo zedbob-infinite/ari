@@ -196,7 +196,7 @@ static expr_call *init_expr_call(void)
     return new_expr;
 }
 
-static expr_get *init_expr_method(void)
+static expr_method *init_expr_method(void)
 {
     expr_method *new_expr = ALLOCATE(expr_method, 1);
     new_expr->header.type = EXPR_METHOD;
@@ -306,6 +306,13 @@ static void delete_expression(expr *pexpr)
                 FREE(expr_var, del);
                 break;
             }
+            case EXPR_METHOD:
+            {
+                expr_method *del = (expr_method*)pexpr;
+                delete_expression(del->refobj);
+                delete_expression(del->call);
+                FREE(expr_method, del);
+            }
             case EXPR_CALL:
             {
                 expr_call *del = (expr_call*)pexpr;
@@ -377,13 +384,6 @@ static void delete_statements(stmt *pstmt)
                     delete_statements(del->stmts[i]);
                 FREE(stmt*, del->stmts);
                 FREE(stmt_for, del);
-                break;
-            }
-            case STMT_PRINT:
-            {
-                stmt_print *del = (stmt_print*)pstmt;
-                delete_expression(del->value);
-                FREE(stmt_print, del);
                 break;
             }
             case STMT_FUNCTION:
@@ -503,12 +503,7 @@ static bool check(parser *analyzer, tokentype type)
     return peek(analyzer)->type == type;
 }
 
-static token *previous_token(parser *analyzer, int offset)
-{
-    return analyzer->scan.tokens[analyzer->current + offset];
-}
-
-static token *previous(parser *analyzer)
+static inline token *previous(parser *analyzer)
 {
     return analyzer->scan.tokens[analyzer->current - 1];
 }
@@ -574,12 +569,6 @@ static stmt *get_for_statement(stmt *initializer, stmt *condition,
     new_stmt->stmts[1] = condition;
     new_stmt->stmts[2] = iterator;
     new_stmt->loopbody = loopbody;
-    return (stmt*)new_stmt;
-}
-static stmt *get_print_statement(expr *value)
-{
-    stmt_print *new_stmt = init_stmt(STMT_PRINT);
-    new_stmt->value = value;
     return (stmt*)new_stmt;
 }
 

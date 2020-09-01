@@ -325,13 +325,6 @@ static void compile_for(instruct *instructs, stmt *statement)
     emit_instruction(instructs, OP_POP_FRAME, EMPTY_VAL);
 }
 
-static void compile_print(instruct *instructs, stmt *statement)
-{
-    stmt_print *print_stmt = (stmt_print*)statement;
-    compile_expression(instructs, print_stmt->value);
-    emit_instruction(instructs, OP_PRINT, EMPTY_VAL);
-}
-
 static void compile_function(instruct *instructs, stmt *statement)
 {
     stmt_function *function_stmt = (stmt_function*)statement;
@@ -451,11 +444,6 @@ static void compile_statement(instruct *instructs, stmt *statement)
         case STMT_FOR:
         {
             compile_for(instructs, statement);
-            break;
-        }
-        case STMT_PRINT:
-        {
-            compile_print(instructs, statement);
             break;
         }
         case STMT_FUNCTION:

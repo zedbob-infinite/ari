@@ -28,7 +28,6 @@ static void vm_add_object(VM *vm, object *obj)
 {
    if (vm->objs) {
        object *previous = vm->objs;
-       vm->objs = obj;
        obj->next = previous;
        return;
    }

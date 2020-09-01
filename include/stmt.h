@@ -11,7 +11,6 @@ typedef enum stmttype_t
     STMT_IF,
     STMT_WHILE,
     STMT_FOR,
-    STMT_PRINT,
     STMT_FUNCTION,
     STMT_METHOD,
     STMT_CLASS,
