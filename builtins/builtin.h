@@ -14,5 +14,6 @@ typedef struct
 
 object *builtin_println(int argcount, object **args);
 object *builtin_input(int argcount, object **args);
+object *builtin_type(int argcount, object **args);
 
 #endif

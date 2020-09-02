@@ -18,7 +18,6 @@
 #include "tokenizer.h"
 #include "vm.h"
 
-
 static inline void advance(frame *currentframe)
 {
     currentframe->pc++;
@@ -26,14 +25,10 @@ static inline void advance(frame *currentframe)
 
 static void vm_add_object(VM *vm, object *obj)
 {
-   if (vm->objs) {
-       object *previous = vm->objs;
-       obj->next = previous;
-       return;
-   }
-   vm->objs = obj;
-   vm->num_objects++;
-   obj->next = NULL;
+    object *previous = vm->objs;
+    obj->next = previous;
+    vm->objs = obj;
+    vm->num_objects++;
 }
 
 static object *call_builtin(VM *vm, object *obj, int argcount, 
@@ -48,10 +43,9 @@ static object *call_builtin(VM *vm, object *obj, int argcount,
 static void load_builtin(VM *vm, char *name, builtin function)
 {
     objbuiltin *builtin_obj = ALLOCATE(objbuiltin, 1);
-    vm_add_object(vm, (object*)builtin_obj);
-
     init_object(&builtin_obj->header, OBJ_BUILTIN);
     builtin_obj->func = function;
+    vm_add_object(vm, (object*)builtin_obj);
 
     frame *global = &vm->global.local;
     objhash_set(&global->locals, name, (object*)builtin_obj);
@@ -455,6 +449,7 @@ int execute(VM *vm, instruct *instructs)
                     if (obj)
                         push_objstack(stack, obj);
                 }
+                FREE(object*, arguments);
                 break;
 			}
             case OP_MAKE_FUNCTION:
@@ -655,14 +650,14 @@ void reset_vm(VM *vm)
 
 void free_vm(VM *vm)
 {
-    reset_objstack(&vm->evalstack);
-    object *current = vm->objs;
+    object *current = NULL;
     object *next = NULL;
-    while (current) {
+    while ((current = vm->objs)) {
         next = current->next;
         FREE_OBJECT(current);
-        current = next;
+        vm->objs = next;
     }
+    reset_objstack(&vm->evalstack);
 	init_objstack(&vm->evalstack);
     reset_parser(&vm->analyzer);
     reset_frame(&vm->global.local);
@@ -683,6 +678,7 @@ VM *init_vm(void)
 
     load_builtin(vm, "print", builtin_println);
     load_builtin(vm, "input", builtin_input);
+    load_builtin(vm, "type", builtin_type);
 
     return vm;
 }
