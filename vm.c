@@ -294,7 +294,6 @@ static void call_function(VM *vm, object *obj, int argcount, object **arguments)
     funcobj->instructs.current = 0;
     execute(vm, &funcobj->instructs);
     funcobj->depth--;
-    FREE(object*, arguments);
 }
 
 int execute(VM *vm, instruct *instructs)
@@ -309,8 +308,8 @@ int execute(VM *vm, instruct *instructs)
 #endif
     objstack *stack = &vm->evalstack;
     while (vm->top->pc < instructs->count) {
-		uint64_t current = vm->top->pc;
-		code8 *code = instructs->code[current];
+        uint64_t current = vm->top->pc;
+        code8 *code = instructs->code[current];
         value operand = code->operand;
         valtype type = code->operand.type; 
 #ifdef DEBUG_ARI
