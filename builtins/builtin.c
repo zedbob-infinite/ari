@@ -54,7 +54,24 @@ object *builtin_type(int argcount, object **args)
     switch (obj->type) {
         case OBJ_PRIMITIVE:
         {
-            msg = "<primitive>";
+			objprim *primobj = (objprim*)obj;
+			switch (primobj->ptype) {
+				case PRIM_INT:
+					msg = "<int>";
+					break;
+				case PRIM_DOUBLE:
+					msg = "<double>";
+					break;
+				case PRIM_STRING:
+					msg = "<string>";
+					break;
+				case PRIM_BOOL:
+					msg = "<bool>";
+					break;
+				case PRIM_NULL:
+					msg = "<null>";
+					break;
+			}
             break;
         }
         case OBJ_CLASS:
