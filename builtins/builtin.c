@@ -4,6 +4,8 @@
 #include "builtin.h"
 #include "memory.h"
 #include "object.h"
+#include "objstack.h"
+#include "vm.h"
 
 static char *take_string(char *val, int length)
 {
@@ -13,7 +15,26 @@ static char *take_string(char *val, int length)
     return buffer;
 }
 
-object *builtin_println(int argcount, object **args)
+object *call_builtin(VM *vm, object *obj, int argcount, 
+        object **arguments)
+{
+    objbuiltin *builtinobj = (objbuiltin*)obj;
+    object *result = builtinobj->func(vm, argcount, arguments);
+    return result;
+}
+
+object *load_builtin(VM *vm, char *name, builtin function)
+{
+    objbuiltin *builtin_obj = ALLOCATE(objbuiltin, 1);
+    init_object(&builtin_obj->header, OBJ_BUILTIN);
+    builtin_obj->func = function;
+
+    frame *global = &vm->global.local;
+    objhash_set(&global->locals, name, (object*)builtin_obj);
+    return (object*)builtin_obj;
+}
+
+object *builtin_println(VM *vm, int argcount, object **args)
 {
     for (int i = argcount - 1; i >= 0; i--)
         print_object(args[i]);
@@ -21,7 +42,7 @@ object *builtin_println(int argcount, object **args)
     return NULL;
 }
 
-object *builtin_input(int argcount, object **args)
+object *builtin_input(VM *vm, int argcount, object **args)
 {
     char buffer[1024];
     int length;
@@ -39,7 +60,7 @@ object *builtin_input(int argcount, object **args)
     return (object*)result;
 }
 
-object *builtin_type(int argcount, object **args)
+object *builtin_type(VM *vm, int argcount, object **args)
 {
     object *obj = args[0];
     if (argcount > 1) {

@@ -31,26 +31,6 @@ static void vm_add_object(VM *vm, object *obj)
     vm->num_objects++;
 }
 
-static object *call_builtin(VM *vm, object *obj, int argcount, 
-        object **arguments)
-{
-    objbuiltin *builtinobj = (objbuiltin*)obj;
-    object *result = builtinobj->func(argcount, arguments);
-    advance(vm->top);
-    return result;
-}
-
-static void load_builtin(VM *vm, char *name, builtin function)
-{
-    objbuiltin *builtin_obj = ALLOCATE(objbuiltin, 1);
-    init_object(&builtin_obj->header, OBJ_BUILTIN);
-    builtin_obj->func = function;
-    vm_add_object(vm, (object*)builtin_obj);
-
-    frame *global = &vm->global.local;
-    objhash_set(&global->locals, name, (object*)builtin_obj);
-}
-
 static inline void delete_value(value *val, valtype type)
 {
     if (type == VAL_STRING)
@@ -75,7 +55,7 @@ static int vm_pop_frame(VM *vm)
     return current;
 }
 
-static void runtime_error(VM *vm, objstack *stack, size_t line, const char *format, ...)
+static intrpstate runtime_error(VM *vm, objstack *stack, size_t line, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -86,15 +66,18 @@ static void runtime_error(VM *vm, objstack *stack, size_t line, const char *form
     fprintf(stderr, "[line %ld] in script\n", line);
 
     reset_objstack(stack);
+    reset_vm(vm);
     while (vm->framestackpos > 0)
-        vm_pop_frame(vm); 
+        vm_pop_frame(vm);
+    return INTERPRET_RUNTIME_ERROR;
 }
 
-static void runtime_error_loadname(VM *vm, char *name, uint64_t current)
+static intrpstate runtime_error_loadname(VM *vm, char *name, 
+        uint64_t current)
 {
     char msg[100];
     sprintf(msg, "Name %s not found...", name);
-    runtime_error(vm, &vm->evalstack, current, msg);
+    return runtime_error(vm, &vm->evalstack, current, msg);
 }
 
 static char *take_string(value val, int length)
@@ -296,7 +279,7 @@ static void call_function(VM *vm, object *obj, int argcount, object **arguments)
     funcobj->depth--;
 }
 
-int execute(VM *vm, instruct *instructs)
+intrpstate execute(VM *vm, instruct *instructs)
 {
     vm->callstackpos++;
     uint64_t count = instructs->count;
@@ -386,9 +369,8 @@ int execute(VM *vm, instruct *instructs)
                         break;
 					default:
 					{
-						runtime_error(vm, stack, current, 
+						return runtime_error(vm, stack, current, 
                                 "Cannot load non-constant value.");
-						return INTERPRET_RUNTIME_ERROR;
 					}
                 }
                 object *obj = (object*)prim;
@@ -402,13 +384,9 @@ int execute(VM *vm, instruct *instructs)
                 object *obj = get_name(vm->top, operand);
                 if (obj)
                     push_objstack(stack, obj);
-                else { 
-                    char msg[100];
-                    sprintf(msg, "Name %s not found...",
-                                VAL_AS_STRING(operand));
-					runtime_error(vm, stack, current, msg);
-                    return INTERPRET_RUNTIME_ERROR;
-                }
+                else 
+                    return runtime_error_loadname(vm, VAL_AS_STRING(operand), 
+                            current);
                 advance(vm->top);
                 break;
             }
@@ -426,15 +404,15 @@ int execute(VM *vm, instruct *instructs)
 #endif
 				for (int i = 0; i < argcount; ++i) {
 					arguments[i] = pop_objstack(stack);
-#ifdef DEBUG_ARI
+/*#ifdef DEBUG_ARI
                     printf("   \targument %d: ", i + 1);
                     printf("\tvalue: ");
                     print_object(arguments[i]);
                     printf("\n");
-#endif
+#endif*/
 				}
 #ifdef DEBUG_ARI
-                printf("\n");
+                //printf("\n");
 #endif
                 object *popped = pop_objstack(stack);
 
@@ -444,7 +422,9 @@ int execute(VM *vm, instruct *instructs)
                     call_function(vm, popped, argcount, arguments);
                 }
                 else if (OBJ_IS_BUILTIN(popped)) {
-                    object *obj = call_builtin(vm, popped, argcount, arguments);
+                    object *obj = call_builtin(vm, popped, argcount, 
+                            arguments);
+                    advance(vm->top);
                     if (obj)
                         push_objstack(stack, obj);
                 }
@@ -509,8 +489,7 @@ int execute(VM *vm, instruct *instructs)
                         if (prop)
                             push_objstack(stack, prop);
                         else {
-                            runtime_error_loadname(vm, name, current);
-                            return INTERPRET_RUNTIME_ERROR;
+                            return runtime_error_loadname(vm, name, current);
                         }
                         break;
                     }
@@ -524,18 +503,15 @@ int execute(VM *vm, instruct *instructs)
                             prop = objhash_get(classobj->header.__attrs__,
                                     name);
                         }
-                        if (!prop) {
-                            runtime_error_loadname(vm, name, current);
-                            return INTERPRET_RUNTIME_ERROR;
-                        }
+                        if (!prop)
+                            return runtime_error_loadname(vm, name, current);
                         push_objstack(stack, prop);
                         break;
                     }
                     default:
                     {
-                        runtime_error(vm, stack, current, 
+                        return runtime_error(vm, stack, current, 
                             "Invalid Operation: object has no attributes.");
-                        return INTERPRET_RUNTIME_ERROR;
                     }
                 }
                 advance(vm->top);
@@ -564,8 +540,7 @@ int execute(VM *vm, instruct *instructs)
                         char msg[100];
                         sprintf(msg, "Error: object has no attribute %s.",
                                 name);
-                        runtime_error(vm, stack, current, msg);
-                        return INTERPRET_RUNTIME_ERROR;
+                        return runtime_error(vm, stack, current, msg);
                     }
                 }
                 advance(vm->top);
@@ -644,6 +619,7 @@ int execute(VM *vm, instruct *instructs)
 
 void reset_vm(VM *vm)
 {
+    vm->top->pc = 0;
     reset_parser(&vm->analyzer);
 }
 
@@ -675,9 +651,14 @@ VM *init_vm(void)
     vm->callstackpos = 0;
     vm->framestackpos = 0;
 
-    load_builtin(vm, "print", builtin_println);
-    load_builtin(vm, "input", builtin_input);
-    load_builtin(vm, "type", builtin_type);
+    builtin funcs[] = {builtin_println, builtin_input, builtin_type};
+    char *names[] = {"print", "input", "type"};
+
+    object *obj = NULL;
+    for (int i = 0; i < 3; i++) {
+        obj = load_builtin(vm, names[i], funcs[i]);
+        vm_add_object(vm, obj);
+    }
 
     return vm;
 }

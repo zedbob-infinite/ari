@@ -2,8 +2,9 @@
 #define ari_builtin_h
 
 #include "object.h"
+#include "vm.h"
 
-typedef object *(*builtin)(int argcount, object **args);
+typedef object *(*builtin)(VM *vm, int argcount, object **args);
 
 typedef struct
 {
@@ -12,8 +13,12 @@ typedef struct
 } objbuiltin;
 
 
-object *builtin_println(int argcount, object **args);
-object *builtin_input(int argcount, object **args);
-object *builtin_type(int argcount, object **args);
+object *call_builtin(VM *vm, object *obj, int argcount, 
+        object **arguments);
+object *load_builtin(VM *vm, char *name, builtin function);
+
+object *builtin_println(VM *vm, int argcount, object **args);
+object *builtin_input(VM *vm, int argcount, object **args);
+object *builtin_type(VM *Vm, int argcount, object **args);
 
 #endif
