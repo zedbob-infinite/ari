@@ -4,6 +4,7 @@
 #include "builtin.h"
 #include "memory.h"
 #include "object.h"
+#include "objprim.h"
 #include "objstack.h"
 #include "vm.h"
 

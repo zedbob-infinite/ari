@@ -6,6 +6,7 @@
 #include "frame.h"
 #include "instruct.h"
 #include "object.h"
+#include "objprim.h"
 
 typedef struct objcode_t
 {

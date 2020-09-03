@@ -15,7 +15,7 @@
 #define ALLOCATE_PRIM_STRING(obj, length)	(obj->val_string = ALLOCATE(char, length + 1))
 #define COPY_PRIM_STRING(obj, string, length)		(strncpy(obj->val_string, string, length))
 
-typedef struct object;
+#include "object.h"
 
 typedef enum
 {

@@ -1,37 +1,38 @@
 #include "memory.h"
+#include "object.h"
 #include "objprim.h"
 
 static void inline init_int(objprim *obj)
 {
-	obj->obj.type = OBJ_PRIMITIVE;
+	obj->header.type = OBJ_PRIMITIVE;
 	obj->ptype = PRIM_INT;
 	obj->val_int = 0;
 }
 
 static void inline init_double(objprim *obj)
 {
-	obj->obj.type = OBJ_PRIMITIVE;
+	obj->header.type = OBJ_PRIMITIVE;
 	obj->ptype = PRIM_DOUBLE;
 	obj->val_double = 0;
 }
 
 static void inline init_bool(objprim *obj)
 {
-	obj->obj.type = OBJ_PRIMITIVE;
+	obj->header.type = OBJ_PRIMITIVE;
 	obj->ptype = PRIM_BOOL;
 	obj->val_int = 0;
 }
 
 static void inline init_null(objprim *obj)
 {
-	obj->obj.type = OBJ_PRIMITIVE;
+	obj->header.type = OBJ_PRIMITIVE;
 	obj->ptype = PRIM_NULL;
 	obj->val_int = 0;
 }
 
 static void inline init_string(objprim *obj)
 {
-	obj->obj.type = OBJ_PRIMITIVE;
+	obj->header.type = OBJ_PRIMITIVE;
 	obj->ptype = PRIM_STRING;
 	obj->val_string = NULL;
 }
@@ -51,3 +52,11 @@ objprim *create_new_primitive(primtype ptype)
 			init_bool(obj);
 			break;
 		case PRIM_NULL:
+			init_null(obj);
+			break;
+		case PRIM_STRING:
+			init_string(obj);
+			break;
+	}
+	return obj;
+}
