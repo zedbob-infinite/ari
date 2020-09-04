@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <string.h>
 
 #include "builtin.h"
 #include "memory.h"
@@ -7,14 +6,6 @@
 #include "objprim.h"
 #include "objstack.h"
 #include "vm.h"
-
-static char *take_string(char *val, int length)
-{
-    char *buffer = ALLOCATE(char, length +1);
-    buffer = memcpy(buffer, val, length);
-    buffer[length] = '\0';
-    return buffer;
-}
 
 object *call_builtin(VM *vm, object *obj, int argcount, 
         object **arguments)
@@ -46,17 +37,14 @@ object *builtin_println(VM *vm, int argcount, object **args)
 object *builtin_input(VM *vm, int argcount, object **args)
 {
     char buffer[1024];
-    int length;
 
     for (int i = argcount - 1; i >= 0; i--)
         print_object(args[i]);
 
     fgets(buffer, sizeof(buffer), stdin);
 
-    length = strlen(buffer);
-    length[buffer - 1] = '\0';
     objprim *result = create_new_primitive(PRIM_STRING);
-    PRIM_AS_STRING(result) = take_string(buffer, length);
+    construct_primstring(result, buffer);
     
     return (object*)result;
 }
@@ -113,6 +101,6 @@ object *builtin_type(VM *vm, int argcount, object **args)
             break;
     }
     objprim *result = create_new_primitive(PRIM_STRING);
-    PRIM_AS_STRING(result) = take_string(msg, strlen(msg));
+    construct_primstring(result, msg);
     return (object*)result;
 }

@@ -80,14 +80,6 @@ static intrpstate runtime_error_loadname(VM *vm, char *name,
     return runtime_error(vm, &vm->evalstack, current, msg);
 }
 
-static char *take_string(value val, int length)
-{
-    char *buffer = ALLOCATE(char, length);
-    buffer = memcpy(buffer, VAL_AS_STRING(val) + 1, length - 1);
-    buffer[length - 2] = '\0';
-    return buffer;
-}
-
 static inline void binary_comp(VM *vm, objstack *stack, tokentype optype)
 {
     objprim *c = create_new_primitive(PRIM_BOOL);
@@ -264,10 +256,10 @@ static void call_function(VM *vm, object *obj, int argcount, object **arguments)
     for (int k = 0, i = argcount - 1; k < argcount; k++) {
 #ifdef DEBUG_ARI
         printf("   \tcode object argument %d: %s\n", k + 1,
-                PRIM_AS_STRING(funcobj->arguments[k]));
+                PRIM_AS_RAWSTRING(funcobj->arguments[k]));
 #endif
         set_name(vm->top, 
-                PRIM_AS_STRING(funcobj->arguments[k]),
+                PRIM_AS_RAWSTRING(funcobj->arguments[k]),
                 arguments[i--]);
     }
 #ifdef DEBUG_ARI
@@ -361,7 +353,7 @@ intrpstate execute(VM *vm, instruct *instructs)
                         break;
                     case VAL_STRING:
                         prim = create_new_primitive(PRIM_STRING);
-                        PRIM_AS_STRING(prim) = take_string(operand, strlen(VAL_AS_STRING(operand)));
+                        construct_primstring(prim, VAL_AS_STRING(operand));
                         break;
                     case VAL_NULL:
                         prim = create_new_primitive(PRIM_NULL);

@@ -6,16 +6,15 @@
 #define PRIM_AS_DOUBLE(obj)		(obj->val_double)
 #define PRIM_AS_NULL(obj)		(obj->val_int)
 #define PRIM_AS_STRING(obj)		(obj->val_string)
+#define PRIM_AS_RAWSTRING(obj)  (obj->val_string->_string_)
 
 #define PRIM_INT_VAL(obj, value)		(obj->val_int = value)
 #define PRIM_DOUBLE_VAL(obj, value)     (obj->val_double = value)
 #define PRIM_BOOL_VAL(obj, value)		(obj->val_int = value)
 #define PRIM_NULL_VAL(obj)			    (obj->val_int = 0)
 
-#define ALLOCATE_PRIM_STRING(obj, length)	(obj->val_string = ALLOCATE(char, length + 1))
-#define COPY_PRIM_STRING(obj, string, length)		(strncpy(obj->val_string, string, length))
-
 #include "object.h"
+#include "token.h"
 
 typedef enum
 {
@@ -26,6 +25,13 @@ typedef enum
 	PRIM_NULL,
 } primtype;
 
+typedef struct primstring_t
+{
+    int length;
+    char *_string_;
+    uint32_t hash;
+} primstring;
+
 typedef struct objprim_t
 {
 	object header;
@@ -34,10 +40,12 @@ typedef struct objprim_t
 	{
 		int val_int;
 		double val_double;
-		char *val_string;
+		primstring *val_string;
 	};
 } objprim;
 
 objprim *create_new_primitive(primtype ptype);
+void construct_primstring(objprim *primobj, char *string_);
+void construct_primstring_from_token(objprim *primobj, token *tok);
 
 #endif

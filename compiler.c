@@ -40,7 +40,7 @@ static char *take_string(token *tok)
 {
     int length = tok->length;
     char *buffer = ALLOCATE(char, length + 1);
-    buffer = memcpy(buffer, tok->start, tok->length);
+    memcpy(buffer, tok->start, tok->length);
     buffer[tok->length] = '\0';
     return buffer;
 }
@@ -335,7 +335,7 @@ static void compile_function(instruct *instructs, stmt *statement)
 
 	for (int i = 0; i < argcount; ++i) {
 		objprim *prim = create_new_primitive(PRIM_STRING);
-		PRIM_AS_STRING(prim) = take_string(parameters[i]);
+        construct_primstring_from_token(prim, parameters[i]);
 		arguments[i] = prim;
 	}
 	
@@ -364,7 +364,7 @@ static void compile_method(instruct *instructs, stmt *statement)
 
 	for (int i = 0; i < argcount; ++i) {
 		objprim *prim = create_new_primitive(PRIM_STRING);
-		PRIM_AS_STRING(prim) = take_string(parameters[i]);
+        construct_primstring_from_token(prim, parameters[i]);
 		arguments[i] = prim;
 	}
 	

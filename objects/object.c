@@ -32,7 +32,7 @@ void print_object(object *obj)
 					printf("%f", PRIM_AS_DOUBLE(prim));
 					break;
 				case PRIM_STRING:
-					printf("%s", PRIM_AS_STRING(prim));
+					printf("%s", PRIM_AS_RAWSTRING(prim));
 					break;
 				case PRIM_BOOL:
 					printf("%s", PRIM_AS_BOOL(prim) ? "true" : "false");
