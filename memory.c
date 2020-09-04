@@ -7,6 +7,7 @@
 #include "objcode.h"
 #include "object.h"
 #include "objhash.h"
+#include "objprim.h"
 
 
 void free_object(void *obj, objtype type)
@@ -16,7 +17,8 @@ void free_object(void *obj, objtype type)
         {
             objprim *prim = (objprim*)obj;
             if (prim->ptype == PRIM_STRING) {
-                FREE(char, PRIM_AS_STRING(prim));
+                FREE(char, PRIM_AS_RAWSTRING(prim));
+                FREE(primstring, PRIM_AS_STRING(prim));
             }
             FREE(objprim, prim);
             break;
