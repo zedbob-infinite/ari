@@ -12,6 +12,7 @@ void init_object(object *obj, objtype type)
     obj->type = type;
     obj->next = NULL;
     obj->__attrs__ = NULL;
+    obj->__add__ = NULL;
 }
 
 void print_object(object *obj)
@@ -25,9 +26,6 @@ void print_object(object *obj)
 		{
 			objprim *prim = (objprim*)obj;
 			switch (prim->ptype) {
-				case PRIM_INT:
-					printf("%d", PRIM_AS_INT(prim));
-					break;
 				case PRIM_DOUBLE:
 					printf("%f", PRIM_AS_DOUBLE(prim));
 					break;

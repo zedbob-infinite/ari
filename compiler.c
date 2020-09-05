@@ -102,7 +102,7 @@ static void compile_expression(instruct *instructs, expr *expression)
                 case TOKEN_LESS_EQUAL:
                     byte = OP_COMPARE;
                     VAL_AS_INT(operand) = binary_expr->operator->type;
-					operand.type = VAL_INT;
+					operand.type = VAL_BOOL;
                     break;
                 default:
                     break;
@@ -140,7 +140,7 @@ static void compile_expression(instruct *instructs, expr *expression)
             expr_literal *literal_expr = (expr_literal*)expression;
 			byte = OP_LOAD_CONSTANT;
             VAL_AS_INT(operand) = atoi(literal_expr->literal);
-			operand.type = VAL_INT;
+			operand.type = VAL_BOOL;
 			break;
 		}
 		case EXPR_LITERAL_NULL:

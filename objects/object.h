@@ -10,6 +10,10 @@
 #define OBJ_IS_CODE(obj)        (obj->type == OBJ_CODE)
 #define OBJ_IS_BUILTIN(obj)     (obj->type == OBJ_BUILTIN)
 
+struct object_t;
+
+typedef struct object_t *(*slot)(struct object_t *this_, struct object_t *other);
+
 typedef enum
 {
 	OBJ_PRIMITIVE,
@@ -25,6 +29,7 @@ typedef struct object_t
 	objtype type;
     struct object_t* next;
     objhash *__attrs__;
+    slot __add__;
 } object;
 
 void init_object(object *obj, objtype type);

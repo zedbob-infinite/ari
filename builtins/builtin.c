@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 
 #include "builtin.h"
 #include "memory.h"
@@ -6,6 +7,19 @@
 #include "objprim.h"
 #include "objstack.h"
 #include "vm.h"
+
+
+
+static void construct_msg(objprim *primobj, char *_string_)
+{
+    int length = strlen(_string_);
+    uint32_t hash = hashkey(_string_, length);
+    char *takenstring = ALLOCATE(char, length + 1);
+    memcpy(takenstring, _string_, length);
+    takenstring[length] = '\0';
+
+    PRIM_AS_STRING(primobj) = init_primstring(length, hash, takenstring);
+}
 
 object *call_builtin(VM *vm, object *obj, int argcount, 
         object **arguments)
@@ -66,9 +80,6 @@ object *builtin_type(VM *vm, int argcount, object **args)
         {
 			objprim *primobj = (objprim*)obj;
 			switch (primobj->ptype) {
-				case PRIM_INT:
-					msg = "<int>";
-					break;
 				case PRIM_DOUBLE:
 					msg = "<double>";
 					break;
@@ -101,6 +112,6 @@ object *builtin_type(VM *vm, int argcount, object **args)
             break;
     }
     objprim *result = create_new_primitive(PRIM_STRING);
-    construct_primstring(result, msg);
+    construct_msg(result, msg);
     return (object*)result;
 }

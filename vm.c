@@ -80,11 +80,36 @@ static intrpstate runtime_error_loadname(VM *vm, char *name,
     return runtime_error(vm, &vm->evalstack, current, msg);
 }
 
+static intrpstate runtime_error_unsupported_operation(VM *vm, 
+        uint64_t current, char optype)
+{
+    char msg[50];
+    sprintf(msg, "Error: unsupported operand type for %c", optype);
+    return runtime_error(vm, &vm->evalstack, current, msg);
+}
+
+static inline void binary_op(VM *vm, objstack *stack, char optype)
+{
+    objprim *c = create_new_primitive(PRIM_BOOL);
+    objprim *b = (objprim*)pop_objstack(stack);
+    objprim *a = (objprim*)pop_objstack(stack);
+    
+    switch (optype) {
+        case '+': PRIM_AS_DOUBLE(c) = PRIM_AS_DOUBLE(a) + PRIM_AS_DOUBLE(b); break;
+        case '-': PRIM_AS_DOUBLE(c) = PRIM_AS_DOUBLE(a) - PRIM_AS_DOUBLE(b); break;
+        case '*': PRIM_AS_DOUBLE(c) = PRIM_AS_DOUBLE(a) * PRIM_AS_DOUBLE(b); break;
+        case '/': PRIM_AS_DOUBLE(c) = PRIM_AS_DOUBLE(a) / PRIM_AS_DOUBLE(b); break;
+    }
+    object *obj = (object*)c;
+    vm_add_object(vm, obj);
+    push_objstack(stack, obj);
+}
+
 static inline void binary_comp(VM *vm, objstack *stack, tokentype optype)
 {
     objprim *c = create_new_primitive(PRIM_BOOL);
     objprim *b = (objprim*)pop_objstack(stack);
-	objprim *a = (objprim*)pop_objstack(stack);
+    objprim *a = (objprim*)pop_objstack(stack);
 
     switch (optype) {
         case TOKEN_EQUAL_EQUAL:
@@ -111,23 +136,6 @@ static inline void binary_comp(VM *vm, objstack *stack, tokentype optype)
     push_objstack(stack, obj);
 }
 
-static inline void binary_op(VM *vm, objstack *stack, char optype)
-{
-    objprim *c = create_new_primitive(PRIM_DOUBLE); 
-    objprim *b = (objprim*)pop_objstack(stack);
-	objprim *a = (objprim*)pop_objstack(stack);
-
-    switch (optype) {
-        case '+': PRIM_AS_DOUBLE(c) = PRIM_AS_DOUBLE(a) + PRIM_AS_DOUBLE(b); break;
-        case '-': PRIM_AS_DOUBLE(c) = PRIM_AS_DOUBLE(a) - PRIM_AS_DOUBLE(b); break;
-        case '*': PRIM_AS_DOUBLE(c) = PRIM_AS_DOUBLE(a) * PRIM_AS_DOUBLE(b); break;
-        case '/': PRIM_AS_DOUBLE(c) = PRIM_AS_DOUBLE(a) / PRIM_AS_DOUBLE(b); break;
-    }
-    object *obj = (object*)c;
-    vm_add_object(vm, obj);
-    push_objstack(stack, obj);
-}
-
 static inline void set_name(frame *localframe, char *name, object *val)
 {
     objhash_set(&localframe->locals, name, val);
@@ -146,10 +154,10 @@ static inline object *get_name(frame *localframe, value name)
 
 static void print_bytecode(uint8_t bytecode)
 {
-	char *msg = NULL;
+    char *msg = NULL;
     switch (bytecode) { 
         case OP_POP_FRAME:
-			msg = "POP_FRAME";
+            msg = "POP_FRAME";
             break;
         case OP_PUSH_FRAME:
             msg ="PUSH_FRAME";
@@ -224,7 +232,7 @@ static void print_bytecode(uint8_t bytecode)
             msg = "RETURN";
             break;
     }
-	printf("%-20s", msg);
+    printf("%-20s", msg);
 }
 
 static void create_new_instance(VM *vm, object *obj, int argcount, object **arguments)
@@ -233,7 +241,7 @@ static void create_new_instance(VM *vm, object *obj, int argcount, object **argu
     objinstance *new_instance = init_objinstance(classobj);
 
     /* Future code for init method will go here */
-	push_objstack(&vm->evalstack, (object*)new_instance);
+    push_objstack(&vm->evalstack, (object*)new_instance);
     advance(vm->top);
 }
 
@@ -314,18 +322,18 @@ intrpstate execute(VM *vm, instruct *instructs)
                 break;
             }
             case OP_JMP_LOC:
-			{
+            {
                 vm->top->pc = VAL_AS_INT(operand);
                 break;
-			}
+            }
             case OP_JMP_AFTER:
-			{
+            {
                 vm->top->pc = current + VAL_AS_INT(operand);
                 break;
-			}
+            }
             case OP_JMP_FALSE:
-			{
-				objprim *condition = (objprim*)pop_objstack(stack);
+            {
+                objprim *condition = (objprim*)pop_objstack(stack);
 
                 if (PRIM_AS_BOOL(condition))
                     advance(vm->top);
@@ -333,19 +341,16 @@ intrpstate execute(VM *vm, instruct *instructs)
                     vm->top->pc = VAL_AS_INT(operand);
                 }
                 break;
-			}
+            }
             case OP_LOAD_CONSTANT:
             {
                 objprim *prim = NULL;
                 switch (type) {
                     case VAL_EMPTY:
-                    {
-                        runtime_error(vm, stack, current, "No object found.");
-                        return INTERPRET_RUNTIME_ERROR;
-                    }
-                    case VAL_INT:
-                        prim = create_new_primitive(PRIM_INT);
-                        PRIM_AS_INT(prim) = VAL_AS_INT(operand);
+                        return runtime_error(vm, stack, current, "No object found.");
+                    case VAL_BOOL:
+                        prim = create_new_primitive(PRIM_BOOL);
+                        PRIM_AS_BOOL(prim) = VAL_AS_BOOL(operand);
                         break;
                     case VAL_DOUBLE:
                         prim = create_new_primitive(PRIM_DOUBLE);
@@ -359,15 +364,13 @@ intrpstate execute(VM *vm, instruct *instructs)
                         prim = create_new_primitive(PRIM_NULL);
                         PRIM_AS_NULL(prim) = VAL_AS_NULL(operand);
                         break;
-					default:
-					{
-						return runtime_error(vm, stack, current, 
+                    default:
+                        return runtime_error(vm, stack, current, 
                                 "Cannot load non-constant value.");
-					}
                 }
                 object *obj = (object*)prim;
                 vm_add_object(vm, obj);
-				push_objstack(stack, obj);
+                push_objstack(stack, obj);
                 advance(vm->top);
                 break;
             }
@@ -388,21 +391,21 @@ intrpstate execute(VM *vm, instruct *instructs)
                 break;
             }
             case OP_CALL_FUNCTION:
-			{
-				int argcount = VAL_AS_INT(operand);
-				object **arguments = ALLOCATE(object*, argcount);
+            {
+                int argcount = VAL_AS_INT(operand);
+                object **arguments = ALLOCATE(object*, argcount);
 #ifdef DEBUG_ARI
                 printf("\n");
 #endif
-				for (int i = 0; i < argcount; ++i) {
-					arguments[i] = pop_objstack(stack);
+                for (int i = 0; i < argcount; ++i) {
+                    arguments[i] = pop_objstack(stack);
 /*#ifdef DEBUG_ARI
                     printf("   \targument %d: ", i + 1);
                     printf("\tvalue: ");
                     print_object(arguments[i]);
                     printf("\n");
 #endif*/
-				}
+                }
 #ifdef DEBUG_ARI
                 //printf("\n");
 #endif
@@ -422,17 +425,17 @@ intrpstate execute(VM *vm, instruct *instructs)
                 }
                 FREE(object*, arguments);
                 break;
-			}
+            }
             case OP_MAKE_FUNCTION:
-			{
+            {
                 object *func = VAL_AS_OBJECT(operand);
-				push_objstack(stack, func);
+                push_objstack(stack, func);
                 advance(vm->top);
                 break;
-			}
+            }
             case OP_MAKE_CLASS:
             {
-				objclass *classobj = (objclass*)VAL_AS_OBJECT(operand);
+                objclass *classobj = (objclass*)VAL_AS_OBJECT(operand);
                 vm_push_frame(vm, &classobj->localframe);
                 execute(vm, &classobj->instructs);
                 push_objstack(stack, VAL_AS_OBJECT(operand));
@@ -441,19 +444,19 @@ intrpstate execute(VM *vm, instruct *instructs)
             case OP_CALL_METHOD:
             {
                 int argcount = VAL_AS_INT(operand);
-				object **arguments = ALLOCATE(object*, argcount);
+                object **arguments = ALLOCATE(object*, argcount);
 #ifdef DEBUG_ARI
                 printf("\n");
 #endif
-				for (int i = 0; i < argcount; ++i) {
-					arguments[i] = pop_objstack(stack);
+                for (int i = 0; i < argcount; ++i) {
+                    arguments[i] = pop_objstack(stack);
 #ifdef DEBUG_ARI
                     printf("   \targument %d: ", i + 1);
                     printf("\tvalue: ");
                     print_object(arguments[i]);
                     printf("\n");
 #endif
-				}
+                }
 #ifdef DEBUG_ARI
                 printf("\n");
 #endif
@@ -464,7 +467,7 @@ intrpstate execute(VM *vm, instruct *instructs)
             }
             case OP_MAKE_METHOD:
             {
-				push_objstack(stack, VAL_AS_OBJECT(operand));
+                push_objstack(stack, VAL_AS_OBJECT(operand));
                 advance(vm->top);
                 break;
             }
@@ -553,9 +556,28 @@ intrpstate execute(VM *vm, instruct *instructs)
                 break;
             }
             case OP_BINARY_ADD:
-				binary_op(vm, stack, '+');
+            {
+                object *b = pop_objstack(stack);
+	            object *a = pop_objstack(stack);
+                if (!a->__add__)
+                    return runtime_error_unsupported_operation(vm, '+', current);
+
+                object *c = a->__add__(a, b);
+                if (!c) {
+                    if (!b->__add__)
+                        return runtime_error_unsupported_operation(vm, '+', current);
+                    else {
+                        c = b->__add__(a, b);
+                        if (!c)
+                            return runtime_error_unsupported_operation(vm, '+', current);
+                    }
+                }
+
+                vm_add_object(vm, c);
+                push_objstack(stack, c);
                 advance(vm->top);
                 break;
+            }
             case OP_BINARY_SUB:
                 binary_op(vm, stack, '-');
                 advance(vm->top);
@@ -625,7 +647,7 @@ void free_vm(VM *vm)
         vm->objs = next;
     }
     reset_objstack(&vm->evalstack);
-	init_objstack(&vm->evalstack);
+    init_objstack(&vm->evalstack);
     reset_parser(&vm->analyzer);
     reset_frame(&vm->global.local);
     FREE(VM, vm);
@@ -657,25 +679,25 @@ VM *init_vm(void)
 
 void print_value(value val, valtype type)
 {
-	switch (type) {
-		case VAL_EMPTY:
-			printf("%-4s", "empty");
-			break;
+    switch (type) {
+        case VAL_EMPTY:
+            printf("%-4s", "empty");
+            break;
         case VAL_INT:
             printf("%-4d", VAL_AS_INT(val));
-			break;
-		case VAL_DOUBLE:
-			printf("%-4f", VAL_AS_DOUBLE(val));
-			break;
-		case VAL_STRING:
-			printf("%-4s", VAL_AS_STRING(val));
-			break;
+            break;
+        case VAL_DOUBLE:
+            printf("%-4f", VAL_AS_DOUBLE(val));
+            break;
+        case VAL_STRING:
+            printf("%-4s", VAL_AS_STRING(val));
+            break;
         case VAL_NULL:
             printf("%-4s", "null");
             break;
         case VAL_OBJECT:
             print_object(VAL_AS_OBJECT(val));
-		default:
-			break;
-	}
+        default:
+            break;
+    }
 }
