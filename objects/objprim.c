@@ -303,7 +303,7 @@ object *prim_binary_sub(object *this_, object *other)
     else if (match(a, b, PRIM_BOOL)) {
         if (a->ptype == PRIM_BOOL && b->ptype == PRIM_BOOL) {
             c = create_new_primitive(PRIM_BOOL);
-            PRIM_AS_BOOL(c) = PRIM_AS_BOOL(a) + PRIM_AS_BOOL(b);
+            PRIM_AS_BOOL(c) = PRIM_AS_BOOL(a) - PRIM_AS_BOOL(b);
         }
         else if ((a->ptype == PRIM_NULL && b->ptype == PRIM_BOOL) ||
                 (b->ptype == PRIM_BOOL && b->ptype == PRIM_NULL)) {

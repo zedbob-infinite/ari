@@ -609,13 +609,13 @@ intrpstate execute(VM *vm, instruct *instructs)
                 object *b = pop_objstack(stack);
 	            object *a = pop_objstack(stack);
                 if (!a->__mul__)
-                    return runtime_error_unsupported_operation(vm, '-', 
+                    return runtime_error_unsupported_operation(vm, '*', 
                             current);
 
                 object *c = a->__mul__(a, b);
                 if (!c) {
                     if (!b->__mul__)
-                        return runtime_error_unsupported_operation(vm, '-', 
+                        return runtime_error_unsupported_operation(vm, '*', 
                                 current);
                     else {
                         c = b->__mul__(a, b);
