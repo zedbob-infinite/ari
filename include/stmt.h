@@ -20,6 +20,7 @@ typedef enum stmttype_t
 typedef struct stmt_t
 {
     stmttype type;
+    int line;
 } stmt;
 
 typedef struct stmt_expr_t

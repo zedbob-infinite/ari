@@ -18,48 +18,58 @@ static stmt *block(parser *analyzer, char *blockname);
 static stmt *expression_statement(parser *analyzer);
 static expr *finish_call(parser *analyzer, expr *callee, bool is_method);
 
+static int source_line(parser *analyzer)
+{
+    token *current = analyzer->scan.tokens[analyzer->current];
+    return current->line;
+}
 
-static stmt_expr *init_stmt_expr(void)
+static stmt_expr *init_stmt_expr(int line)
 {
     stmt_expr *new_stmt = ALLOCATE(stmt_expr, 1);
     new_stmt->header.type = STMT_EXPR;
+    new_stmt->header.line = line;
     new_stmt->expression = NULL;
     return new_stmt;
 }
 
-static stmt_block *init_stmt_block(void)
+static stmt_block *init_stmt_block(int line)
 {
     stmt_block *new_stmt = ALLOCATE(stmt_block, 1);
     new_stmt->header.type = STMT_BLOCK;
+    new_stmt->header.line = line;
     new_stmt->count = 0;
     new_stmt->capacity = 0;
     new_stmt->stmts = NULL;
     return new_stmt;
 }
 
-static stmt_if *init_stmt_if(void)
+static stmt_if *init_stmt_if(int line)
 {
     stmt_if *new_stmt = ALLOCATE(stmt_if, 1);
     new_stmt->header.type = STMT_IF;
+    new_stmt->header.line = line;
     new_stmt->condition = NULL;
     new_stmt->thenbranch = NULL;
     new_stmt->elsebranch = NULL;
     return new_stmt;
 }
 
-static stmt_while *init_stmt_while(void)
+static stmt_while *init_stmt_while(int line)
 {
     stmt_while *new_stmt = ALLOCATE(stmt_while, 1);
     new_stmt->header.type = STMT_WHILE;
+    new_stmt->header.line = line;
     new_stmt->condition = NULL;
     new_stmt->loopbody = NULL;
     return new_stmt;
 }
 
-static stmt_for *init_stmt_for(void)
+static stmt_for *init_stmt_for(int line)
 {
     stmt_for *new_stmt = ALLOCATE(stmt_for, 1);
     new_stmt->header.type = STMT_FOR;
+    new_stmt->header.line = line;
     new_stmt->count = 0;
     new_stmt->capacity = 0;
     new_stmt->stmts = NULL;
@@ -67,10 +77,11 @@ static stmt_for *init_stmt_for(void)
     return new_stmt;
 }
 
-static stmt_function *init_stmt_function(void)
+static stmt_function *init_stmt_function(int line)
 {
     stmt_function *new_stmt = ALLOCATE(stmt_function, 1);
     new_stmt->header.type = STMT_FUNCTION;
+    new_stmt->header.line = line;
     new_stmt->name = NULL;
     new_stmt->num_parameters = 0;
     new_stmt->parameters = NULL;
@@ -78,10 +89,11 @@ static stmt_function *init_stmt_function(void)
     return new_stmt;
 }
 
-static stmt_method *init_stmt_method(void)
+static stmt_method *init_stmt_method(int line)
 {
     stmt_method *new_stmt = ALLOCATE(stmt_method, 1);
     new_stmt->header.type = STMT_METHOD;
+    new_stmt->header.line = line;
     new_stmt->name = NULL;
     new_stmt->num_parameters = 0;
     new_stmt->parameters = NULL;
@@ -89,43 +101,45 @@ static stmt_method *init_stmt_method(void)
     return new_stmt;
 }
 
-static stmt_class *init_stmt_class(void)
+static stmt_class *init_stmt_class(int line)
 {
     stmt_class *new_stmt = ALLOCATE(stmt_class, 1);
     new_stmt->header.type = STMT_CLASS;
+    new_stmt->header.line = line;
     new_stmt->name = NULL;
     return new_stmt;
 }
 
-static stmt_return *init_stmt_return(void)
+static stmt_return *init_stmt_return(int line)
 {
     stmt_return *new_stmt = ALLOCATE(stmt_return, 1);
     new_stmt->header.type = STMT_RETURN;
+    new_stmt->header.line = line;
     new_stmt->value = NULL;
     return new_stmt;
 }
 
-static void *init_stmt(stmttype type)
+static void *init_stmt(stmttype type, int line)
 {
     switch (type) {
         case STMT_EXPR:
-            return init_stmt_expr();
+            return init_stmt_expr(line);
         case STMT_BLOCK:
-            return init_stmt_block();
+            return init_stmt_block(line);
         case STMT_IF:
-            return init_stmt_if();
+            return init_stmt_if(line);
         case STMT_WHILE:
-            return init_stmt_while();
+            return init_stmt_while(line);
         case STMT_FOR:
-            return init_stmt_for();
+            return init_stmt_for(line);
         case STMT_FUNCTION:
-            return init_stmt_function();
+            return init_stmt_function(line);
         case STMT_METHOD:
-            return init_stmt_method();
+            return init_stmt_method(line);
         case STMT_CLASS:
-            return init_stmt_class();
+            return init_stmt_class(line);
         case STMT_RETURN:
-            return init_stmt_return();
+            return init_stmt_return(line);
     }
     // Should be unreachable
     return NULL;
@@ -533,35 +547,35 @@ static bool match(parser *analyzer, tokentype type)
     return false;
 }
 
-static stmt *get_expression_statement(expr *new_expr)
+static stmt *get_expression_statement(expr *new_expr, int line)
 {
-    stmt_expr *new_stmt = init_stmt(STMT_EXPR);
+    stmt_expr *new_stmt = init_stmt(STMT_EXPR, line);
     new_stmt->expression = new_expr;
     return (stmt*)new_stmt;
 }
 
 static stmt *get_if_statement(expr *condition, stmt *thenbranch, 
-        stmt *elsebranch)
+        stmt *elsebranch, int line)
 {
-    stmt_if *new_stmt = init_stmt(STMT_IF);
+    stmt_if *new_stmt = init_stmt(STMT_IF, line);
     new_stmt->condition = condition;
     new_stmt->thenbranch = thenbranch;
     new_stmt->elsebranch = elsebranch;
     return (stmt*)new_stmt;
 }
 
-static stmt *get_while_statement(expr *condition, stmt *loopbody)
+static stmt *get_while_statement(expr *condition, stmt *loopbody, int line)
 {
-    stmt_while *new_stmt = init_stmt(STMT_WHILE);
+    stmt_while *new_stmt = init_stmt(STMT_WHILE, line);
     new_stmt->condition = condition;
     new_stmt->loopbody = loopbody;
     return (stmt*)new_stmt;
 }
 
 static stmt *get_for_statement(stmt *initializer, stmt *condition,
-        stmt *iterator, stmt *loopbody)
+        stmt *iterator, stmt *loopbody, int line)
 {
-    stmt_for *new_stmt = init_stmt(STMT_FOR);
+    stmt_for *new_stmt = init_stmt(STMT_FOR, line);
     new_stmt->stmts = ALLOCATE(stmt*, 3);
     new_stmt->capacity = 3;
     new_stmt->count = 3;
@@ -573,9 +587,9 @@ static stmt *get_for_statement(stmt *initializer, stmt *condition,
 }
 
 static stmt *get_function_statement(token *name, int num_parameters, 
-        token **parameters, stmt *body)
+        token **parameters, stmt *body, int line)
 {
-    stmt_function *new_stmt = init_stmt(STMT_FUNCTION);
+    stmt_function *new_stmt = init_stmt(STMT_FUNCTION, line);
     new_stmt->name = name;
 	new_stmt->num_parameters = num_parameters;
     new_stmt->parameters = parameters;
@@ -584,9 +598,9 @@ static stmt *get_function_statement(token *name, int num_parameters,
 }
 
 static stmt *get_method_statement(token *name, int num_parameters, 
-        token **parameters, stmt *body)
+        token **parameters, stmt *body, int line)
 {
-    stmt_method *new_stmt = init_stmt(STMT_METHOD);
+    stmt_method *new_stmt = init_stmt(STMT_METHOD, line);
     new_stmt->name = name;
 	new_stmt->num_parameters = num_parameters;
     new_stmt->parameters = parameters;
@@ -595,9 +609,9 @@ static stmt *get_method_statement(token *name, int num_parameters,
 }
 
 static stmt *get_class_statement(token *name, uint16_t num_attributes,
-        stmt **attributes, uint16_t num_methods, stmt **methods)
+        stmt **attributes, uint16_t num_methods, stmt **methods, int line)
 {
-    stmt_class *new_stmt = init_stmt(STMT_CLASS);
+    stmt_class *new_stmt = init_stmt(STMT_CLASS, line);
     new_stmt->name = name;
     new_stmt->num_attributes = num_attributes;
     new_stmt->attributes = attributes;
@@ -606,9 +620,9 @@ static stmt *get_class_statement(token *name, uint16_t num_attributes,
     return (stmt*)new_stmt;
 }
 
-static stmt *get_return_statement(expr *value)
+static stmt *get_return_statement(expr *value, int line)
 {
-    stmt_return *new_stmt = init_stmt(STMT_RETURN);
+    stmt_return *new_stmt = init_stmt(STMT_RETURN, line);
     new_stmt->value = value;
     return (stmt*)new_stmt;
 }
@@ -939,6 +953,7 @@ static expr *expression(parser *analyzer)
 
 static stmt *function(parser *analyzer)
 {
+    int line = source_line(analyzer);
 #ifdef DEBUG_ARI_PARSER
     printf("function()\n");
 #endif
@@ -966,11 +981,12 @@ static stmt *function(parser *analyzer)
     consume(analyzer, TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
     consume(analyzer, TOKEN_LEFT_BRACE, "Expect '{' before function body.");
     stmt *body = block(analyzer, "function body");
-    return get_function_statement(name, i, parameters, body);
+    return get_function_statement(name, i, parameters, body, line);
 }
 
 static stmt *method(parser *analyzer)
 {
+    int line = source_line(analyzer);
 #ifdef DEBUG_ARI_PARSER
     printf("method()\n");
 #endif
@@ -998,11 +1014,12 @@ static stmt *method(parser *analyzer)
     consume(analyzer, TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
     consume(analyzer, TOKEN_LEFT_BRACE, "Expect '{' before method body.");
     stmt *body = block(analyzer, "method body");
-    return get_method_statement(name, i, parameters, body);
+    return get_method_statement(name, i, parameters, body, line);
 }
 
 static stmt *class(parser *analyzer)
 {
+    int line = source_line(analyzer);
 #ifdef DEBUG_ARI_PARSER
     printf("class()\n");
 #endif
@@ -1069,7 +1086,8 @@ static stmt *class(parser *analyzer)
     }
 
     consume(analyzer, TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
-    return get_class_statement(name, num_attributes, attributes, i, methods);
+    return get_class_statement(name, num_attributes, attributes, i, methods,
+            line);
 }
 
 static stmt *declaration(parser *analyzer)
@@ -1101,10 +1119,11 @@ static inline void check_stmt_capacity(stmt_block *block_stmt)
 
 static stmt *block(parser *analyzer, char *blockname)
 {
+    int line = source_line(analyzer);
 #ifdef DEBUG_ARI_PARSER
     printf("block()\n");
 #endif
-    stmt_block *new_stmt = init_stmt(STMT_BLOCK);
+    stmt_block *new_stmt = init_stmt(STMT_BLOCK, line);
 
     while (!check(analyzer, TOKEN_RIGHT_BRACE) && !is_at_end(analyzer)) {
         check_stmt_capacity(new_stmt);
@@ -1123,6 +1142,7 @@ static stmt *block(parser *analyzer, char *blockname)
 
 static stmt *if_statement(parser *analyzer)
 {
+    int line = source_line(analyzer);
 #ifdef DEBUG_ARI_PARSER
     printf("if_statement()\n");
 #endif
@@ -1135,20 +1155,22 @@ static stmt *if_statement(parser *analyzer)
     if (match(analyzer, TOKEN_ELSE))
         elsebranch = statement(analyzer);
 
-    return get_if_statement(condition, thenbranch, elsebranch);
+    return get_if_statement(condition, thenbranch, elsebranch, line);
 }
 
 static inline stmt *iterator_statement(parser *analyzer)
 {
+    int line = source_line(analyzer);
 #ifdef DEBUG_ARI_PARSER
     printf("iterator_statement()\n");
 #endif
     expr *new_expr = expression(analyzer);
-    return get_expression_statement(new_expr);
+    return get_expression_statement(new_expr, line);
 }
 
 static stmt *for_statement(parser *analyzer)
 {
+    int line = source_line(analyzer);
 #ifdef DEBUG_ARI_PARSER
     printf("for_statement()\n");
 #endif
@@ -1158,11 +1180,13 @@ static stmt *for_statement(parser *analyzer)
     stmt *iterator = iterator_statement(analyzer);
     consume(analyzer, TOKEN_RIGHT_PAREN, "Expect ')' after for condition.");
     stmt *loop_body = statement(analyzer);
-    return get_for_statement(initializer, condition, iterator, loop_body);
+    return get_for_statement(initializer, condition, iterator, loop_body, 
+            line);
 }
 
 static stmt *while_statement(parser *analyzer)
 {
+    int line = source_line(analyzer);
 #ifdef DEBUG_ARI_PARSER
     printf("while_statement()\n");
 #endif
@@ -1171,21 +1195,23 @@ static stmt *while_statement(parser *analyzer)
     consume(analyzer, TOKEN_RIGHT_PAREN,
             "Expect ')' after while condition.");
     stmt *loop_body = statement(analyzer);
-    return get_while_statement(condition, loop_body);
+    return get_while_statement(condition, loop_body, line);
 }
 
 static stmt *expression_statement(parser *analyzer)
 {
+    int line = source_line(analyzer);
 #ifdef DEBUG_ARI_PARSER
     printf("expression_statement()\n");
 #endif
     expr *new_expr = expression(analyzer);
     consume(analyzer, TOKEN_SEMICOLON, "Expect ';' after expression.");
-    return get_expression_statement(new_expr);
+    return get_expression_statement(new_expr, line);
 }
 
 static stmt *return_statement(parser *analyzer)
 {
+    int line = source_line(analyzer);
 #ifdef DEBUG_ARI_PARSER
     printf("return_statement()\n");
 #endif
@@ -1194,7 +1220,7 @@ static stmt *return_statement(parser *analyzer)
         value = expression(analyzer);
 
     consume(analyzer, TOKEN_SEMICOLON, "Expect ';' after return value.");
-    return get_return_statement(value);
+    return get_return_statement(value, line);
 }
 
 static stmt *statement(parser *analyzer)

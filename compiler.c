@@ -45,25 +45,29 @@ static char *take_string(token *tok)
     return buffer;
 }
 
-static code8 *create_code(uint8_t bytecode, value operand)
+static code8 *create_code(uint8_t bytecode, value operand, int line)
 {
 	code8 *code = ALLOCATE(code8, 1);
 	code->bytecode = bytecode;
 	code->operand = operand;
+    code->line = line;
 	return code;
 }	
 
-static int emit_instruction(instruct *instructs, uint8_t bytecode, value operand)
+static int emit_instruction(instruct *instructs, uint8_t bytecode, 
+        value operand, int line)
 {
 	int current = instructs->count;
 	if (instructs->capacity < instructs->count + 1)
 		check_instruct_capacity(instructs);
 
-	instructs->code[instructs->count++] = create_code(bytecode, operand);
+	instructs->code[instructs->count++] = create_code(bytecode, operand, 
+            line);
 	return current;
 }
 
-static void compile_expression(instruct *instructs, expr *expression)
+static void compile_expression(instruct *instructs, expr *expression, 
+        int line)
 {
     uint8_t byte = 0;
     value operand = {.type = VAL_EMPTY, .val_int = 0};
@@ -72,7 +76,7 @@ static void compile_expression(instruct *instructs, expr *expression)
         {
             expr_assign *assign_expr = (expr_assign*)expression;
             byte = OP_STORE_NAME;
-            compile_expression(instructs, assign_expr->value);
+            compile_expression(instructs, assign_expr->value, line);
 			VAL_AS_STRING(operand) = take_string(assign_expr->name);
 			operand.type = VAL_STRING;
             break;
@@ -80,8 +84,8 @@ static void compile_expression(instruct *instructs, expr *expression)
         case EXPR_BINARY:
 		{
             expr_binary *binary_expr = (expr_binary*)expression;
-            compile_expression(instructs, binary_expr->left);
-            compile_expression(instructs, binary_expr->right);
+            compile_expression(instructs, binary_expr->left, line);
+            compile_expression(instructs, binary_expr->right, line);
             switch (binary_expr->operator->type) {
                 case TOKEN_PLUS:
                     byte = OP_BINARY_ADD;
@@ -112,7 +116,7 @@ static void compile_expression(instruct *instructs, expr *expression)
         case EXPR_GROUPING:
         {
             expr_grouping *grouping_expr = (expr_grouping*)expression;
-            compile_expression(instructs, grouping_expr->expression);
+            compile_expression(instructs, grouping_expr->expression, line);
             return;
         }
 		case EXPR_LITERAL_STRING:
@@ -156,7 +160,7 @@ static void compile_expression(instruct *instructs, expr *expression)
                 case TOKEN_BANG:
                     break;
                 case TOKEN_MINUS:
-                    compile_expression(instructs, unary_expr->right);
+                    compile_expression(instructs, unary_expr->right, line);
                     byte = OP_NEGATE;
                     break;
 				default:
@@ -181,12 +185,12 @@ static void compile_expression(instruct *instructs, expr *expression)
                 byte = OP_CALL_METHOD;
             else {
                 byte = OP_CALL_FUNCTION;
-                compile_expression(instructs, call_expr->expression);
+                compile_expression(instructs, call_expr->expression, line);
             }
 			
             int i = 0;
             for (i = 0; i < call_expr->count; i++)
-                compile_expression(instructs, call_expr->arguments[i]);
+                compile_expression(instructs, call_expr->arguments[i], line);
 			
             /* argument count is passed as the operand */
             operand.type = VAL_INT;
@@ -200,8 +204,8 @@ static void compile_expression(instruct *instructs, expr *expression)
             expr_method *method_expr = (expr_method*)expression;
             token *name = method_expr->name;
 
-            compile_expression(instructs, method_expr->refobj);
-            compile_expression(instructs, method_expr->call);
+            compile_expression(instructs, method_expr->refobj, line);
+            compile_expression(instructs, method_expr->call, line);
 
             break;
         }
@@ -215,7 +219,7 @@ static void compile_expression(instruct *instructs, expr *expression)
 			VAL_AS_STRING(operand) = take_string(name);
 			operand.type = VAL_STRING;
             
-            compile_expression(instructs, get_expr->refobj);
+            compile_expression(instructs, get_expr->refobj, line);
             break;
         }
         case EXPR_SET_PROP:
@@ -227,20 +231,21 @@ static void compile_expression(instruct *instructs, expr *expression)
             operand.type = VAL_STRING;
 
             /* Put new value on stack */
-            compile_expression(instructs, set_expr->value);
+            compile_expression(instructs, set_expr->value, line);
             /* Put reference object on stack */
-            compile_expression(instructs, set_expr->refobj);
+            compile_expression(instructs, set_expr->refobj, line);
             
             break;
         }
 	}
-	emit_instruction(instructs, byte, operand);
+	emit_instruction(instructs, byte, operand, line);
 }
 
 static void compile_expression_stmt(instruct *instructs, stmt *statement)
 {
     stmt_expr *expr_stmt = (stmt_expr*)statement;
-    compile_expression(instructs, expr_stmt->expression);
+    compile_expression(instructs, expr_stmt->expression, 
+            statement->line);
 }
 
 static void compile_block(instruct *instructs, stmt *statement, bool makeframe)
@@ -248,7 +253,8 @@ static void compile_block(instruct *instructs, stmt *statement, bool makeframe)
     stmt_block *block_stmt = (stmt_block*)statement;
     
     if (makeframe)
-        emit_instruction(instructs, OP_PUSH_FRAME, EMPTY_VAL);
+        emit_instruction(instructs, OP_PUSH_FRAME, EMPTY_VAL, 
+                statement->line);
 
     int i = 0;
     stmt *current = NULL;
@@ -256,16 +262,17 @@ static void compile_block(instruct *instructs, stmt *statement, bool makeframe)
         compile_statement(instructs, current);
 
     if (makeframe)
-        emit_instruction(instructs, OP_POP_FRAME, EMPTY_VAL);
+        emit_instruction(instructs, OP_POP_FRAME, EMPTY_VAL, statement->line);
 }
 
 static void compile_if(instruct *instructs, stmt *statement)
 {
+    int line = statement->line;
     stmt_if *if_stmt = (stmt_if*)statement;
     int jmpfalse = 0;
 
-    compile_expression(instructs, if_stmt->condition);
-    jmpfalse = emit_instruction(instructs, OP_JMP_FALSE, EMPTY_VAL);
+    compile_expression(instructs, if_stmt->condition, line);
+    jmpfalse = emit_instruction(instructs, OP_JMP_FALSE, EMPTY_VAL, line);
 
     compile_statement(instructs, if_stmt->thenbranch);
 
@@ -279,6 +286,7 @@ static void compile_if(instruct *instructs, stmt *statement)
 
 static void compile_while(instruct *instructs, stmt *statement)
 {
+    int line = statement->line;
     stmt_while *while_stmt = (stmt_while*)statement;
     int compare = 0;
     int jmpfalse = 0;
@@ -286,12 +294,12 @@ static void compile_while(instruct *instructs, stmt *statement)
 
     compare = instructs->count;
 
-    compile_expression(instructs, while_stmt->condition);
+    compile_expression(instructs, while_stmt->condition, line);
 
-    jmpfalse = emit_instruction(instructs, OP_JMP_FALSE, EMPTY_VAL);
+    jmpfalse = emit_instruction(instructs, OP_JMP_FALSE, EMPTY_VAL, line);
     compile_block(instructs, while_stmt->loopbody, false);
     
-    jmpbegin = emit_instruction(instructs, OP_JMP_LOC, EMPTY_VAL);
+    jmpbegin = emit_instruction(instructs, OP_JMP_LOC, EMPTY_VAL, line);
     patch_jump(instructs, jmpbegin, compare);
     patch_jump(instructs, jmpfalse, instructs->count);
 }
@@ -303,26 +311,28 @@ static void compile_for(instruct *instructs, stmt *statement)
     int jmpbegin = 0;
     int jmpfalse = 0;
     
-    emit_instruction(instructs, OP_PUSH_FRAME, EMPTY_VAL);
+    emit_instruction(instructs, OP_PUSH_FRAME, EMPTY_VAL, statement->line);
 
     // Initializer_statement
     compile_statement(instructs, for_stmt->stmts[0]);
     // thenbranch used for compare statement
     forbegin = instructs->count;
     compile_statement(instructs, for_stmt->stmts[1]);
-    jmpfalse = emit_instruction(instructs, OP_JMP_FALSE, EMPTY_VAL);
+    jmpfalse = emit_instruction(instructs, OP_JMP_FALSE, EMPTY_VAL, 
+            statement->line);
     // loop body
     compile_block(instructs, for_stmt->loopbody, false);
     // elsebranch used for iterator statement
     compile_statement(instructs, for_stmt->stmts[2]);
 
-    jmpbegin = emit_instruction(instructs, OP_JMP_LOC, EMPTY_VAL);
+    jmpbegin = emit_instruction(instructs, OP_JMP_LOC, EMPTY_VAL, 
+            statement->line);
 
     // patch the jump instructs
     patch_jump(instructs, jmpbegin, forbegin);
     patch_jump(instructs, jmpfalse, instructs->count);
     
-    emit_instruction(instructs, OP_POP_FRAME, EMPTY_VAL);
+    emit_instruction(instructs, OP_POP_FRAME, EMPTY_VAL, statement->line);
 }
 
 static void compile_function(instruct *instructs, stmt *statement)
@@ -343,15 +353,16 @@ static void compile_function(instruct *instructs, stmt *statement)
 
     compile_block(&(codeobj->instructs), function_stmt->block, false);
 
-    emit_instruction(&(codeobj->instructs), OP_RETURN, NULL_VAL);
+    emit_instruction(&(codeobj->instructs), OP_RETURN, NULL_VAL, 
+            statement->line);
 	/* Push new code object onto the stack */
 	value valobj = {.type = VAL_OBJECT, .val_obj = (object*)codeobj};
-	emit_instruction(instructs, OP_MAKE_FUNCTION, valobj);
+	emit_instruction(instructs, OP_MAKE_FUNCTION, valobj, statement->line);
 
 	/* Store object*/
     token *name = function_stmt->name;
     value operand = {.type = VAL_STRING, .val_string = take_string(name)};
-    emit_instruction(instructs, OP_STORE_NAME, operand);
+    emit_instruction(instructs, OP_STORE_NAME, operand, statement->line);
 }
 
 static void compile_method(instruct *instructs, stmt *statement)
@@ -372,15 +383,18 @@ static void compile_method(instruct *instructs, stmt *statement)
 
     compile_block(&(codeobj->instructs), method_stmt->block, false);
 
-    emit_instruction(&(codeobj->instructs), OP_RETURN, NULL_VAL);
+    emit_instruction(&(codeobj->instructs), OP_RETURN, NULL_VAL,
+            statement->line);
 	/* Push new code object onto the stack */
 	value valobj = {.type = VAL_OBJECT, .val_obj = (object*)codeobj};
-	emit_instruction(instructs, OP_MAKE_METHOD, valobj);
+	emit_instruction(instructs, OP_MAKE_METHOD, valobj, 
+            statement->line);
 
 	/* Store object*/
     token *name = method_stmt->name;
     value operand = {.type = VAL_STRING, .val_string = take_string(name)};
-    emit_instruction(instructs, OP_STORE_NAME, operand);
+    emit_instruction(instructs, OP_STORE_NAME, operand, 
+            statement->line);
 }
 
 static void compile_class(instruct *instructs, stmt *statement)
@@ -400,22 +414,25 @@ static void compile_class(instruct *instructs, stmt *statement)
     for (size_t i = 0; i < num_methods; i++)
         compile_statement(&classobj->instructs, class_stmt->methods[i]);
 
-    emit_instruction(&classobj->instructs, OP_RETURN, EMPTY_VAL);
+    emit_instruction(&classobj->instructs, OP_RETURN, EMPTY_VAL, 
+            statement->line);
     
 	/* Push new code object onto the stack */
     value valobj = {.type = VAL_OBJECT, .val_obj = (object*)classobj};
-	emit_instruction(instructs, OP_MAKE_CLASS, valobj);
+	emit_instruction(instructs, OP_MAKE_CLASS, valobj, 
+            statement->line);
 
 	/* Store object*/
     value operand = {.type = VAL_STRING, .val_string = take_string(name)};
-    emit_instruction(instructs, OP_STORE_NAME, operand);
+    emit_instruction(instructs, OP_STORE_NAME, operand, statement->line);
 }
 
 static void compile_return(instruct *instructs, stmt *statement)
 {
     stmt_return *return_stmt = (stmt_return*)statement;
-    compile_expression(instructs, return_stmt->value);
-    emit_instruction(instructs, OP_RETURN, EMPTY_VAL);
+    compile_expression(instructs, return_stmt->value, 
+            statement->line);
+    emit_instruction(instructs, OP_RETURN, EMPTY_VAL, statement->line);
 }
 
 static void compile_statement(instruct *instructs, stmt *statement)
@@ -490,7 +507,8 @@ instruct compile(parser *analyzer, const char *source)
     }
 	start_compile(&instructs, analyzer->statements, analyzer->num_statements);
 
-	emit_instruction(&instructs, OP_RETURN, EMPTY_VAL);
+	emit_instruction(&instructs, OP_RETURN, EMPTY_VAL, 
+            analyzer->num_statements);
 
     return instructs;
 }

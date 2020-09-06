@@ -59,6 +59,7 @@ typedef struct code8_t
 {
     uint8_t bytecode;
 	value operand;
+    int line;
 } code8;
 
 typedef struct instruct_t

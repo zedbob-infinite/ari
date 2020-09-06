@@ -307,6 +307,7 @@ intrpstate execute(VM *vm, instruct *instructs)
         code8 *code = instructs->code[current];
         value operand = code->operand;
         valtype type = code->operand.type; 
+        int line = code->line;
 #ifdef DEBUG_ARI
         printf("|%03d|\t", vm->framestackpos);
         printf("|%*ld|\t   ", compress, current + 1);
@@ -359,7 +360,7 @@ intrpstate execute(VM *vm, instruct *instructs)
                 objprim *prim = NULL;
                 switch (type) {
                     case VAL_EMPTY:
-                        return runtime_error(vm, stack, current, "No object found.");
+                        return runtime_error(vm, stack, line, "No object found.");
                     case VAL_BOOL:
                         prim = create_new_primitive(PRIM_BOOL);
                         PRIM_AS_BOOL(prim) = VAL_AS_BOOL(operand);
@@ -377,7 +378,7 @@ intrpstate execute(VM *vm, instruct *instructs)
                         PRIM_AS_NULL(prim) = VAL_AS_NULL(operand);
                         break;
                     default:
-                        return runtime_error(vm, stack, current, 
+                        return runtime_error(vm, stack, line, 
                                 "Cannot load non-constant value.");
                 }
                 object *obj = (object*)prim;
@@ -393,7 +394,7 @@ intrpstate execute(VM *vm, instruct *instructs)
                     push_objstack(stack, obj);
                 else 
                     return runtime_error_loadname(vm, VAL_AS_STRING(operand), 
-                            current);
+                            line);
                 advance(vm->top);
                 break;
             }
@@ -496,7 +497,7 @@ intrpstate execute(VM *vm, instruct *instructs)
                         if (prop)
                             push_objstack(stack, prop);
                         else {
-                            return runtime_error_loadname(vm, name, current);
+                            return runtime_error_loadname(vm, name, line);
                         }
                         break;
                     }
@@ -511,13 +512,13 @@ intrpstate execute(VM *vm, instruct *instructs)
                                     name);
                         }
                         if (!prop)
-                            return runtime_error_loadname(vm, name, current);
+                            return runtime_error_loadname(vm, name, line);
                         push_objstack(stack, prop);
                         break;
                     }
                     default:
                     {
-                        return runtime_error(vm, stack, current, 
+                        return runtime_error(vm, stack, line, 
                             "Invalid Operation: object has no attributes.");
                     }
                 }
@@ -547,7 +548,7 @@ intrpstate execute(VM *vm, instruct *instructs)
                         char msg[100];
                         sprintf(msg, "Error: object has no attribute %s.",
                                 name);
-                        return runtime_error(vm, stack, current, msg);
+                        return runtime_error(vm, stack, line, msg);
                     }
                 }
                 advance(vm->top);
@@ -575,7 +576,7 @@ intrpstate execute(VM *vm, instruct *instructs)
 
                 if (!a->__add__)
                     if (!b->__add__)
-                        return runtime_error_unsupported_operation(vm, current,
+                        return runtime_error_unsupported_operation(vm, line,
                                 '+');
                     else
                         c = b->__add__(a, b);
@@ -584,7 +585,7 @@ intrpstate execute(VM *vm, instruct *instructs)
 
                 if (!c) 
                     return runtime_error_unsupported_operation(vm, 
-                            current, '+');
+                            line, '+');
 
                 vm_add_object(vm, c);
                 push_objstack(stack, c);
@@ -599,7 +600,7 @@ intrpstate execute(VM *vm, instruct *instructs)
 
                 if (!a->__sub__)
                     if (!b->__sub__)
-                        return runtime_error_unsupported_operation(vm, current, 
+                        return runtime_error_unsupported_operation(vm, line, 
                                 '-');
                     else
                         c = b->__sub__(a, b);
@@ -607,7 +608,7 @@ intrpstate execute(VM *vm, instruct *instructs)
                     c = a->__sub__(a, b);
 
                 if (!c) 
-                    return runtime_error_unsupported_operation(vm, current,
+                    return runtime_error_unsupported_operation(vm, line,
                             '-');
 
                 vm_add_object(vm, c);
@@ -624,14 +625,14 @@ intrpstate execute(VM *vm, instruct *instructs)
                 if (!a->__mul__)
                     if (!b->__mul__)
                         return runtime_error_unsupported_operation(vm, 
-                                current, '*');
+                                line, '*');
                     else
                         c = b->__mul__(a, b);
                 else
                     c = a->__mul__(a, b);
 
                 if (!c) 
-                    return runtime_error_unsupported_operation(vm, current, 
+                    return runtime_error_unsupported_operation(vm, line, 
                             '*');
 
                 vm_add_object(vm, c);
@@ -650,14 +651,14 @@ intrpstate execute(VM *vm, instruct *instructs)
                 if (!a->__div__)
                     if (!b->__div__)
                         return runtime_error_unsupported_operation(vm, 
-                                current, '/');
+                                line, '/');
                     else
                         c = b->__div__(a, b);
                 else
                     c = a->__div__(a, b);
 
                 if (!c) 
-                    return runtime_error_unsupported_operation(vm, current, 
+                    return runtime_error_unsupported_operation(vm, line, 
                             '/');
 
                 vm_add_object(vm, c);
@@ -680,14 +681,14 @@ intrpstate execute(VM *vm, instruct *instructs)
                 if (!a->__mul__)
                     if (!b->__mul__)
                         return runtime_error_unsupported_operation(vm, 
-                                current, '*');
+                                line, '*');
                     else
                         c = b->__mul__(a, b);
                 else
                     c = a->__mul__(a, b);
 
                 if (!c) 
-                    return runtime_error_unsupported_operation(vm, current, 
+                    return runtime_error_unsupported_operation(vm, line, 
                             '*');
                 advance(vm->top);
                 break;
