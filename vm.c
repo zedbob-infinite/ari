@@ -88,21 +88,33 @@ static intrpstate runtime_error_unsupported_operation(VM *vm,
     return runtime_error(vm, &vm->evalstack, current, msg);
 }
 
-static inline void binary_op(VM *vm, objstack *stack, char optype)
+static intrpstate runtime_error_zero_div(VM *vm, uint64_t current)
 {
-    objprim *c = create_new_primitive(PRIM_BOOL);
-    objprim *b = (objprim*)pop_objstack(stack);
-    objprim *a = (objprim*)pop_objstack(stack);
+    char msg[50];
+    sprintf(msg, "Error: Divison by Zero");
+    return runtime_error(vm, &vm->evalstack, current, msg);
+}
     
-    switch (optype) {
-        case '+': PRIM_AS_DOUBLE(c) = PRIM_AS_DOUBLE(a) + PRIM_AS_DOUBLE(b); break;
-        case '-': PRIM_AS_DOUBLE(c) = PRIM_AS_DOUBLE(a) - PRIM_AS_DOUBLE(b); break;
-        case '*': PRIM_AS_DOUBLE(c) = PRIM_AS_DOUBLE(a) * PRIM_AS_DOUBLE(b); break;
-        case '/': PRIM_AS_DOUBLE(c) = PRIM_AS_DOUBLE(a) / PRIM_AS_DOUBLE(b); break;
+static bool check_zero_div(object *a, object *b)
+{
+    if (!((a->type == OBJ_PRIMITIVE) && (b->type == OBJ_PRIMITIVE)))
+        return false;
+
+    objprim *dividend = (objprim*)a;
+    objprim *divisor = (objprim*)b;
+    if ((dividend->ptype == PRIM_DOUBLE && divisor->ptype == PRIM_DOUBLE)) {
+        if (PRIM_AS_DOUBLE(divisor) == 0)
+            return true;
     }
-    object *obj = (object*)c;
-    vm_add_object(vm, obj);
-    push_objstack(stack, obj);
+    else if ((dividend->ptype == PRIM_DOUBLE && divisor->ptype == PRIM_BOOL)) {
+        if (PRIM_AS_BOOL(divisor) == 0)
+            return true;
+    }
+    else if ((dividend->ptype == PRIM_BOOL && divisor->ptype == PRIM_DOUBLE)) {
+        if (PRIM_AS_DOUBLE(divisor) == 0)
+            return true;
+    }
+    return false;
 }
 
 static inline void binary_comp(VM *vm, objstack *stack, tokentype optype)
@@ -559,19 +571,20 @@ intrpstate execute(VM *vm, instruct *instructs)
             {
                 object *b = pop_objstack(stack);
 	            object *a = pop_objstack(stack);
-                if (!a->__add__)
-                    return runtime_error_unsupported_operation(vm, '+', current);
+                object *c = NULL;
 
-                object *c = a->__add__(a, b);
-                if (!c) {
+                if (!a->__add__)
                     if (!b->__add__)
-                        return runtime_error_unsupported_operation(vm, '+', current);
-                    else {
+                        return runtime_error_unsupported_operation(vm, current,
+                                '+');
+                    else
                         c = b->__add__(a, b);
-                        if (!c)
-                            return runtime_error_unsupported_operation(vm, '+', current);
-                    }
-                }
+                else
+                    c = a->__add__(a, b);
+
+                if (!c) 
+                    return runtime_error_unsupported_operation(vm, 
+                            current, '+');
 
                 vm_add_object(vm, c);
                 push_objstack(stack, c);
@@ -582,22 +595,20 @@ intrpstate execute(VM *vm, instruct *instructs)
             {
                 object *b = pop_objstack(stack);
 	            object *a = pop_objstack(stack);
-                if (!a->__sub__)
-                    return runtime_error_unsupported_operation(vm, '-', 
-                            current);
+                object *c = NULL;
 
-                object *c = a->__sub__(a, b);
-                if (!c) {
+                if (!a->__sub__)
                     if (!b->__sub__)
-                        return runtime_error_unsupported_operation(vm, '-', 
-                                current);
-                    else {
+                        return runtime_error_unsupported_operation(vm, current, 
+                                '-');
+                    else
                         c = b->__sub__(a, b);
-                        if (!c)
-                            return runtime_error_unsupported_operation(vm, 
-                                    '-', current);
-                    }
-                }
+                else
+                    c = a->__sub__(a, b);
+
+                if (!c) 
+                    return runtime_error_unsupported_operation(vm, current,
+                            '-');
 
                 vm_add_object(vm, c);
                 push_objstack(stack, c);
@@ -608,22 +619,20 @@ intrpstate execute(VM *vm, instruct *instructs)
             {
                 object *b = pop_objstack(stack);
 	            object *a = pop_objstack(stack);
-                if (!a->__mul__)
-                    return runtime_error_unsupported_operation(vm, '*', 
-                            current);
+                object *c = NULL;
 
-                object *c = a->__mul__(a, b);
-                if (!c) {
+                if (!a->__mul__)
                     if (!b->__mul__)
-                        return runtime_error_unsupported_operation(vm, '*', 
-                                current);
-                    else {
+                        return runtime_error_unsupported_operation(vm, 
+                                current, '*');
+                    else
                         c = b->__mul__(a, b);
-                        if (!c)
-                            return runtime_error_unsupported_operation(vm, 
-                                    '-', current);
-                    }
-                }
+                else
+                    c = a->__mul__(a, b);
+
+                if (!c) 
+                    return runtime_error_unsupported_operation(vm, current, 
+                            '*');
 
                 vm_add_object(vm, c);
                 push_objstack(stack, c);
@@ -631,15 +640,55 @@ intrpstate execute(VM *vm, instruct *instructs)
                 break;
             }
             case OP_BINARY_DIVIDE:
-                binary_op(vm, stack, '/');
+            {
+                object *b = pop_objstack(stack);
+	            object *a = pop_objstack(stack);
+                object *c = NULL;
+                if (check_zero_div(a, b))
+                    return runtime_error_zero_div(vm, current);
+
+                if (!a->__div__)
+                    if (!b->__div__)
+                        return runtime_error_unsupported_operation(vm, 
+                                current, '/');
+                    else
+                        c = b->__div__(a, b);
+                else
+                    c = a->__div__(a, b);
+
+                if (!c) 
+                    return runtime_error_unsupported_operation(vm, current, 
+                            '/');
+
+                vm_add_object(vm, c);
+                push_objstack(stack, c);
                 advance(vm->top);
                 break;
+            }
             case OP_NEGATE:
             {
-                objprim *obj = create_new_primitive(PRIM_DOUBLE);
-                vm_add_object(vm, (object*)obj);
-                push_objstack(stack, (object*)obj);
-                binary_op(vm, stack, '*');
+                objprim *prim = create_new_primitive(PRIM_DOUBLE);
+                PRIM_AS_DOUBLE(prim) = 1;
+
+                vm_add_object(vm, (object*)prim);
+                push_objstack(stack, (object*)prim);
+                
+                object *b = pop_objstack(stack);
+	            object *a = pop_objstack(stack);
+                object *c = NULL;
+
+                if (!a->__mul__)
+                    if (!b->__mul__)
+                        return runtime_error_unsupported_operation(vm, 
+                                current, '*');
+                    else
+                        c = b->__mul__(a, b);
+                else
+                    c = a->__mul__(a, b);
+
+                if (!c) 
+                    return runtime_error_unsupported_operation(vm, current, 
+                            '*');
                 advance(vm->top);
                 break;
             }

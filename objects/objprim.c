@@ -11,6 +11,7 @@
 object *prim_binary_add(object *this, object *other);
 object *prim_binary_sub(object *this, object *other);
 object *prim_binary_mul(object *this, object *other);
+object *prim_binary_div(object *this, object *other);
 
 int hashkey(char *key, int length)
 {
@@ -107,6 +108,7 @@ objprim *create_new_primitive(primtype ptype)
     obj->header.__add__ = prim_binary_add;
     obj->header.__sub__ = prim_binary_sub;
     obj->header.__mul__ = prim_binary_mul;
+    obj->header.__div__ = prim_binary_div;
 	return obj;
 }
 
@@ -362,6 +364,55 @@ object *prim_binary_mul(object *this_, object *other)
         if (a->ptype == PRIM_BOOL && b->ptype == PRIM_BOOL) {
             c = create_new_primitive(PRIM_BOOL);
             PRIM_AS_BOOL(c) = PRIM_AS_BOOL(a) * PRIM_AS_BOOL(b);
+        }
+        else if ((a->ptype == PRIM_NULL && b->ptype == PRIM_BOOL) ||
+                 (b->ptype == PRIM_BOOL && b->ptype == PRIM_NULL)) {
+            return NULL;
+        }
+    }
+    else if (match(a, b, PRIM_NULL))
+        return NULL;
+    object *obj = (object*)c;
+    return obj;
+}
+
+object *prim_binary_div(object *this_, object *other)
+{
+    if (this_->type != OBJ_PRIMITIVE || other->type != OBJ_PRIMITIVE)
+        return NULL;
+
+    objprim *a = (objprim*)this_;
+    objprim *b = (objprim*)other;
+    objprim *c = NULL;
+
+    if (match(a, b, PRIM_DOUBLE)) {
+        if ((a->ptype == PRIM_DOUBLE && b->ptype == PRIM_DOUBLE)) {
+            c = create_new_primitive(PRIM_DOUBLE); 
+            PRIM_AS_DOUBLE(c) = PRIM_AS_DOUBLE(a) / PRIM_AS_DOUBLE(b);
+        }
+        else if ((a->ptype == PRIM_BOOL && b->ptype == PRIM_DOUBLE) ||
+                 (a->ptype == PRIM_DOUBLE && b->ptype == PRIM_BOOL)) {
+            c = create_new_primitive(PRIM_DOUBLE);
+            convert_prim(a, PRIM_DOUBLE);
+            convert_prim(b, PRIM_DOUBLE);
+            PRIM_AS_DOUBLE(c) = PRIM_AS_DOUBLE(a) / PRIM_AS_DOUBLE(b);
+        }
+        else if ((a->ptype == PRIM_STRING && b->ptype == PRIM_DOUBLE) ||
+                 (a->ptype == PRIM_DOUBLE && b->ptype == PRIM_STRING) ||
+                 (a->ptype == PRIM_NULL && b->ptype == PRIM_DOUBLE) ||
+                 (a->ptype == PRIM_DOUBLE && b->ptype == PRIM_NULL) ||
+                 (a->ptype == PRIM_STRING && b->ptype == PRIM_STRING) ||
+                 (a->ptype == PRIM_STRING && b->ptype == PRIM_BOOL) ||
+                 (a->ptype == PRIM_BOOL && b->ptype == PRIM_STRING) ||
+                 (a->ptype == PRIM_STRING && b->ptype == PRIM_NULL) ||
+                 (a->ptype == PRIM_NULL && b->ptype == PRIM_STRING)) {
+            return NULL;
+        }
+    }
+    else if (match(a, b, PRIM_BOOL)) {
+        if (a->ptype == PRIM_BOOL && b->ptype == PRIM_BOOL) {
+            c = create_new_primitive(PRIM_BOOL);
+            PRIM_AS_BOOL(c) = PRIM_AS_BOOL(a) / PRIM_AS_BOOL(b);
         }
         else if ((a->ptype == PRIM_NULL && b->ptype == PRIM_BOOL) ||
                  (b->ptype == PRIM_BOOL && b->ptype == PRIM_NULL)) {
