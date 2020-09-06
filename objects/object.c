@@ -13,6 +13,9 @@ void init_object(object *obj, objtype type)
     obj->next = NULL;
     obj->__attrs__ = NULL;
     obj->__add__ = NULL;
+    obj->__sub__ = NULL;
+    obj->__mul__ = NULL;
+    obj->__div__ = NULL;
 }
 
 void print_object(object *obj)

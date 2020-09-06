@@ -47,5 +47,6 @@ void construct_primstring_from_token(objprim *primobj, token *tok);
 int hashkey(char *key, int length);
 primstring *init_primstring(int length, uint32_t hash, 
         char *takenstring);
+void convert_prim(objprim *prim, primtype type);
 
 #endif

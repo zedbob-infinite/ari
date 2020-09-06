@@ -30,6 +30,9 @@ typedef struct object_t
     struct object_t* next;
     objhash *__attrs__;
     slot __add__;
+    slot __sub__;
+    slot __mul__;
+    slot __div__;
 } object;
 
 void init_object(object *obj, objtype type);

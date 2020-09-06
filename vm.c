@@ -579,13 +579,57 @@ intrpstate execute(VM *vm, instruct *instructs)
                 break;
             }
             case OP_BINARY_SUB:
-                binary_op(vm, stack, '-');
+            {
+                object *b = pop_objstack(stack);
+	            object *a = pop_objstack(stack);
+                if (!a->__sub__)
+                    return runtime_error_unsupported_operation(vm, '-', 
+                            current);
+
+                object *c = a->__sub__(a, b);
+                if (!c) {
+                    if (!b->__sub__)
+                        return runtime_error_unsupported_operation(vm, '-', 
+                                current);
+                    else {
+                        c = b->__sub__(a, b);
+                        if (!c)
+                            return runtime_error_unsupported_operation(vm, 
+                                    '-', current);
+                    }
+                }
+
+                vm_add_object(vm, c);
+                push_objstack(stack, c);
                 advance(vm->top);
                 break;
+            }
             case OP_BINARY_MULT:
-                binary_op(vm, stack, '*');
+            {
+                object *b = pop_objstack(stack);
+	            object *a = pop_objstack(stack);
+                if (!a->__mul__)
+                    return runtime_error_unsupported_operation(vm, '-', 
+                            current);
+
+                object *c = a->__mul__(a, b);
+                if (!c) {
+                    if (!b->__mul__)
+                        return runtime_error_unsupported_operation(vm, '-', 
+                                current);
+                    else {
+                        c = b->__mul__(a, b);
+                        if (!c)
+                            return runtime_error_unsupported_operation(vm, 
+                                    '-', current);
+                    }
+                }
+
+                vm_add_object(vm, c);
+                push_objstack(stack, c);
                 advance(vm->top);
                 break;
+            }
             case OP_BINARY_DIVIDE:
                 binary_op(vm, stack, '/');
                 advance(vm->top);
