@@ -5,11 +5,12 @@
 #include "instruct.h"
 #include "object.h"
 #include "objhash.h"
+#include "objprim.h"
 
 typedef struct
 {
     object header;
-    char *name;
+    primstring *name;
     frame localframe;
     objhash methods;
     // For compiling the class

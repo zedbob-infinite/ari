@@ -326,6 +326,7 @@ static void delete_expression(expr *pexpr)
                 delete_expression(del->refobj);
                 delete_expression(del->call);
                 FREE(expr_method, del);
+                break;
             }
             case EXPR_CALL:
             {

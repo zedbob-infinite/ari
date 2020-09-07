@@ -16,10 +16,20 @@
 static void compile_statement(instruct *instructs, stmt *statement);
 static void compile_block(instruct *instructs, stmt *statement, 
         bool makeframe);
-static void start_compile(instruct *instructs, stmt **statements, int num_statements);
+static void start_compile(instruct *instructs, stmt **statements, 
+        int num_statements);
 
 
-static void construct_primstring_from_token(objprim *primobj, token *tok)
+static char *take_string(token *tok)
+{
+    int length = tok->length;
+    char *buffer = ALLOCATE(char, length + 1);
+    memcpy(buffer, tok->start, tok->length);
+    buffer[tok->length] = '\0';
+    return buffer;
+}
+
+static void create_primobj_from_token(objprim *primobj, token *tok)
 {
     int length = tok->length;
     char *takenstring = ALLOCATE(char, length + 1);
@@ -45,15 +55,6 @@ static void check_instruct_capacity(instruct *instructs)
 			instructs->capacity);
     for (int i = oldcapacity; i < instructs->capacity; ++i)
         instructs->code[i] = NULL;
-}
-
-static char *take_string(token *tok)
-{
-    int length = tok->length;
-    char *buffer = ALLOCATE(char, length + 1);
-    memcpy(buffer, tok->start, tok->length);
-    buffer[tok->length] = '\0';
-    return buffer;
 }
 
 static code8 *create_code(uint8_t bytecode, value operand, int line)
@@ -85,10 +86,12 @@ static void compile_expression(instruct *instructs, expr *expression,
     switch (expression->type) {
         case EXPR_ASSIGN: 
         {
-            expr_assign *assign_expr = (expr_assign*)expression;
             byte = OP_STORE_NAME;
+            expr_assign *assign_expr = (expr_assign*)expression;
+            token *name = assign_expr->name;
+
             compile_expression(instructs, assign_expr->value, line);
-			VAL_AS_STRING(operand) = take_string(assign_expr->name);
+			VAL_AS_STRING(operand) = take_string(name);
 			operand.type = VAL_STRING;
             break;
         }
@@ -132,28 +135,31 @@ static void compile_expression(instruct *instructs, expr *expression,
         }
 		case EXPR_LITERAL_STRING:
 		{
-            expr_literal *literal_expr = (expr_literal*)expression;
             byte = OP_LOAD_CONSTANT;
+			operand.type = VAL_STRING;
+			expr_literal *literal_expr = (expr_literal*)expression;
             int length = strlen(literal_expr->literal);
             char *buffer = ALLOCATE(char, length + 1);
-            buffer = strncpy(buffer, literal_expr->literal, length);
+            
+            strncpy(buffer, literal_expr->literal, length);
             buffer[length] = '\0';
-			VAL_AS_STRING(operand) = buffer;
-			operand.type = VAL_STRING;
+            VAL_AS_STRING(operand) = buffer;
 			break;
 		}
 		case EXPR_LITERAL_NUMBER:
 		{
-            expr_literal *literal_expr = (expr_literal*)expression;
 			byte = OP_LOAD_CONSTANT;
+            expr_literal *literal_expr = (expr_literal*)expression;
+
             VAL_AS_DOUBLE(operand) = atof(literal_expr->literal);
 			operand.type = VAL_DOUBLE;
 			break;
 		}
 		case EXPR_LITERAL_BOOL:
 		{
-            expr_literal *literal_expr = (expr_literal*)expression;
 			byte = OP_LOAD_CONSTANT;
+            expr_literal *literal_expr = (expr_literal*)expression;
+
             VAL_AS_INT(operand) = atoi(literal_expr->literal);
 			operand.type = VAL_BOOL;
 			break;
@@ -182,14 +188,18 @@ static void compile_expression(instruct *instructs, expr *expression,
         }
         case EXPR_VARIABLE:
         {
-            expr_var *var_expr = (expr_var*)expression;
             byte = OP_LOAD_NAME;
-			VAL_AS_STRING(operand) = take_string(var_expr->name);
 			operand.type = VAL_STRING;
+            expr_var *var_expr = (expr_var*)expression;
+			token *name = var_expr->name;
+
+            VAL_AS_STRING(operand) = take_string(name);
             break;
         }
 		case EXPR_CALL:
 		{
+            operand.type = VAL_INT;
+            
             expr_call *call_expr = (expr_call*)expression;
 			
             if (call_expr->is_method)
@@ -204,7 +214,6 @@ static void compile_expression(instruct *instructs, expr *expression,
                 compile_expression(instructs, call_expr->arguments[i], line);
 			
             /* argument count is passed as the operand */
-            operand.type = VAL_INT;
 			VAL_AS_INT(operand) = i;
 			break;
 		}
@@ -223,23 +232,23 @@ static void compile_expression(instruct *instructs, expr *expression,
         case EXPR_GET_PROP:
         {
             byte = OP_GET_PROPERTY;
+			operand.type = VAL_STRING;
             
             expr_get *get_expr = (expr_get*)expression;
             token *name = get_expr->name;
 
 			VAL_AS_STRING(operand) = take_string(name);
-			operand.type = VAL_STRING;
-            
             compile_expression(instructs, get_expr->refobj, line);
             break;
         }
         case EXPR_SET_PROP:
         {
             byte = OP_SET_PROPERTY;
-            expr_set *set_expr = (expr_set*)expression;
-            
-            VAL_AS_STRING(operand) = take_string(set_expr->name);
             operand.type = VAL_STRING;
+            expr_set *set_expr = (expr_set*)expression;
+            token *name = set_expr->name;
+            
+            VAL_AS_STRING(operand) = take_string(name);
 
             /* Put new value on stack */
             compile_expression(instructs, set_expr->value, line);
@@ -356,7 +365,7 @@ static void compile_function(instruct *instructs, stmt *statement)
 
 	for (int i = 0; i < argcount; ++i) {
 		objprim *prim = create_new_primitive(PRIM_STRING);
-        construct_primstring_from_token(prim, parameters[i]);
+        create_primobj_from_token(prim, parameters[i]);
 		arguments[i] = prim;
 	}
 	
@@ -372,7 +381,8 @@ static void compile_function(instruct *instructs, stmt *statement)
 
 	/* Store object*/
     token *name = function_stmt->name;
-    value operand = {.type = VAL_STRING, .val_string = take_string(name)};
+    value operand = {.type = VAL_STRING, 
+        .val_string = take_string(name)};
     emit_instruction(instructs, OP_STORE_NAME, operand, statement->line);
 }
 
@@ -386,7 +396,7 @@ static void compile_method(instruct *instructs, stmt *statement)
 
 	for (int i = 0; i < argcount; ++i) {
 		objprim *prim = create_new_primitive(PRIM_STRING);
-        construct_primstring_from_token(prim, parameters[i]);
+        create_primobj_from_token(prim, parameters[i]);
 		arguments[i] = prim;
 	}
 	
@@ -403,7 +413,8 @@ static void compile_method(instruct *instructs, stmt *statement)
 
 	/* Store object*/
     token *name = method_stmt->name;
-    value operand = {.type = VAL_STRING, .val_string = take_string(name)};
+    value operand = {.type = VAL_STRING, 
+        .val_string = take_string(name)};
     emit_instruction(instructs, OP_STORE_NAME, operand, 
             statement->line);
 }
@@ -414,7 +425,9 @@ static void compile_class(instruct *instructs, stmt *statement)
 	objclass *classobj = init_objclass();
     
     token *name = class_stmt->name;
-    classobj->name = take_string(name);
+    char *classname = take_string(name);
+    classobj->name = create_primstring(classname);
+    FREE(char, classname);
     /* Process attributes and methods */
     size_t num_attributes = class_stmt->num_attributes;
     size_t num_methods = class_stmt->num_methods;
@@ -434,7 +447,8 @@ static void compile_class(instruct *instructs, stmt *statement)
             statement->line);
 
 	/* Store object*/
-    value operand = {.type = VAL_STRING, .val_string = take_string(name)};
+    value operand = {.type = VAL_STRING, 
+        .val_string = take_string(name)};
     emit_instruction(instructs, OP_STORE_NAME, operand, statement->line);
 }
 

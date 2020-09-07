@@ -36,7 +36,8 @@ object *load_builtin(VM *vm, char *name, builtin function)
     builtin_obj->func = function;
 
     frame *global = &vm->global.local;
-    objhash_set(&global->locals, name, (object*)builtin_obj);
+    primstring *newname = create_primstring(name);
+    objhash_set(&global->locals, newname, (object*)builtin_obj);
     return (object*)builtin_obj;
 }
 

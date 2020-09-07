@@ -47,11 +47,8 @@ typedef struct value_t
 	{
 		int val_int;
 		double val_double;
-        union
-        {
-		    char *val_string;
-		    object *val_obj;
-        };
+		char *val_string;
+		object *val_obj;
 	};
 } value;
 

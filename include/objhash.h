@@ -9,10 +9,11 @@
 #define TABLE_MAX_LOAD 0.75
 
 struct object_t;
+struct primstring_t;
 
 typedef struct objentry_t
 {
-    char *key;
+    struct primstring_t *key;
     struct object_t *value;
     int type;
 } objentry;
@@ -25,9 +26,10 @@ typedef struct objhash_t
 } objhash;
 
 void init_objhash(objhash *hashtable, uint32_t size);
-bool objhash_remove(objhash *ht, char *key);
-void objhash_set(objhash *ht, char *key, struct object_t *value);
-struct object_t *objhash_get(objhash *ht, char *key);
+bool objhash_remove(objhash *ht, struct primstring_t *key);
+void objhash_set(objhash *ht, struct primstring_t *key, 
+        struct object_t *value);
+struct object_t *objhash_get(objhash *ht, struct primstring_t *key);
 void reset_objhash(objhash *hashtable);
 
 #endif

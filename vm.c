@@ -160,7 +160,7 @@ static inline void binary_comp(VM *vm, objstack *stack, tokentype optype)
     push_objstack(stack, obj);
 }
 
-static inline void set_name(frame *localframe, char *name, object *val)
+static inline void set_name(frame *localframe, primstring *name, object *val)
 {
     objhash_set(&localframe->locals, name, val);
 }
@@ -169,10 +169,12 @@ static inline object *get_name(frame *localframe, value name)
 {
     frame *current = localframe;
     object *obj = NULL;
+    primstring *pname = create_primstring(VAL_AS_STRING(name));
     do {
-        obj = objhash_get(&current->locals, VAL_AS_STRING(name));
+        obj = objhash_get(&current->locals, pname);
         current = current->next;
     } while ((!obj) && (current));
+    free_primstring(pname);
     return obj;
 }
 
@@ -291,7 +293,7 @@ static void call_function(VM *vm, object *obj, int argcount, object **arguments)
                 PRIM_AS_RAWSTRING(funcobj->arguments[k]));
 #endif
         set_name(vm->top,
-                PRIM_AS_RAWSTRING(funcobj->arguments[k]),
+                PRIM_AS_STRING(funcobj->arguments[k]),
                 arguments[i--]);
     }
 #ifdef DEBUG_ARI
@@ -499,7 +501,7 @@ intrpstate execute(VM *vm, instruct *instructs)
             case OP_GET_PROPERTY:
             {
                 object *obj = pop_objstack(stack);
-                char *name = VAL_AS_STRING(operand);
+                primstring *name = create_primstring(VAL_AS_STRING(operand));
                 switch (obj->type) {
                     case OBJ_CLASS:
                     {
@@ -509,7 +511,7 @@ intrpstate execute(VM *vm, instruct *instructs)
                         if (prop)
                             push_objstack(stack, prop);
                         else {
-                            return runtime_error_loadname(vm, name, line);
+                            return runtime_error_loadname(vm, PRIMSTRING_AS_RAWSTRING(name), line);
                         }
                         break;
                     }
@@ -524,7 +526,7 @@ intrpstate execute(VM *vm, instruct *instructs)
                                     name);
                         }
                         if (!prop)
-                            return runtime_error_loadname(vm, name, line);
+                            return runtime_error_loadname(vm, PRIMSTRING_AS_RAWSTRING(name), line);
                         push_objstack(stack, prop);
                         break;
                     }
@@ -540,7 +542,7 @@ intrpstate execute(VM *vm, instruct *instructs)
             case OP_SET_PROPERTY:
             {
                 object *obj = pop_objstack(stack);
-                char *name = VAL_AS_STRING(operand);
+                primstring *name = create_primstring(VAL_AS_STRING(operand));
                 object *val = pop_objstack(stack);
                 switch (obj->type) {
                     case OBJ_CLASS:
@@ -559,7 +561,7 @@ intrpstate execute(VM *vm, instruct *instructs)
                     {
                         char msg[100];
                         sprintf(msg, "Error: object has no attribute %s.",
-                                name);
+                                PRIMSTRING_AS_RAWSTRING(name));
                         return runtime_error(vm, stack, line, msg);
                     }
                 }
@@ -570,7 +572,8 @@ intrpstate execute(VM *vm, instruct *instructs)
             {
                 object *obj = pop_objstack(stack);
                 char *string = VAL_AS_STRING(operand);
-                set_name(vm->top, string, obj);
+                primstring *pstring = create_primstring(string);
+                set_name(vm->top, pstring, obj);
                 advance(vm->top);
                 break;
             }

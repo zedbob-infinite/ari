@@ -64,6 +64,12 @@ primstring *init_primstring(int length, uint32_t hash, char *takenstring)
     return newstring;
 }
 
+void free_primstring(primstring *del)
+{
+    FREE(char, del->_string_);
+    FREE(primstring, del);
+}
+
 primstring *create_primstring(char *_string_)
 {
     int length = strlen(_string_);

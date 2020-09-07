@@ -5,42 +5,50 @@
 
 #include "memory.h"
 #include "objhash.h"
+#include "objprim.h"
 
-#define ALLOCATE_OBJENTRY(a)    objentry *a = ALLOCATE(objentry, 1);
 
-static int objhash_hash(int size, char *key)
+static void copy_primstring(primstring *dest, primstring *source)
 {
-    uint32_t hashval = 0;
-    int i = 0;
-
-    // Convert string to integer
-    while (hashval < ULONG_MAX && i < strlen(key)) {
-        hashval <<= 8;
-        hashval += key[i];
-        i++;
-    }
-    return hashval % size;
+    dest->length = source->length;
+    dest->hash = source->hash;
+    dest->_string_ = ALLOCATE(char, source->length + 1);
+    memcpy(dest->_string_, source->_string_, dest->length);
+    dest->_string_[dest->length] = '\0';
 }
 
-static objentry *objhash_newpair(char *key, object *value)
+static bool is_key(primstring *key, primstring *compare)
 {
-    int keylength = strlen(key) + 1;
-    ALLOCATE_OBJENTRY(newpair);
+    if ((!key) || (!compare))
+        return false;
+    if (key->length != compare->length)
+        return false;
+    if (key->hash != compare->hash)
+        return false;
+    if (strncmp(key->_string_, compare->_string_, key->length))
+        return false;
+    return true;
+}
+
+static objentry *objhash_newpair(primstring *key, object *value)
+{
+    objentry *newpair = ALLOCATE(objentry, 1);
     if (newpair) {
-        newpair->key = ALLOCATE(char, keylength + 1);
-        strncpy(newpair->key, key, keylength);
+        primstring *newkey = ALLOCATE(primstring, 1);
+        copy_primstring(newkey, key);
+        newpair->key = newkey;
         newpair->value = value;
     }
     return newpair;
 }
 
 static objentry *objhash_find_entry(objentry **entries, uint32_t size, 
-        char *key, uint32_t *binnum)
+        primstring *key, uint32_t *binnum)
 {
-    uint32_t bin = objhash_hash(size, key);
+    uint32_t bin = key->hash % size;
     objentry *next = entries[bin];
 
-    while (next && next->key && strcmp(key, next->key) != 0) {
+    while (next && next->key && is_key(key, next->key) == false) {
         if (bin < size)
             bin++;
         else
@@ -49,7 +57,7 @@ static objentry *objhash_find_entry(objentry **entries, uint32_t size,
     }
 
     *binnum = bin;
-    if (next && next->key && strcmp(key, next->key) == 0)  {
+    if (next && next->key && is_key(key, next->key) == true)  {
         return next;
     }
 
@@ -58,10 +66,9 @@ static objentry *objhash_find_entry(objentry **entries, uint32_t size,
 
 static inline void objhash_remove_entry(objentry *entry)
 {
-    if (entry) {
+    if (entry)
         if (entry->key)
-            FREE(char, entry->key);
-    }
+            free_primstring(entry->key);
     FREE(objentry, entry);
 }
 
@@ -123,7 +130,7 @@ void reset_objhash(objhash *ht)
     FREE(objentry*, ht->table);
 }
 
-bool objhash_remove(objhash *ht, char *key)
+bool objhash_remove(objhash *ht, primstring *key)
 {
     uint32_t bin = 0;
     objentry *entry = objhash_find_entry(ht->table, ht->capacity, key, &bin);
@@ -137,7 +144,7 @@ bool objhash_remove(objhash *ht, char *key)
     return true;
 }
 
-void objhash_set(objhash *ht, char *key, object *value)
+void objhash_set(objhash *ht, primstring *key, object *value)
 {
     if (ht->count + 1 > ht->capacity * TABLE_MAX_LOAD)
         check_capacity(ht);
@@ -160,7 +167,7 @@ void objhash_set(objhash *ht, char *key, object *value)
     ht->count++;
 }
 
-object *objhash_get(objhash *ht, char *key)
+object *objhash_get(objhash *ht, primstring *key)
 {
     uint32_t bin = 0;
     uint32_t size = ht->capacity;

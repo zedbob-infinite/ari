@@ -1,6 +1,8 @@
 
 #include "instruct.h"
 #include "memory.h"
+#include "objprim.h"
+
 
 void init_instruct(instruct* instructs)
 {
