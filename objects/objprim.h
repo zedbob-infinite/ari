@@ -42,11 +42,9 @@ typedef struct objprim_t
 } objprim;
 
 objprim *create_new_primitive(primtype ptype);
-void construct_primstring(objprim *primobj, char *string_);
-void construct_primstring_from_token(objprim *primobj, token *tok);
 int hashkey(char *key, int length);
-primstring *init_primstring(int length, uint32_t hash, 
-        char *takenstring);
+primstring *create_primstring(char *_string_);
+primstring *init_primstring(int length, uint32_t hash, char *takenstring);
 void convert_prim(objprim *prim, primtype type);
 
 #endif

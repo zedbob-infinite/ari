@@ -18,6 +18,18 @@
 #include "tokenizer.h"
 #include "vm.h"
 
+
+static void construct_primstring(objprim *primobj, char *_string_)
+{
+    int length = strlen(_string_) - 2;
+    uint32_t hash = hashkey(_string_, length);
+    char *takenstring = ALLOCATE(char, length + 1);
+    memcpy(takenstring, _string_ + 1, length);
+    takenstring[length] = '\0';
+
+    PRIM_AS_STRING(primobj) = init_primstring(length, hash, takenstring);
+}
+
 static inline void advance(frame *currentframe)
 {
     currentframe->pc++;
@@ -72,7 +84,7 @@ static intrpstate runtime_error(VM *vm, objstack *stack, size_t line, const char
     return INTERPRET_RUNTIME_ERROR;
 }
 
-static intrpstate runtime_error_loadname(VM *vm, char *name, 
+static intrpstate runtime_error_loadname(VM *vm, char *name,
         uint64_t current)
 {
     char msg[100];
@@ -80,7 +92,7 @@ static intrpstate runtime_error_loadname(VM *vm, char *name,
     return runtime_error(vm, &vm->evalstack, current, msg);
 }
 
-static intrpstate runtime_error_unsupported_operation(VM *vm, 
+static intrpstate runtime_error_unsupported_operation(VM *vm,
         uint64_t current, char optype)
 {
     char msg[50];
@@ -94,7 +106,7 @@ static intrpstate runtime_error_zero_div(VM *vm, uint64_t current)
     sprintf(msg, "Error: Divison by Zero");
     return runtime_error(vm, &vm->evalstack, current, msg);
 }
-    
+
 static bool check_zero_div(object *a, object *b)
 {
     if (!((a->type == OBJ_PRIMITIVE) && (b->type == OBJ_PRIMITIVE)))
@@ -167,7 +179,7 @@ static inline object *get_name(frame *localframe, value name)
 static void print_bytecode(uint8_t bytecode)
 {
     char *msg = NULL;
-    switch (bytecode) { 
+    switch (bytecode) {
         case OP_POP_FRAME:
             msg = "POP_FRAME";
             break;
@@ -263,7 +275,7 @@ static void call_function(VM *vm, object *obj, int argcount, object **arguments)
     frame *localframe = NULL;
 
     if (funcobj->depth == 0) {
-        vm_add_object(vm, (object*)funcobj);    
+        vm_add_object(vm, (object*)funcobj);
         localframe = &funcobj->localframe;
     }
     else {
@@ -271,14 +283,14 @@ static void call_function(VM *vm, object *obj, int argcount, object **arguments)
         init_frame(localframe);
         localframe->is_adhoc = true;
     }
-    vm_push_frame(vm, localframe); 
+    vm_push_frame(vm, localframe);
 
     for (int k = 0, i = argcount - 1; k < argcount; k++) {
 #ifdef DEBUG_ARI
         printf("   \tcode object argument %d: %s\n", k + 1,
                 PRIM_AS_RAWSTRING(funcobj->arguments[k]));
 #endif
-        set_name(vm->top, 
+        set_name(vm->top,
                 PRIM_AS_RAWSTRING(funcobj->arguments[k]),
                 arguments[i--]);
     }
@@ -306,7 +318,7 @@ intrpstate execute(VM *vm, instruct *instructs)
         uint64_t current = vm->top->pc;
         code8 *code = instructs->code[current];
         value operand = code->operand;
-        valtype type = code->operand.type; 
+        valtype type = code->operand.type;
         int line = code->line;
 #ifdef DEBUG_ARI
         printf("|%03d|\t", vm->framestackpos);
@@ -324,7 +336,7 @@ intrpstate execute(VM *vm, instruct *instructs)
                 init_frame(newframe);
                 newframe->pc = vm->top->pc;
                 newframe->is_adhoc = true;
-                vm_push_frame(vm, newframe); 
+                vm_push_frame(vm, newframe);
                 advance(vm->top);
                 break;
             }
@@ -378,7 +390,7 @@ intrpstate execute(VM *vm, instruct *instructs)
                         PRIM_AS_NULL(prim) = VAL_AS_NULL(operand);
                         break;
                     default:
-                        return runtime_error(vm, stack, line, 
+                        return runtime_error(vm, stack, line,
                                 "Cannot load non-constant value.");
                 }
                 object *obj = (object*)prim;
@@ -392,8 +404,8 @@ intrpstate execute(VM *vm, instruct *instructs)
                 object *obj = get_name(vm->top, operand);
                 if (obj)
                     push_objstack(stack, obj);
-                else 
-                    return runtime_error_loadname(vm, VAL_AS_STRING(operand), 
+                else
+                    return runtime_error_loadname(vm, VAL_AS_STRING(operand),
                             line);
                 advance(vm->top);
                 break;
@@ -430,7 +442,7 @@ intrpstate execute(VM *vm, instruct *instructs)
                     call_function(vm, popped, argcount, arguments);
                 }
                 else if (OBJ_IS_BUILTIN(popped)) {
-                    object *obj = call_builtin(vm, popped, argcount, 
+                    object *obj = call_builtin(vm, popped, argcount,
                             arguments);
                     advance(vm->top);
                     if (obj)
@@ -492,7 +504,7 @@ intrpstate execute(VM *vm, instruct *instructs)
                     case OBJ_CLASS:
                     {
                         objclass *classobj = (objclass*)obj;
-                        object *prop = objhash_get(classobj->header.__attrs__, 
+                        object *prop = objhash_get(classobj->header.__attrs__,
                                 name);
                         if (prop)
                             push_objstack(stack, prop);
@@ -504,7 +516,7 @@ intrpstate execute(VM *vm, instruct *instructs)
                     case OBJ_INSTANCE:
                     {
                         objinstance *instobj = (objinstance*)obj;
-                        object *prop = objhash_get(instobj->header.__attrs__, 
+                        object *prop = objhash_get(instobj->header.__attrs__,
                                 name);
                         if (!prop) {
                             objclass *classobj = instobj->class;
@@ -518,7 +530,7 @@ intrpstate execute(VM *vm, instruct *instructs)
                     }
                     default:
                     {
-                        return runtime_error(vm, stack, line, 
+                        return runtime_error(vm, stack, line,
                             "Invalid Operation: object has no attributes.");
                     }
                 }
@@ -583,8 +595,8 @@ intrpstate execute(VM *vm, instruct *instructs)
                 else
                     c = a->__add__(a, b);
 
-                if (!c) 
-                    return runtime_error_unsupported_operation(vm, 
+                if (!c)
+                    return runtime_error_unsupported_operation(vm,
                             line, '+');
 
                 vm_add_object(vm, c);
@@ -600,14 +612,14 @@ intrpstate execute(VM *vm, instruct *instructs)
 
                 if (!a->__sub__)
                     if (!b->__sub__)
-                        return runtime_error_unsupported_operation(vm, line, 
+                        return runtime_error_unsupported_operation(vm, line,
                                 '-');
                     else
                         c = b->__sub__(a, b);
                 else
                     c = a->__sub__(a, b);
 
-                if (!c) 
+                if (!c)
                     return runtime_error_unsupported_operation(vm, line,
                             '-');
 
@@ -624,15 +636,15 @@ intrpstate execute(VM *vm, instruct *instructs)
 
                 if (!a->__mul__)
                     if (!b->__mul__)
-                        return runtime_error_unsupported_operation(vm, 
+                        return runtime_error_unsupported_operation(vm,
                                 line, '*');
                     else
                         c = b->__mul__(a, b);
                 else
                     c = a->__mul__(a, b);
 
-                if (!c) 
-                    return runtime_error_unsupported_operation(vm, line, 
+                if (!c)
+                    return runtime_error_unsupported_operation(vm, line,
                             '*');
 
                 vm_add_object(vm, c);
@@ -650,15 +662,15 @@ intrpstate execute(VM *vm, instruct *instructs)
 
                 if (!a->__div__)
                     if (!b->__div__)
-                        return runtime_error_unsupported_operation(vm, 
+                        return runtime_error_unsupported_operation(vm,
                                 line, '/');
                     else
                         c = b->__div__(a, b);
                 else
                     c = a->__div__(a, b);
 
-                if (!c) 
-                    return runtime_error_unsupported_operation(vm, line, 
+                if (!c)
+                    return runtime_error_unsupported_operation(vm, line,
                             '/');
 
                 vm_add_object(vm, c);
@@ -673,22 +685,22 @@ intrpstate execute(VM *vm, instruct *instructs)
 
                 vm_add_object(vm, (object*)prim);
                 push_objstack(stack, (object*)prim);
-                
+
                 object *b = pop_objstack(stack);
 	            object *a = pop_objstack(stack);
                 object *c = NULL;
 
                 if (!a->__mul__)
                     if (!b->__mul__)
-                        return runtime_error_unsupported_operation(vm, 
+                        return runtime_error_unsupported_operation(vm,
                                 line, '*');
                     else
                         c = b->__mul__(a, b);
                 else
                     c = a->__mul__(a, b);
 
-                if (!c) 
-                    return runtime_error_unsupported_operation(vm, line, 
+                if (!c)
+                    return runtime_error_unsupported_operation(vm, line,
                             '*');
                 advance(vm->top);
                 break;

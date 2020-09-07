@@ -55,8 +55,7 @@ static void inline init_string(objprim *obj)
 	obj->val_string = NULL;
 }
 
-primstring *init_primstring(int length, uint32_t hash, 
-        char *takenstring)
+primstring *init_primstring(int length, uint32_t hash, char *takenstring)
 {
     primstring *newstring = ALLOCATE(primstring, 1);
     newstring->length = length;
@@ -65,32 +64,21 @@ primstring *init_primstring(int length, uint32_t hash,
     return newstring;
 }
 
-void construct_primstring(objprim *primobj, char *_string_)
+primstring *create_primstring(char *_string_)
 {
-    int length = strlen(_string_) - 2;
+    int length = strlen(_string_);
     uint32_t hash = hashkey(_string_, length);
     char *takenstring = ALLOCATE(char, length + 1);
-    memcpy(takenstring, _string_ + 1, length);
+    memcpy(takenstring, _string_, length);
     takenstring[length] = '\0';
 
-    PRIM_AS_STRING(primobj) = init_primstring(length, hash, takenstring);
-}
-
-void construct_primstring_from_token(objprim *primobj, token *tok)
-{
-    int length = tok->length;
-    char *takenstring = ALLOCATE(char, length + 1);
-    memcpy(takenstring, tok->start, tok->length);
-    takenstring[tok->length] = '\0';
-    
-    uint32_t hash = hashkey(takenstring, length);
-    PRIM_AS_STRING(primobj) = init_primstring(length,  hash, takenstring); 
+    return init_primstring(length, hash, takenstring);
 }
 
 objprim *create_new_primitive(primtype ptype)
 {
 	objprim *obj = ALLOCATE(objprim, 1);
-	
+
 	switch (ptype) {
 		case PRIM_DOUBLE:
 			init_double(obj);
@@ -189,7 +177,7 @@ static objprim *concatenate(objprim *a, objprim *b)
     newstring[length] = '\0';
 
     uint32_t hash = hashkey(newstring, length);
-    
+
     objprim *newprim = create_new_primitive(PRIM_STRING);
     PRIM_AS_STRING(newprim) = init_primstring(length, hash, newstring);
     return newprim;
@@ -208,7 +196,7 @@ static objprim *repeat(objprim *a, int times)
     newstring[length] = '\0';
 
     uint32_t hash = hashkey(newstring, length);
-    
+
     objprim *newprim = create_new_primitive(PRIM_STRING);
     PRIM_AS_STRING(newprim) = init_primstring(length, hash, newstring);
     return newprim;
@@ -225,7 +213,7 @@ object *prim_binary_add(object *this_, object *other)
 
     if (match(a, b, PRIM_DOUBLE)) {
         if ((a->ptype == PRIM_DOUBLE && b->ptype == PRIM_DOUBLE)) {
-            c = create_new_primitive(PRIM_DOUBLE); 
+            c = create_new_primitive(PRIM_DOUBLE);
             PRIM_AS_DOUBLE(c) = PRIM_AS_DOUBLE(a) + PRIM_AS_DOUBLE(b);
         }
         else if ((a->ptype == PRIM_BOOL && b->ptype == PRIM_DOUBLE) ||
@@ -280,7 +268,7 @@ object *prim_binary_sub(object *this_, object *other)
 
     if (match(a, b, PRIM_DOUBLE)) {
         if ((a->ptype == PRIM_DOUBLE && b->ptype == PRIM_DOUBLE)) {
-            c = create_new_primitive(PRIM_DOUBLE); 
+            c = create_new_primitive(PRIM_DOUBLE);
             PRIM_AS_DOUBLE(c) = PRIM_AS_DOUBLE(a) - PRIM_AS_DOUBLE(b);
         }
         else if ((a->ptype == PRIM_BOOL && b->ptype == PRIM_DOUBLE) ||
@@ -329,7 +317,7 @@ object *prim_binary_mul(object *this_, object *other)
 
     if (match(a, b, PRIM_DOUBLE)) {
         if ((a->ptype == PRIM_DOUBLE && b->ptype == PRIM_DOUBLE)) {
-            c = create_new_primitive(PRIM_DOUBLE); 
+            c = create_new_primitive(PRIM_DOUBLE);
             PRIM_AS_DOUBLE(c) = PRIM_AS_DOUBLE(a) * PRIM_AS_DOUBLE(b);
         }
         else if ((a->ptype == PRIM_BOOL && b->ptype == PRIM_DOUBLE) ||
@@ -342,7 +330,7 @@ object *prim_binary_mul(object *this_, object *other)
         else if ((a->ptype == PRIM_STRING && b->ptype == PRIM_DOUBLE) ||
                  (a->ptype == PRIM_DOUBLE && b->ptype == PRIM_STRING)) {
             objprim *basestring = (a->ptype == PRIM_STRING ? a : b);
-            int times = (int)(a->ptype == PRIM_DOUBLE ? PRIM_AS_DOUBLE(a) : 
+            int times = (int)(a->ptype == PRIM_DOUBLE ? PRIM_AS_DOUBLE(a) :
                     PRIM_AS_DOUBLE(b));
             c = repeat(basestring, times);
         }
@@ -387,7 +375,7 @@ object *prim_binary_div(object *this_, object *other)
 
     if (match(a, b, PRIM_DOUBLE)) {
         if ((a->ptype == PRIM_DOUBLE && b->ptype == PRIM_DOUBLE)) {
-            c = create_new_primitive(PRIM_DOUBLE); 
+            c = create_new_primitive(PRIM_DOUBLE);
             PRIM_AS_DOUBLE(c) = PRIM_AS_DOUBLE(a) / PRIM_AS_DOUBLE(b);
         }
         else if ((a->ptype == PRIM_BOOL && b->ptype == PRIM_DOUBLE) ||

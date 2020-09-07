@@ -57,8 +57,9 @@ object *builtin_input(VM *vm, int argcount, object **args)
 
     fgets(buffer, sizeof(buffer), stdin);
 
+    primstring *newstring = create_primstring(buffer);
     objprim *result = create_new_primitive(PRIM_STRING);
-    construct_primstring(result, buffer);
+    PRIM_AS_STRING(result) = newstring;
     
     return (object*)result;
 }

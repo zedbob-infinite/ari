@@ -16,8 +16,19 @@
 static void compile_statement(instruct *instructs, stmt *statement);
 static void compile_block(instruct *instructs, stmt *statement, 
         bool makeframe);
-
 static void start_compile(instruct *instructs, stmt **statements, int num_statements);
+
+
+static void construct_primstring_from_token(objprim *primobj, token *tok)
+{
+    int length = tok->length;
+    char *takenstring = ALLOCATE(char, length + 1);
+    memcpy(takenstring, tok->start, tok->length);
+    takenstring[tok->length] = '\0';
+
+    uint32_t hash = hashkey(takenstring, length);
+    PRIM_AS_STRING(primobj) = init_primstring(length,  hash, takenstring);
+}
 
 static void patch_jump(instruct *instructs, int location, int jump)
 {
