@@ -661,7 +661,7 @@ intrpstate execute(VM *vm, instruct *instructs)
 	            object *a = pop_objstack(stack);
                 object *c = NULL;
                 if (check_zero_div(a, b))
-                    return runtime_error_zero_div(vm, current);
+                    return runtime_error_zero_div(vm, line);
 
                 if (!a->__div__)
                     if (!b->__div__)
