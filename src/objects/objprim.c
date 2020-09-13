@@ -19,7 +19,7 @@ int hashkey(char *key, int length)
     int i = 0;
 
     // Convert string to integer
-    while (hashval < ULONG_MAX && i < length) {
+    while (hashval < UINT32_MAX && i < length) {
         hashval <<= 8;
         hashval += key[i];
         i++;
@@ -253,7 +253,7 @@ object *prim_binary_add(object *this_, object *other)
             PRIM_AS_BOOL(c) = PRIM_AS_BOOL(a) + PRIM_AS_BOOL(b);
         }
         else if ((a->ptype == PRIM_NULL && b->ptype == PRIM_BOOL) ||
-                 (b->ptype == PRIM_BOOL && b->ptype == PRIM_NULL)) {
+                 (a->ptype == PRIM_BOOL && b->ptype == PRIM_NULL)) {
             return NULL;
         }
     }
@@ -302,7 +302,7 @@ object *prim_binary_sub(object *this_, object *other)
             PRIM_AS_BOOL(c) = PRIM_AS_BOOL(a) - PRIM_AS_BOOL(b);
         }
         else if ((a->ptype == PRIM_NULL && b->ptype == PRIM_BOOL) ||
-                (b->ptype == PRIM_BOOL && b->ptype == PRIM_NULL)) {
+                (a->ptype == PRIM_BOOL && b->ptype == PRIM_NULL)) {
             return NULL;
         }
     }
@@ -360,7 +360,7 @@ object *prim_binary_mul(object *this_, object *other)
             PRIM_AS_BOOL(c) = PRIM_AS_BOOL(a) * PRIM_AS_BOOL(b);
         }
         else if ((a->ptype == PRIM_NULL && b->ptype == PRIM_BOOL) ||
-                 (b->ptype == PRIM_BOOL && b->ptype == PRIM_NULL)) {
+                 (a->ptype == PRIM_BOOL && b->ptype == PRIM_NULL)) {
             return NULL;
         }
     }
@@ -409,7 +409,7 @@ object *prim_binary_div(object *this_, object *other)
             PRIM_AS_BOOL(c) = PRIM_AS_BOOL(a) / PRIM_AS_BOOL(b);
         }
         else if ((a->ptype == PRIM_NULL && b->ptype == PRIM_BOOL) ||
-                 (b->ptype == PRIM_BOOL && b->ptype == PRIM_NULL)) {
+                 (a->ptype == PRIM_BOOL && b->ptype == PRIM_NULL)) {
             return NULL;
         }
     }
