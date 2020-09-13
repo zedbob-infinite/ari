@@ -4,7 +4,7 @@ CFLAGS = -g -Wall -Wshadow
 LDFLAGS = -g
 
 vmmake: main.c object.o objclass.o objstack.o objprim.o objhash.o objcode.o builtin.o frame.o module.o interpret.o instruct.o repl.o vm.o compiler.o tokenizer.o parser.o memory.o
-	$(CC) $(LDFLAGS) $(INC) instruct.o objclass.o objprim.o builtin.o frame.o objcode.o interpret.o module.o tokenizer.o objhash.o objstack.o compiler.o repl.o object.o vm.o parser.o memory.o main.c -o ari -lm
+	$(CC) $(LDFLAGS) $(INC) instruct.o objclass.o objprim.o builtin.o frame.o objcode.o interpret.o module.o tokenizer.o objhash.o objstack.o compiler.o repl.o object.o vm.o parser.o memory.o main.c -o ../bin/ari -lm
 
 frame.o: frame.c
 	$(CC) $(CFLAGS) $(INC) -c frame.c
