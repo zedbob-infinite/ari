@@ -20,6 +20,7 @@ typedef struct parser_t
     // flags
     bool panicmode;
     bool haderror;
+    bool in_class;
     // parser struct has the scanner
     scanner scan;
 } parser;

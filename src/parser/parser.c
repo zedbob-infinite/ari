@@ -745,6 +745,12 @@ static expr *primary(parser *analyzer)
     if (match(analyzer, TOKEN_STRING)) 
         return get_literal_expr(take_string(previous(analyzer)),
                     EXPR_LITERAL_STRING);
+    if (match(analyzer, TOKEN_THIS)) {
+        if (analyzer->in_class)
+            return get_variable_expr(previous(analyzer));
+        error(analyzer, "'this' only valid inside a class.");
+        return NULL;
+    }
     if (match(analyzer, TOKEN_IDENTIFIER))
         return get_variable_expr(previous(analyzer));
     if (match(analyzer, TOKEN_LEFT_PAREN)) {
@@ -754,7 +760,6 @@ static expr *primary(parser *analyzer)
     }
 
     error(analyzer, "Expect expression.");
-    /* Unreachable */
     return NULL;
 }
 
@@ -839,6 +844,8 @@ static expr *call(parser *analyzer)
     printf("call()\n");
 #endif
     expr *new_expr = primary(analyzer);
+    if (!new_expr)
+        return NULL;
     while (true) {
         if (match(analyzer, TOKEN_LEFT_PAREN))
             new_expr = finish_call(analyzer, new_expr, false);
@@ -937,6 +944,8 @@ static expr* assignment(parser *analyzer)
 #endif
     expr *new_expr = equality(analyzer);
     if (match(analyzer, TOKEN_EQUAL)) {
+        if (!new_expr)
+            return NULL;
         if (new_expr->type == EXPR_VARIABLE)
             return get_assign_expr(new_expr, assignment(analyzer));
         error(analyzer, "Invalid assignment target.");
@@ -1021,6 +1030,7 @@ static stmt *method(parser *analyzer)
 static stmt *class(parser *analyzer)
 {
     int line = source_line(analyzer);
+    analyzer->in_class = true;
 #ifdef DEBUG_ARI_PARSER
     printf("class()\n");
 #endif
@@ -1087,6 +1097,7 @@ static stmt *class(parser *analyzer)
     }
 
     consume(analyzer, TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
+    analyzer->in_class = false;
     return get_class_statement(name, num_attributes, attributes, i, methods,
             line);
 }
@@ -1265,6 +1276,7 @@ void init_parser(parser *analyzer)
     analyzer->tokens = NULL;
     analyzer->panicmode = false;
     analyzer->haderror = false;
+    analyzer->in_class = false;
 }
 
 bool parse(parser *analyzer, const char *source)
