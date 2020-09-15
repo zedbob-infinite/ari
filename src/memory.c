@@ -15,12 +15,18 @@ void free_object(void *obj, objtype type)
     switch (type) {
         case OBJ_PRIMITIVE:
         {
-            objprim *prim = (objprim*)obj;
-            if (prim->ptype == PRIM_STRING) {
-                FREE(char, PRIM_AS_RAWSTRING(prim));
-                FREE(primstring, PRIM_AS_STRING(prim));
+            if (obj) {
+                objprim *prim = (objprim*)obj;
+                if (prim->ptype == PRIM_STRING) {
+                    char *rawstring = PRIM_AS_RAWSTRING(prim);
+                    if (rawstring)
+                        FREE(char, rawstring);
+                    primstring *pstring = PRIM_AS_STRING(prim);
+                    if (pstring)
+                        FREE(primstring, pstring);
+                }
+                FREE(objprim, prim);
             }
-            FREE(objprim, prim);
             break;
         }
         case OBJ_CODE:

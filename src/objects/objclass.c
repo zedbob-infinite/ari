@@ -10,7 +10,7 @@
 objclass *init_objclass(void)
 {
     objclass *classobj = ALLOCATE(objclass, 1);
-    init_object(&classobj->header, OBJ_CLASS);
+    init_object(classobj, OBJ_CLASS);
     classobj->name = NULL;
     init_frame(&classobj->localframe);
     classobj->header.__attrs__ = &classobj->localframe.locals;
@@ -23,7 +23,7 @@ objinstance *init_objinstance(objclass *class)
 {
     objinstance *instobj = ALLOCATE(objinstance, 1);
     instobj->class = class;
-    init_object(&instobj->header, OBJ_INSTANCE);
+    init_object(instobj, OBJ_INSTANCE);
     init_frame(&instobj->localframe);
     instobj->header.__attrs__ = &instobj->localframe.locals;
     return instobj;

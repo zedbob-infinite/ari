@@ -10,7 +10,7 @@
 
 typedef struct objcode_t
 {
-	object obj;
+	object header;
 	size_t argcount;
 	objprim **arguments;
 	frame localframe;

@@ -1,6 +1,7 @@
 #ifndef ari_object_h
 #define ari_object_h
 
+#include <stdbool.h>
 #include "objhash.h"
 
 #define OBJ_IS_PRIMITIVE(obj)   (obj->type == OBJ_PRIMITIVE)
@@ -33,9 +34,10 @@ typedef struct object_t
     slot __sub__;
     slot __mul__;
     slot __div__;
+    bool accounted;
 } object;
 
-void init_object(object *obj, objtype type);
+void init_object(void *initobj, objtype type);
 void print_object(object *obj);
 
 #endif

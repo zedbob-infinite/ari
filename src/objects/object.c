@@ -7,8 +7,9 @@
 #include "object.h"
 #include "objprim.h"
 
-void init_object(object *obj, objtype type)
+void init_object(void *initobj, objtype type)
 {
+    object *obj = (object*)initobj;
     obj->type = type;
     obj->next = NULL;
     obj->__attrs__ = NULL;
@@ -16,6 +17,7 @@ void init_object(object *obj, objtype type)
     obj->__sub__ = NULL;
     obj->__mul__ = NULL;
     obj->__div__ = NULL;
+    obj->accounted = false;
 }
 
 void print_object(object *obj)

@@ -18,6 +18,11 @@
 #include "tokenizer.h"
 #include "vm.h"
 
+static inline bool has_been_added(void *obj)
+{
+    object *testobj = (object*)obj;
+    return testobj->accounted == true;
+}
 
 static void construct_primstring(objprim *primobj, char *_string_)
 {
@@ -37,10 +42,13 @@ static inline void advance(frame *currentframe)
 
 static void vm_add_object(VM *vm, object *obj)
 {
+    if (has_been_added(obj))
+        return;
     object *previous = vm->objs;
     obj->next = previous;
     vm->objs = obj;
     vm->num_objects++;
+    obj->accounted = true;
 }
 
 static inline void delete_value(value *val, valtype type)
@@ -59,6 +67,7 @@ static int vm_pop_frame(VM *vm)
 {
     frame* popped = pop_frame(&vm->top);
     int current = popped->pc;
+    popped->pc = 0;
     if (popped->is_adhoc) {
         reset_frame(popped);
         FREE(frame, popped);

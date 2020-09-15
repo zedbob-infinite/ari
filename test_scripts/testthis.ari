@@ -1,0 +1,19 @@
+class Test
+{
+	fun __init__()
+	{
+		this.apple = "Hello";
+		this.alpha = 1;
+		this.beta = 2;
+	}
+}
+
+// Currently not running __init__ on object creation
+// coming soon
+t1 = Test();
+t1.__init__();
+t2 = Test();
+t2.__init__();
+
+print(t1.apple);
+print(t1.alpha + t2.beta);

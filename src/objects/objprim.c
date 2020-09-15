@@ -84,6 +84,7 @@ primstring *create_primstring(char *_string_)
 objprim *create_new_primitive(primtype ptype)
 {
 	objprim *obj = ALLOCATE(objprim, 1);
+    init_object(obj, OBJ_PRIMITIVE);
 
 	switch (ptype) {
 		case PRIM_DOUBLE:

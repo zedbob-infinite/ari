@@ -8,7 +8,7 @@
 
 typedef struct module_t
 {
-    object obj;
+    object header;
     frame local;
     instruct instructs;
 } module;
