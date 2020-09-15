@@ -6,19 +6,6 @@
 #include "objclass.h"
 #include "objhash.h"
 
-/*typedef struct
-{
-    object obj;
-    objprim *name;
-    objhash methods;
-} objclass;*/
-
-/*typedef struct
-{
-    object obj;
-    objclass *oclass;
-    objhash fields;
-} objinstance;*/
 
 objclass *init_objclass(void)
 {

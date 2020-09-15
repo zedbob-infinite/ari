@@ -23,6 +23,7 @@ typedef struct VM_t
     module global;
     frame *top;
     object *objs;
+    object *objregister;
     int num_objects;
     int callstackpos;
     int framestackpos; 

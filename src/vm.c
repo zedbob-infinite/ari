@@ -470,12 +470,13 @@ intrpstate execute(VM *vm, instruct *instructs)
             }
             case OP_CALL_METHOD:
             {
-                int argcount = VAL_AS_INT(operand);
+                int argcount = VAL_AS_INT(operand) + 1;
                 object **arguments = ALLOCATE(object*, argcount);
 #ifdef DEBUG_ARI
                 printf("\n");
 #endif
-                for (int i = 0; i < argcount; ++i) {
+                int i = 0;
+                for (i = 0; i < argcount - 1; i++) {
                     arguments[i] = pop_objstack(stack);
 #ifdef DEBUG_ARI
                     printf("   \targument %d: ", i + 1);
@@ -487,6 +488,7 @@ intrpstate execute(VM *vm, instruct *instructs)
 #ifdef DEBUG_ARI
                 printf("\n");
 #endif
+                arguments[i] = vm->objregister;
                 object *popped = pop_objstack(stack);
                 call_function(vm, popped, argcount, arguments);
                 advance(vm->top);
@@ -501,6 +503,8 @@ intrpstate execute(VM *vm, instruct *instructs)
             case OP_GET_PROPERTY:
             {
                 object *obj = pop_objstack(stack);
+                vm->objregister = obj;
+
                 primstring *name = create_primstring(VAL_AS_STRING(operand));
                 switch (obj->type) {
                     case OBJ_CLASS:
@@ -586,7 +590,7 @@ intrpstate execute(VM *vm, instruct *instructs)
             case OP_BINARY_ADD:
             {
                 object *b = pop_objstack(stack);
-	            object *a = pop_objstack(stack);
+                object *a = pop_objstack(stack);
                 object *c = NULL;
 
                 if (!a->__add__)
@@ -610,7 +614,7 @@ intrpstate execute(VM *vm, instruct *instructs)
             case OP_BINARY_SUB:
             {
                 object *b = pop_objstack(stack);
-	            object *a = pop_objstack(stack);
+                object *a = pop_objstack(stack);
                 object *c = NULL;
 
                 if (!a->__sub__)
@@ -634,7 +638,7 @@ intrpstate execute(VM *vm, instruct *instructs)
             case OP_BINARY_MULT:
             {
                 object *b = pop_objstack(stack);
-	            object *a = pop_objstack(stack);
+                object *a = pop_objstack(stack);
                 object *c = NULL;
 
                 if (!a->__mul__)
@@ -658,7 +662,7 @@ intrpstate execute(VM *vm, instruct *instructs)
             case OP_BINARY_DIVIDE:
             {
                 object *b = pop_objstack(stack);
-	            object *a = pop_objstack(stack);
+                object *a = pop_objstack(stack);
                 object *c = NULL;
                 if (check_zero_div(a, b))
                     return runtime_error_zero_div(vm, line);
@@ -690,7 +694,7 @@ intrpstate execute(VM *vm, instruct *instructs)
                 push_objstack(stack, (object*)prim);
 
                 object *b = pop_objstack(stack);
-	            object *a = pop_objstack(stack);
+                object *a = pop_objstack(stack);
                 object *c = NULL;
 
                 if (!a->__mul__)
@@ -770,6 +774,7 @@ VM *init_vm(void)
     init_module(&vm->global);
     vm->top = &vm->global.local;
     vm->objs = NULL;
+    vm->objregister = NULL;
     vm->num_objects = 0;
     vm->callstackpos = 0;
     vm->framestackpos = 0;

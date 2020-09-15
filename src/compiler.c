@@ -389,14 +389,19 @@ static void compile_function(instruct *instructs, stmt *statement)
 static void compile_method(instruct *instructs, stmt *statement)
 {
     stmt_method *method_stmt = (stmt_method*)statement;
-	int argcount = method_stmt->num_parameters;
+	int argcount = method_stmt->num_parameters + 1;
 	token **parameters = method_stmt->parameters;
 
 	objprim **arguments = ALLOCATE(objprim*, argcount);
 
-	for (int i = 0; i < argcount; ++i) {
+    // 'this' is the first implicit argument for any method
+    objprim *_this_ = create_new_primitive(PRIM_STRING);
+    PRIM_AS_STRING(_this_) = create_primstring("this");
+    arguments[0] = _this_;
+
+	for (int i = 1; i < argcount; ++i) {
 		objprim *prim = create_new_primitive(PRIM_STRING);
-        create_primobj_from_token(prim, parameters[i]);
+        create_primobj_from_token(prim, parameters[i - 1]);
 		arguments[i] = prim;
 	}
 	
