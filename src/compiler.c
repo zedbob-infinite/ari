@@ -43,8 +43,9 @@ static void create_primobj_from_token(objprim *primobj, token *tok)
 static void patch_jump(instruct *instructs, int location, int jump)
 {
     code8 *code = instructs->code[location];
+    value *operand = &code->operand;
     if (code)
-        VAL_AS_INT(code->operand) = jump;
+        VAL_AS_INT(operand) = jump;
 }
 
 static void check_instruct_capacity(instruct *instructs)
@@ -82,7 +83,8 @@ static void compile_expression(instruct *instructs, expr *expression,
         int line)
 {
     uint8_t byte = 0;
-    value operand = {.type = VAL_EMPTY, .val_int = 0};
+    value empty = {.type = VAL_EMPTY, .val_int = 0};
+    value *operand = &empty;
     switch (expression->type) {
         case EXPR_ASSIGN: 
         {
@@ -92,7 +94,7 @@ static void compile_expression(instruct *instructs, expr *expression,
 
             compile_expression(instructs, assign_expr->value, line);
 			VAL_AS_STRING(operand) = take_string(name);
-			operand.type = VAL_STRING;
+			operand->type = VAL_STRING;
             break;
         }
         case EXPR_BINARY:
@@ -120,7 +122,7 @@ static void compile_expression(instruct *instructs, expr *expression,
                 case TOKEN_LESS_EQUAL:
                     byte = OP_COMPARE;
                     VAL_AS_INT(operand) = binary_expr->operator->type;
-					operand.type = VAL_BOOL;
+					operand->type = VAL_BOOL;
                     break;
                 default:
                     break;
@@ -136,7 +138,7 @@ static void compile_expression(instruct *instructs, expr *expression,
 		case EXPR_LITERAL_STRING:
 		{
             byte = OP_LOAD_CONSTANT;
-			operand.type = VAL_STRING;
+			operand->type = VAL_STRING;
 			expr_literal *literal_expr = (expr_literal*)expression;
             int length = strlen(literal_expr->literal);
             char *buffer = ALLOCATE(char, length + 1);
@@ -152,7 +154,7 @@ static void compile_expression(instruct *instructs, expr *expression,
             expr_literal *literal_expr = (expr_literal*)expression;
 
             VAL_AS_DOUBLE(operand) = atof(literal_expr->literal);
-			operand.type = VAL_DOUBLE;
+			operand->type = VAL_DOUBLE;
 			break;
 		}
 		case EXPR_LITERAL_BOOL:
@@ -161,13 +163,13 @@ static void compile_expression(instruct *instructs, expr *expression,
             expr_literal *literal_expr = (expr_literal*)expression;
 
             VAL_AS_INT(operand) = atoi(literal_expr->literal);
-			operand.type = VAL_BOOL;
+			operand->type = VAL_BOOL;
 			break;
 		}
 		case EXPR_LITERAL_NULL:
 		{
 			byte = OP_LOAD_CONSTANT;
-			operand.type = VAL_NULL;
+			operand->type = VAL_NULL;
 			break;
 		}
         case EXPR_UNARY:
@@ -189,7 +191,7 @@ static void compile_expression(instruct *instructs, expr *expression,
         case EXPR_VARIABLE:
         {
             byte = OP_LOAD_NAME;
-			operand.type = VAL_STRING;
+			operand->type = VAL_STRING;
             expr_var *var_expr = (expr_var*)expression;
 			token *name = var_expr->name;
 
@@ -198,7 +200,7 @@ static void compile_expression(instruct *instructs, expr *expression,
         }
 		case EXPR_CALL:
 		{
-            operand.type = VAL_INT;
+            operand->type = VAL_INT;
             
             expr_call *call_expr = (expr_call*)expression;
 			
@@ -232,7 +234,7 @@ static void compile_expression(instruct *instructs, expr *expression,
         case EXPR_GET_PROP:
         {
             byte = OP_GET_PROPERTY;
-			operand.type = VAL_STRING;
+			operand->type = VAL_STRING;
             
             expr_get *get_expr = (expr_get*)expression;
             token *name = get_expr->name;
@@ -244,7 +246,7 @@ static void compile_expression(instruct *instructs, expr *expression,
         case EXPR_SET_PROP:
         {
             byte = OP_SET_PROPERTY;
-            operand.type = VAL_STRING;
+            operand->type = VAL_STRING;
             expr_set *set_expr = (expr_set*)expression;
             token *name = set_expr->name;
             
@@ -258,7 +260,7 @@ static void compile_expression(instruct *instructs, expr *expression,
             break;
         }
 	}
-	emit_instruction(instructs, byte, operand, line);
+	emit_instruction(instructs, byte, *operand, line);
 }
 
 static void compile_expression_stmt(instruct *instructs, stmt *statement)

@@ -5,20 +5,20 @@
 
 #include "object.h"
 
-#define VAL_IS_EMPTY(value)     (value.type == VAL_INT)
-#define VAL_IS_BOOL(value)      (value.type == VAL_BOOL)
-#define VAL_IS_INT(value)		(value.type == VAL_INT)
-#define VAL_IS_DOUBLE(value)	(value.type == VAL_DOUBLE)
-#define VAL_IS_STRING(value)	(value.type == VAL_STRING)
-#define VAL_IS_NULL(value)      (value.type == VAL_NULL)
-#define VAL_IS_OBJECT(value)	(value.type == VAL_OBJ)
+#define VAL_IS_EMPTY(value)     (value->type == VAL_INT)
+#define VAL_IS_BOOL(value)      (value->type == VAL_BOOL)
+#define VAL_IS_INT(value)		(value->type == VAL_INT)
+#define VAL_IS_DOUBLE(value)	(value->type == VAL_DOUBLE)
+#define VAL_IS_STRING(value)	(value->type == VAL_STRING)
+#define VAL_IS_NULL(value)      (value->type == VAL_NULL)
+#define VAL_IS_OBJECT(value)	(value->type == VAL_OBJ)
 
-#define VAL_AS_BOOL(value)      (value.val_int)
-#define VAL_AS_INT(value)       (value.val_int)
-#define VAL_AS_DOUBLE(value)    (value.val_double)
-#define VAL_AS_STRING(value)    (value.val_string)
-#define VAL_AS_NULL(value)      (value.val_int)
-#define VAL_AS_OBJECT(value)	(value.val_obj)
+#define VAL_AS_BOOL(value)      (value->val_int)
+#define VAL_AS_INT(value)       (value->val_int)
+#define VAL_AS_DOUBLE(value)    (value->val_double)
+#define VAL_AS_STRING(value)    (value->val_string)
+#define VAL_AS_NULL(value)      (value->val_int)
+#define VAL_AS_OBJECT(value)	(value->val_obj)
 
 #define NUMBER_VAL(val)         ((value){VAL_NUBMER, {.val_double = val}})
 #define EMPTY_VAL               ((value){VAL_EMPTY, {.val_int = 0}})
