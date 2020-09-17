@@ -49,5 +49,6 @@ primstring *create_primstring(char *_string_);
 primstring *init_primstring(int length, uint32_t hash, char *takenstring);
 void convert_prim(objprim *prim, primtype type);
 void free_primstring(primstring *del);
+bool check_zero_div(object *a, object *b);
 
 #endif

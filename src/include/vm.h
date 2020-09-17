@@ -37,5 +37,7 @@ void free_vm(VM *vm);
 void reset_vm(VM *vm);
 intrpstate execute(VM *vm, instruct *instructs);
 void print_value(value val, valtype type);
+void vm_push_frame(VM *vm, frame *newframe);
+int vm_pop_frame(VM *vm);
 
 #endif

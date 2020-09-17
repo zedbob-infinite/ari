@@ -109,17 +109,7 @@ static inline void identifier(scanner *scan)
     switch (scan->start[0]) {
         case 'a': type = check_keyword(scan, 1, 2, "nd", TOKEN_AND); break;
         case 'c': type = check_keyword(scan, 1, 4, "lass", TOKEN_CLASS); break;
-        case 'e': 
-                  if (scan->current - scan->start > 1)
-                      switch(scan->start[1]) {
-                          case 'l':
-                              type = check_keyword(scan, 2, 2, "se", TOKEN_ELSE); 
-                              break;
-                          case 'x':
-                              type = check_keyword(scan, 2, 2, "it", TOKEN_EXIT);
-                              break;
-                      }
-                  break;
+        case 'e': type = check_keyword(scan, 1, 3, "lse", TOKEN_ELSE); break;
         case 'f':
                   if (scan->current - scan->start > 1)
                       switch(scan->start[1]) {

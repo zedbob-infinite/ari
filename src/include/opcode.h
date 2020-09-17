@@ -3,7 +3,6 @@
 
 typedef enum
 {
-    OP_LOOP,
     OP_JMP_LOC,
     OP_JMP_AFTER,
     OP_JMP_FALSE,
@@ -27,7 +26,6 @@ typedef enum
     OP_BINARY_MULT,
     OP_BINARY_DIVIDE,
     OP_NEGATE,
-    OP_PRINT,
     OP_RETURN
 } opcode;
 

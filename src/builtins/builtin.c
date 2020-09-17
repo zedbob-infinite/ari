@@ -56,7 +56,10 @@ object *builtin_input(VM *vm, int argcount, object **args)
     for (int i = argcount - 1; i >= 0; i--)
         print_object(args[i]);
 
-    fgets(buffer, sizeof(buffer), stdin);
+    char *check = fgets(buffer, sizeof(buffer), stdin);
+
+    if (!check)
+        return NULL;
 
     primstring *newstring = create_primstring(buffer);
     objprim *result = create_new_primitive(PRIM_STRING);
@@ -76,7 +79,7 @@ object *builtin_type(VM *vm, int argcount, object **args)
         printf("type() takes one argument.\n");
         return NULL;
     }
-    char *msg;
+    char *msg = NULL;
     switch (obj->type) {
         case OBJ_PRIMITIVE:
         {
@@ -94,6 +97,9 @@ object *builtin_type(VM *vm, int argcount, object **args)
 				case PRIM_NULL:
 					msg = "<null>";
 					break;
+                default:
+                    msg = "<unknown primitive type>";
+                    break;
 			}
             break;
         }
@@ -111,6 +117,9 @@ object *builtin_type(VM *vm, int argcount, object **args)
             break;
         case OBJ_BUILTIN:
             msg = "<builtin>";
+            break;
+        default:
+            msg = "<unknown object type>";
             break;
     }
     objprim *result = create_new_primitive(PRIM_STRING);

@@ -419,3 +419,25 @@ object *prim_binary_div(object *this_, object *other)
     object *obj = (object*)c;
     return obj;
 }
+
+bool check_zero_div(object *a, object *b)
+{
+    if (!((a->type == OBJ_PRIMITIVE) && (b->type == OBJ_PRIMITIVE)))
+        return false;
+
+    objprim *dividend = (objprim*)a;
+    objprim *divisor = (objprim*)b;
+    if ((dividend->ptype == PRIM_DOUBLE && divisor->ptype == PRIM_DOUBLE)) {
+        if (PRIM_AS_DOUBLE(divisor) == 0)
+            return true;
+    }
+    else if ((dividend->ptype == PRIM_DOUBLE && divisor->ptype == PRIM_BOOL)) {
+        if (PRIM_AS_BOOL(divisor) == 0)
+            return true;
+    }
+    else if ((dividend->ptype == PRIM_BOOL && divisor->ptype == PRIM_DOUBLE)) {
+        if (PRIM_AS_DOUBLE(divisor) == 0)
+            return true;
+    }
+    return false;
+}

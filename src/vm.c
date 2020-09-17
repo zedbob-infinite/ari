@@ -1,5 +1,4 @@
 #include <math.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,6 +6,7 @@
 #include "builtin.h"
 #include "compiler.h"
 #include "debug.h"
+#include "error.h"
 #include "instruct.h"
 #include "frame.h"
 #include "memory.h"
@@ -19,18 +19,13 @@
 #include "vm.h"
 
 
-static inline void advance(frame *currentframe)
-{
-    currentframe->pc++;
-}
-
-static void vm_push_frame(VM *vm, frame *newframe)
+void vm_push_frame(VM *vm, frame *newframe)
 {
     push_frame(&vm->top, newframe);
     vm->framestackpos++;
 }
 
-static int vm_pop_frame(VM *vm)
+int vm_pop_frame(VM *vm)
 {
     frame* popped = pop_frame(&vm->top);
     int current = popped->pc;
@@ -41,6 +36,11 @@ static int vm_pop_frame(VM *vm)
     }
     vm->framestackpos--;
     return current;
+}
+
+static inline void advance(frame *currentframe)
+{
+    currentframe->pc++;
 }
 
 static inline bool has_been_added(void *obj)
@@ -76,68 +76,6 @@ static inline void delete_value(value *val, valtype type)
 {
     if (type == VAL_STRING)
         FREE(char, val->val_string);
-}
-
-static intrpstate runtime_error(VM *vm, objstack *stack, size_t line, const char *format, ...)
-{
-    va_list args;
-    va_start(args, format);
-    vfprintf(stderr, format, args);
-    va_end(args);
-    fputs("\n", stderr);
-
-    fprintf(stderr, "[line %ld] in script\n", line);
-
-    reset_objstack(stack);
-    reset_vm(vm);
-    while (vm->framestackpos > 0)
-        vm_pop_frame(vm);
-    return INTERPRET_RUNTIME_ERROR;
-}
-
-static intrpstate runtime_error_loadname(VM *vm, char *name,
-        uint64_t current)
-{
-    char msg[100];
-    sprintf(msg, "Name %s not found...", name);
-    return runtime_error(vm, &vm->evalstack, current, msg);
-}
-
-static intrpstate runtime_error_unsupported_operation(VM *vm,
-        uint64_t current, char optype)
-{
-    char msg[50];
-    sprintf(msg, "Error: unsupported operand type for %c", optype);
-    return runtime_error(vm, &vm->evalstack, current, msg);
-}
-
-static intrpstate runtime_error_zero_div(VM *vm, uint64_t current)
-{
-    char msg[50];
-    sprintf(msg, "Error: Divison by Zero");
-    return runtime_error(vm, &vm->evalstack, current, msg);
-}
-
-static bool check_zero_div(object *a, object *b)
-{
-    if (!((a->type == OBJ_PRIMITIVE) && (b->type == OBJ_PRIMITIVE)))
-        return false;
-
-    objprim *dividend = (objprim*)a;
-    objprim *divisor = (objprim*)b;
-    if ((dividend->ptype == PRIM_DOUBLE && divisor->ptype == PRIM_DOUBLE)) {
-        if (PRIM_AS_DOUBLE(divisor) == 0)
-            return true;
-    }
-    else if ((dividend->ptype == PRIM_DOUBLE && divisor->ptype == PRIM_BOOL)) {
-        if (PRIM_AS_BOOL(divisor) == 0)
-            return true;
-    }
-    else if ((dividend->ptype == PRIM_BOOL && divisor->ptype == PRIM_DOUBLE)) {
-        if (PRIM_AS_DOUBLE(divisor) == 0)
-            return true;
-    }
-    return false;
 }
 
 static inline void binary_comp(VM *vm, objstack *stack, tokentype optype)
@@ -187,89 +125,6 @@ static inline object *get_name(frame *localframe, value name)
     } while ((!obj) && (current));
     free_primstring(pname);
     return obj;
-}
-
-static void print_bytecode(uint8_t bytecode)
-{
-    char *msg = NULL;
-    switch (bytecode) {
-        case OP_POP_FRAME:
-            msg = "POP_FRAME";
-            break;
-        case OP_PUSH_FRAME:
-            msg ="PUSH_FRAME";
-            break;
-        case OP_JMP_LOC:
-            msg = "JMP_LOC";
-            break;
-        case OP_JMP_AFTER:
-            msg = "JMP_AFTER";
-            break;
-        case OP_JMP_FALSE:
-            msg = "JMP_FALSE";
-            break;
-        case OP_POP:
-            msg = "POP";
-            break;
-        case OP_LOAD_CONSTANT:
-            msg = "LOAD_CONSTANT";
-            break;
-        case OP_LOAD_NAME:
-            msg = "LOAD_NAME";
-            break;
-        case OP_LOAD_METHOD:
-            msg = "LOAD_METHOD";
-            break;
-        case OP_CALL_FUNCTION:
-            msg = "CALL_FUNCTION";
-            break;
-        case OP_MAKE_FUNCTION:
-            msg = "MAKE_FUNCTION";
-            break;
-        case OP_CALL_METHOD:
-            msg = "CALL_METHOD";
-            break;
-        case OP_MAKE_METHOD:
-            msg = "MAKE_METHOD";
-            break;
-        case OP_MAKE_CLASS:
-            msg = "MAKE_CLASS";
-            break;
-        case OP_SET_PROPERTY:
-            msg = "SET_PROPERTY";
-            break;
-        case OP_GET_PROPERTY:
-            msg = "GET_PROPERTY";
-            break;
-        case OP_STORE_NAME:
-            msg = "STORE_NAME";
-            break;
-        case OP_COMPARE:
-            msg = "COMPARE";
-            break;
-        case OP_BINARY_ADD:
-            msg = "BINARY_ADD";
-            break;
-        case OP_BINARY_SUB:
-            msg = "BINARY_SUB";
-            break;
-        case OP_BINARY_MULT:
-            msg = "BINARY_MULT";
-            break;
-        case OP_BINARY_DIVIDE:
-            msg = "BINARY_DIVIDE";
-            break;
-        case OP_NEGATE:
-            msg = "NEGATE";
-            break;
-        case OP_PRINT:
-            msg = "PRINT";
-            break;
-        case OP_RETURN:
-            msg = "RETURN";
-            break;
-    }
-    printf("%-20s", msg);
 }
 
 static void call_function(VM *vm, object *obj, int argcount, object **arguments)
