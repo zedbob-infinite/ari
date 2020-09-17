@@ -441,3 +441,31 @@ bool check_zero_div(object *a, object *b)
     }
     return false;
 }
+
+object *binary_comp(objprim *a, objprim *b, tokentype optype)
+{
+    objprim *c = create_new_primitive(PRIM_BOOL);
+
+    switch (optype) {
+        case TOKEN_EQUAL_EQUAL:
+            PRIM_AS_BOOL(c) = (PRIM_AS_DOUBLE(a) == PRIM_AS_DOUBLE(b));
+            break;
+        case TOKEN_GREATER:
+            PRIM_AS_BOOL(c) = (PRIM_AS_DOUBLE(a) > PRIM_AS_DOUBLE(b));
+            break;
+        case TOKEN_GREATER_EQUAL:
+            PRIM_AS_BOOL(c) = (PRIM_AS_DOUBLE(a) >= PRIM_AS_DOUBLE(b));
+            break;
+        case TOKEN_LESS:
+            PRIM_AS_BOOL(c) = (PRIM_AS_DOUBLE(a) < PRIM_AS_DOUBLE(b));
+            break;
+        case TOKEN_LESS_EQUAL:
+            PRIM_AS_BOOL(c) = (PRIM_AS_DOUBLE(a) <= PRIM_AS_DOUBLE(b));
+            break;
+        default:
+            // future error code here
+            break;
+    }
+    return (object*)c;
+}
+

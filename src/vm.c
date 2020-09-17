@@ -78,37 +78,6 @@ static inline void delete_value(value *val, valtype type)
         FREE(char, val->val_string);
 }
 
-static inline void binary_comp(VM *vm, objstack *stack, tokentype optype)
-{
-    objprim *c = create_new_primitive(PRIM_BOOL);
-    objprim *b = (objprim*)pop_objstack(stack);
-    objprim *a = (objprim*)pop_objstack(stack);
-
-    switch (optype) {
-        case TOKEN_EQUAL_EQUAL:
-            PRIM_AS_BOOL(c) = (PRIM_AS_DOUBLE(a) == PRIM_AS_DOUBLE(b));
-            break;
-        case TOKEN_GREATER:
-            PRIM_AS_BOOL(c) = (PRIM_AS_DOUBLE(a) > PRIM_AS_DOUBLE(b));
-            break;
-        case TOKEN_GREATER_EQUAL:
-            PRIM_AS_BOOL(c) = (PRIM_AS_DOUBLE(a) >= PRIM_AS_DOUBLE(b));
-            break;
-        case TOKEN_LESS:
-            PRIM_AS_BOOL(c) = (PRIM_AS_DOUBLE(a) < PRIM_AS_DOUBLE(b));
-            break;
-        case TOKEN_LESS_EQUAL:
-            PRIM_AS_BOOL(c) = (PRIM_AS_DOUBLE(a) <= PRIM_AS_DOUBLE(b));
-            break;
-        default:
-            // future error code here
-            break;
-    }
-    object *obj = (object*)c;
-    vm_add_object(vm, obj);
-    push_objstack(stack, obj);
-}
-
 static inline void set_name(frame *localframe, primstring *name, object *val)
 {
     objhash_set(&localframe->locals, name, val);
@@ -428,7 +397,12 @@ static inline void op_store_name(VM *vm, code8 *code)
 
 static inline void op_compare(VM *vm, code8 *code)
 {
-    binary_comp(vm, &vm->evalstack, VAL_AS_INT(code->operand));
+    objprim *b = (objprim*)pop_objstack(&vm->evalstack);
+    objprim *a = (objprim*)pop_objstack(&vm->evalstack);
+    object *obj = binary_comp(a, b, VAL_AS_INT(code->operand));
+    
+    vm_add_object(vm, obj);
+    push_objstack(&vm->evalstack, obj);
     advance(vm->top);
 }
 

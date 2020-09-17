@@ -50,5 +50,6 @@ primstring *init_primstring(int length, uint32_t hash, char *takenstring);
 void convert_prim(objprim *prim, primtype type);
 void free_primstring(primstring *del);
 bool check_zero_div(object *a, object *b);
+object *binary_comp(objprim *a, objprim *b, tokentype optype);
 
 #endif
