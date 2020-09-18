@@ -45,7 +45,7 @@ static objentry *objhash_newpair(primstring *key, object *value)
 static objentry *objhash_find_entry(objentry **entries, uint32_t size, 
         primstring *key, uint32_t *binnum)
 {
-    uint32_t bin = key->hash % size;
+    uint32_t bin = key->hash & (size - 1);
     objentry *next = entries[bin];
 
     while (next && next->key && is_key(key, next->key) == false) {
