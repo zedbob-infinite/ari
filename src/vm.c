@@ -137,15 +137,15 @@ static void create_new_instance(VM *vm, object *obj, int argcount, object **argu
     
     vm->objregister = (object*)new_instance;
     /* Future code for init method will go here */
-    /*primstring *name = create_primstring("__init__");
+    primstring *name = create_primstring("__init__");
     object *prop = objhash_get(classobj->header.__attrs__, name);
+    arguments[argcount] = vm->objregister;
     if (prop)
-        call_function(vm, prop, argcount, arguments);
+        call_function(vm, prop, argcount + 1, arguments);
     else
-        printf("__init__ not found...\n");*/
+        advance(vm->top);
 
     push_objstack(&vm->evalstack, (object*)new_instance);
-    advance(vm->top);
 }
 
 static inline void op_push_frame(VM *vm)
@@ -237,7 +237,7 @@ static inline void op_load_method(VM *vm)
 static inline intrpstate op_call_function(VM *vm, int line, int argcount)
 {
     objstack *stack = &vm->evalstack; 
-    object **arguments = ALLOCATE(object*, argcount);
+    object **arguments = ALLOCATE(object*, argcount + 1);
 #ifdef DEBUG_ARI
     printf("\n");
 #endif
