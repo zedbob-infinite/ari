@@ -558,9 +558,9 @@ static inline intrpstate op_return(VM *vm)
 intrpstate execute(VM *vm, instruct *instructs)
 {
     vm->callstackpos++;
-    uint64_t count = instructs->count;
     objstack *stack = &vm->evalstack;
 #ifdef DEBUG_ARI
+    uint64_t count = instructs->count;
     int compress = (int)log10(count);
     printf("\nCurrent Frame: %p\n", vm->top);
     printf("Frame\tInstruct   OP\t\t\toperand\n");
@@ -773,11 +773,12 @@ VM *init_vm(void)
     vm->callstackpos = 0;
     vm->framestackpos = 0;
 
-    builtin funcs[] = {builtin_println, builtin_input, builtin_type};
-    char *names[] = {"print", "input", "type"};
+    builtin funcs[] = {builtin_println, builtin_input, builtin_type, 
+                       builtin_clock};
+    char *names[] = {"print", "input", "type", "clock"};
 
     object *obj = NULL;
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 4; i++) {
         obj = load_builtin(vm, names[i], funcs[i]);
         vm_add_object(vm, obj);
     }

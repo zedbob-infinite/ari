@@ -21,5 +21,6 @@ object *load_builtin(VM *vm, char *name, builtin function);
 object *builtin_println(VM *vm, int argcount, object **args);
 object *builtin_input(VM *vm, int argcount, object **args);
 object *builtin_type(VM *Vm, int argcount, object **args);
+object *builtin_clock(VM *vm, int argcount, object **args);
 
 #endif

@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #include "builtin.h"
 #include "memory.h"
@@ -7,7 +8,6 @@
 #include "objprim.h"
 #include "objstack.h"
 #include "vm.h"
-
 
 
 static void construct_msg(objprim *primobj, char *_string_)
@@ -125,4 +125,11 @@ object *builtin_type(VM *vm, int argcount, object **args)
     objprim *result = create_new_primitive(PRIM_STRING);
     construct_msg(result, msg);
     return (object*)result;
+}
+
+object *builtin_clock(VM *vm, int argcount, object **args)
+{
+    objprim *prim = create_new_primitive(PRIM_DOUBLE);
+    PRIM_AS_DOUBLE(prim) = ((double)clock() / CLOCKS_PER_SEC);
+    return (object*)prim;
 }

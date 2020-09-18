@@ -224,7 +224,6 @@ static void compile_expression(instruct *instructs, expr *expression,
             byte = OP_LOAD_METHOD;
 
             expr_method *method_expr = (expr_method*)expression;
-            token *name = method_expr->name;
 
             compile_expression(instructs, method_expr->refobj, line);
             compile_expression(instructs, method_expr->call, line);
