@@ -5,6 +5,7 @@
 #include <stddef.h>
 
 #include "objhash.h"
+#include "objprim.h"
 
 typedef struct frame_t
 {
@@ -12,6 +13,7 @@ typedef struct frame_t
     size_t pc;
     struct frame_t *next;
     bool is_adhoc;
+    primstring *name;
 } frame;
 
 void init_frame(frame *f);

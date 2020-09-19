@@ -577,14 +577,15 @@ intrpstate execute(VM *vm, instruct *instructs)
     printf("-----\t--------   ----------\t\t--------\n");
 #endif
     while (vm->top->pc < instructs->count) {
-        if (vm->haderror) {
-            return INTERPRET_RUNTIME_ERROR;
-        }
         uint64_t current = vm->top->pc;
         code8 *code = instructs->code[current];
+        int line = code->line;
+        if (vm->haderror) {
+            fprintf(stderr, "[line %d] in script\n", line);
+            return INTERPRET_RUNTIME_ERROR;
+        }
         value *operand = &code->operand;
         valtype type = code->operand.type;
-        int line = code->line;
 #ifdef DEBUG_ARI
         printf("|%03d|\t", vm->framestackpos);
         printf("|%*ld|\t   ", compress, current + 1);

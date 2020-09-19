@@ -50,33 +50,33 @@ static void patch_jump(instruct *instructs, int location, int jump)
 
 static void check_instruct_capacity(instruct *instructs)
 {
-	int oldcapacity = instructs->capacity;
-	instructs->capacity = GROW_CAPACITY(oldcapacity);
-	instructs->code = GROW_ARRAY(instructs->code, code8*, oldcapacity, 
-			instructs->capacity);
+    int oldcapacity = instructs->capacity;
+    instructs->capacity = GROW_CAPACITY(oldcapacity);
+    instructs->code = GROW_ARRAY(instructs->code, code8*, oldcapacity, 
+            instructs->capacity);
     for (int i = oldcapacity; i < instructs->capacity; ++i)
         instructs->code[i] = NULL;
 }
 
 static code8 *create_code(uint8_t bytecode, value operand, int line)
 {
-	code8 *code = ALLOCATE(code8, 1);
-	code->bytecode = bytecode;
-	code->operand = operand;
+    code8 *code = ALLOCATE(code8, 1);
+    code->bytecode = bytecode;
+    code->operand = operand;
     code->line = line;
-	return code;
-}	
+    return code;
+}   
 
 static int emit_instruction(instruct *instructs, uint8_t bytecode, 
         value operand, int line)
 {
-	int current = instructs->count;
-	if (instructs->capacity < instructs->count + 1)
-		check_instruct_capacity(instructs);
+    int current = instructs->count;
+    if (instructs->capacity < instructs->count + 1)
+        check_instruct_capacity(instructs);
 
-	instructs->code[instructs->count++] = create_code(bytecode, operand, 
+    instructs->code[instructs->count++] = create_code(bytecode, operand, 
             line);
-	return current;
+    return current;
 }
 
 static void compile_expression(instruct *instructs, expr *expression, 
@@ -93,12 +93,12 @@ static void compile_expression(instruct *instructs, expr *expression,
             token *name = assign_expr->name;
 
             compile_expression(instructs, assign_expr->value, line);
-			VAL_AS_STRING(operand) = take_string(name);
-			operand->type = VAL_STRING;
+            VAL_AS_STRING(operand) = take_string(name);
+            operand->type = VAL_STRING;
             break;
         }
         case EXPR_BINARY:
-		{
+        {
             expr_binary *binary_expr = (expr_binary*)expression;
             compile_expression(instructs, binary_expr->left, line);
             compile_expression(instructs, binary_expr->right, line);
@@ -122,56 +122,56 @@ static void compile_expression(instruct *instructs, expr *expression,
                 case TOKEN_LESS_EQUAL:
                     byte = OP_COMPARE;
                     VAL_AS_INT(operand) = binary_expr->operator->type;
-					operand->type = VAL_BOOL;
+                    operand->type = VAL_BOOL;
                     break;
                 default:
                     break;
-			}
+            }
             break;
-		}
+        }
         case EXPR_GROUPING:
         {
             expr_grouping *grouping_expr = (expr_grouping*)expression;
             compile_expression(instructs, grouping_expr->expression, line);
             return;
         }
-		case EXPR_LITERAL_STRING:
-		{
+        case EXPR_LITERAL_STRING:
+        {
             byte = OP_LOAD_CONSTANT;
-			operand->type = VAL_STRING;
-			expr_literal *literal_expr = (expr_literal*)expression;
+            operand->type = VAL_STRING;
+            expr_literal *literal_expr = (expr_literal*)expression;
             int length = strlen(literal_expr->literal);
             char *buffer = ALLOCATE(char, length + 1);
             
             strncpy(buffer, literal_expr->literal, length);
             buffer[length] = '\0';
             VAL_AS_STRING(operand) = buffer;
-			break;
-		}
-		case EXPR_LITERAL_NUMBER:
-		{
-			byte = OP_LOAD_CONSTANT;
+            break;
+        }
+        case EXPR_LITERAL_NUMBER:
+        {
+            byte = OP_LOAD_CONSTANT;
             expr_literal *literal_expr = (expr_literal*)expression;
 
             VAL_AS_DOUBLE(operand) = atof(literal_expr->literal);
-			operand->type = VAL_DOUBLE;
-			break;
-		}
-		case EXPR_LITERAL_BOOL:
-		{
-			byte = OP_LOAD_CONSTANT;
+            operand->type = VAL_DOUBLE;
+            break;
+        }
+        case EXPR_LITERAL_BOOL:
+        {
+            byte = OP_LOAD_CONSTANT;
             expr_literal *literal_expr = (expr_literal*)expression;
 
             VAL_AS_INT(operand) = atoi(literal_expr->literal);
-			operand->type = VAL_BOOL;
-			break;
-		}
-		case EXPR_LITERAL_NULL:
-		{
-			byte = OP_LOAD_CONSTANT;
-			operand->type = VAL_NULL;
-			break;
-		}
+            operand->type = VAL_BOOL;
+            break;
+        }
+        case EXPR_LITERAL_NULL:
+        {
+            byte = OP_LOAD_CONSTANT;
+            operand->type = VAL_NULL;
+            break;
+        }
         case EXPR_UNARY:
         {
             expr_unary *unary_expr = (expr_unary*)expression;
@@ -182,43 +182,43 @@ static void compile_expression(instruct *instructs, expr *expression,
                     compile_expression(instructs, unary_expr->right, line);
                     byte = OP_NEGATE;
                     break;
-				default:
-					// future error code here
-					break;
-			}
+                default:
+                    // future error code here
+                    break;
+            }
             break;
         }
         case EXPR_VARIABLE:
         {
             byte = OP_LOAD_NAME;
-			operand->type = VAL_STRING;
+            operand->type = VAL_STRING;
             expr_var *var_expr = (expr_var*)expression;
-			token *name = var_expr->name;
+            token *name = var_expr->name;
 
             VAL_AS_STRING(operand) = take_string(name);
             break;
         }
-		case EXPR_CALL:
-		{
+        case EXPR_CALL:
+        {
             operand->type = VAL_INT;
             
             expr_call *call_expr = (expr_call*)expression;
-			
+            
             if (call_expr->is_method)
                 byte = OP_CALL_METHOD;
             else {
                 byte = OP_CALL_FUNCTION;
                 compile_expression(instructs, call_expr->expression, line);
             }
-			
+            
             int i = 0;
             for (i = 0; i < call_expr->count; i++)
                 compile_expression(instructs, call_expr->arguments[i], line);
-			
+            
             /* argument count is passed as the operand */
-			VAL_AS_INT(operand) = i;
-			break;
-		}
+            VAL_AS_INT(operand) = i;
+            break;
+        }
         case EXPR_METHOD:
         {
             byte = OP_LOAD_METHOD;
@@ -233,12 +233,12 @@ static void compile_expression(instruct *instructs, expr *expression,
         case EXPR_GET_PROP:
         {
             byte = OP_GET_PROPERTY;
-			operand->type = VAL_STRING;
+            operand->type = VAL_STRING;
             
             expr_get *get_expr = (expr_get*)expression;
             token *name = get_expr->name;
 
-			VAL_AS_STRING(operand) = take_string(name);
+            VAL_AS_STRING(operand) = take_string(name);
             compile_expression(instructs, get_expr->refobj, line);
             break;
         }
@@ -258,8 +258,8 @@ static void compile_expression(instruct *instructs, expr *expression,
             
             break;
         }
-	}
-	emit_instruction(instructs, byte, *operand, line);
+    }
+    emit_instruction(instructs, byte, *operand, line);
 }
 
 static void compile_expression_stmt(instruct *instructs, stmt *statement)
@@ -359,29 +359,31 @@ static void compile_for(instruct *instructs, stmt *statement)
 static void compile_function(instruct *instructs, stmt *statement)
 {
     stmt_function *function_stmt = (stmt_function*)statement;
-	int argcount = function_stmt->num_parameters;
-	token **parameters = function_stmt->parameters;
+    
+    token *name = function_stmt->name;
+    int argcount = function_stmt->num_parameters;
+    token **parameters = function_stmt->parameters;
 
-	objprim **arguments = ALLOCATE(objprim*, argcount);
+    objprim **arguments = ALLOCATE(objprim*, argcount);
 
-	for (int i = 0; i < argcount; ++i) {
-		objprim *prim = create_new_primitive(PRIM_STRING);
+    for (int i = 0; i < argcount; ++i) {
+        objprim *prim = create_new_primitive(PRIM_STRING);
         create_primobj_from_token(prim, parameters[i]);
-		arguments[i] = prim;
-	}
-	
-	objcode *codeobj = init_objcode(argcount, arguments);
+        arguments[i] = prim;
+    }
+    
+    objcode *codeobj = init_objcode(argcount, arguments);
+    codeobj->name = take_string(name);
 
     compile_block(&(codeobj->instructs), function_stmt->block, false);
 
     emit_instruction(&(codeobj->instructs), OP_RETURN, NULL_VAL, 
             statement->line);
-	/* Push new code object onto the stack */
-	value valobj = {.type = VAL_OBJECT, .val_obj = (object*)codeobj};
-	emit_instruction(instructs, OP_MAKE_FUNCTION, valobj, statement->line);
+    /* Push new code object onto the stack */
+    value valobj = {.type = VAL_OBJECT, .val_obj = (object*)codeobj};
+    emit_instruction(instructs, OP_MAKE_FUNCTION, valobj, statement->line);
 
-	/* Store object*/
-    token *name = function_stmt->name;
+    /* Store object*/
     value operand = {.type = VAL_STRING, 
         .val_string = take_string(name)};
     emit_instruction(instructs, OP_STORE_NAME, operand, statement->line);
@@ -390,23 +392,23 @@ static void compile_function(instruct *instructs, stmt *statement)
 static void compile_method(instruct *instructs, stmt *statement)
 {
     stmt_method *method_stmt = (stmt_method*)statement;
-	int argcount = method_stmt->num_parameters + 1;
-	token **parameters = method_stmt->parameters;
+    int argcount = method_stmt->num_parameters + 1;
+    token **parameters = method_stmt->parameters;
 
-	objprim **arguments = ALLOCATE(objprim*, argcount);
+    objprim **arguments = ALLOCATE(objprim*, argcount);
 
     // 'this' is the first implicit argument for any method
     objprim *_this_ = create_new_primitive(PRIM_STRING);
     PRIM_AS_STRING(_this_) = create_primstring("this");
     arguments[0] = _this_;
 
-	for (int i = 1; i < argcount; ++i) {
-		objprim *prim = create_new_primitive(PRIM_STRING);
+    for (int i = 1; i < argcount; ++i) {
+        objprim *prim = create_new_primitive(PRIM_STRING);
         create_primobj_from_token(prim, parameters[i - 1]);
-		arguments[i] = prim;
-	}
-	
-	objcode *codeobj = init_objcode(argcount, arguments);
+        arguments[i] = prim;
+    }
+    
+    objcode *codeobj = init_objcode(argcount, arguments);
 
     token *name = method_stmt->name;
     codeobj->name = take_string(name);
@@ -416,12 +418,12 @@ static void compile_method(instruct *instructs, stmt *statement)
 
     emit_instruction(&(codeobj->instructs), OP_RETURN, NULL_VAL,
             statement->line);
-	/* Push new code object onto the stack */
-	value valobj = {.type = VAL_OBJECT, .val_obj = (object*)codeobj};
-	emit_instruction(instructs, OP_MAKE_METHOD, valobj, 
+    /* Push new code object onto the stack */
+    value valobj = {.type = VAL_OBJECT, .val_obj = (object*)codeobj};
+    emit_instruction(instructs, OP_MAKE_METHOD, valobj, 
             statement->line);
 
-	/* Store object */
+    /* Store object */
     value operand = {.type = VAL_STRING, 
         .val_string = take_string(name)};
     emit_instruction(instructs, OP_STORE_NAME, operand, 
@@ -431,7 +433,7 @@ static void compile_method(instruct *instructs, stmt *statement)
 static void compile_class(instruct *instructs, stmt *statement)
 {
     stmt_class *class_stmt = (stmt_class*)statement;
-	objclass *classobj = init_objclass();
+    objclass *classobj = init_objclass();
     
     token *name = class_stmt->name;
     char *classname = take_string(name);
@@ -450,12 +452,12 @@ static void compile_class(instruct *instructs, stmt *statement)
     emit_instruction(&classobj->instructs, OP_RETURN, EMPTY_VAL, 
             statement->line);
     
-	/* Push new code object onto the stack */
+    /* Push new code object onto the stack */
     value valobj = {.type = VAL_OBJECT, .val_obj = (object*)classobj};
-	emit_instruction(instructs, OP_MAKE_CLASS, valobj, 
+    emit_instruction(instructs, OP_MAKE_CLASS, valobj, 
             statement->line);
 
-	/* Store object*/
+    /* Store object*/
     value operand = {.type = VAL_STRING, 
         .val_string = take_string(name)};
     emit_instruction(instructs, OP_STORE_NAME, operand, statement->line);
@@ -523,7 +525,7 @@ static void compile_statement(instruct *instructs, stmt *statement)
 static void start_compile(instruct *instructs, stmt **statements, int num_statements)
 {
     // Compile parse trees into bytecode
-	for (int i = 0; i < num_statements; i++) {
+    for (int i = 0; i < num_statements; i++) {
         if (instructs->capacity < instructs->count + 1)
             check_instruct_capacity(instructs);
         compile_statement(instructs, statements[i]);
@@ -539,9 +541,9 @@ instruct compile(parser *analyzer, const char *source)
         reset_parser(analyzer);
         return instructs;
     }
-	start_compile(&instructs, analyzer->statements, analyzer->num_statements);
+    start_compile(&instructs, analyzer->statements, analyzer->num_statements);
 
-	emit_instruction(&instructs, OP_RETURN, EMPTY_VAL, 
+    emit_instruction(&instructs, OP_RETURN, EMPTY_VAL, 
             analyzer->num_statements);
 
     return instructs;

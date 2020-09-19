@@ -10,6 +10,7 @@ void init_frame(frame *f)
     f->pc = 0;
     f->next = NULL;
     f->is_adhoc = false;
+    f->name = NULL;
 }
 
 void reset_frame(frame *f)
@@ -18,6 +19,7 @@ void reset_frame(frame *f)
     f->pc = 0;
     f->next = NULL;
     f->is_adhoc = false;
+    f->name = NULL;
 }
 
 void push_frame(frame **top, frame *newframe)
