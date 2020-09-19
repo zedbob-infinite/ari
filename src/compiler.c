@@ -408,6 +408,10 @@ static void compile_method(instruct *instructs, stmt *statement)
 	
 	objcode *codeobj = init_objcode(argcount, arguments);
 
+    token *name = method_stmt->name;
+    codeobj->name = take_string(name);
+    
+    /* Compile method body */
     compile_block(&(codeobj->instructs), method_stmt->block, false);
 
     emit_instruction(&(codeobj->instructs), OP_RETURN, NULL_VAL,
@@ -417,8 +421,7 @@ static void compile_method(instruct *instructs, stmt *statement)
 	emit_instruction(instructs, OP_MAKE_METHOD, valobj, 
             statement->line);
 
-	/* Store object*/
-    token *name = method_stmt->name;
+	/* Store object */
     value operand = {.type = VAL_STRING, 
         .val_string = take_string(name)};
     emit_instruction(instructs, OP_STORE_NAME, operand, 

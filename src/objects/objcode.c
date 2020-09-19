@@ -7,6 +7,7 @@
 objcode *init_objcode(int argcount, objprim **arguments)
 {
 	objcode *codeobj = ALLOCATE(objcode, 1);
+    codeobj->name = NULL;
 	codeobj->argcount = argcount;
 	codeobj->arguments = arguments;
     codeobj->depth = 0;

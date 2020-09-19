@@ -11,6 +11,7 @@
 typedef struct objcode_t
 {
 	object header;
+    char *name;
 	size_t argcount;
 	objprim **arguments;
 	frame localframe;
