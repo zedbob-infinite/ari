@@ -10,12 +10,12 @@
 
 typedef struct objcode_t
 {
-	object header;
+    object header;
     char *name;
-	size_t argcount;
-	objprim **arguments;
-	frame localframe;
-	instruct instructs;
+    size_t argcount;
+    objprim **arguments;
+    frame localframe;
+    instruct instructs;
     size_t depth;
 } objcode;
 

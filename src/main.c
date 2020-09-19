@@ -52,7 +52,7 @@ void run_file(const char* path)
 {
     char* source = read_file(path);
     if (source) {
-	    interpret(source);
+        interpret(source);
         FREE(char, source);
     }
     else {

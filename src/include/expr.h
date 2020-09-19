@@ -14,7 +14,7 @@ typedef enum exprtype_t
     EXPR_LITERAL_NULL,
     EXPR_UNARY,
     EXPR_VARIABLE,
-	EXPR_CALL,
+    EXPR_CALL,
     EXPR_SET_PROP,
     EXPR_GET_PROP,
     EXPR_METHOD,
@@ -71,7 +71,7 @@ typedef struct expr_call_t
 {
     expr header;
     int count;
-	int capacity;
+    int capacity;
     expr **arguments;
     expr *expression;
     bool is_method;

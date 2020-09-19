@@ -26,27 +26,27 @@ void print_object(object *obj)
         printf("No object found.\n");
         return;
     }
-	switch (obj->type) {
-		case OBJ_PRIMITIVE:
-		{
-			objprim *prim = (objprim*)obj;
-			switch (prim->ptype) {
-				case PRIM_DOUBLE:
-					printf("%f", PRIM_AS_DOUBLE(prim));
-					break;
-				case PRIM_STRING:
-					printf("%s", PRIM_AS_RAWSTRING(prim));
-					break;
-				case PRIM_BOOL:
-					printf("%s", PRIM_AS_BOOL(prim) ? "true" : "false");
-					break;
-				case PRIM_NULL:
-					printf("null");
-					break;
-				default:
-					break;
-			}
-			break;
+    switch (obj->type) {
+        case OBJ_PRIMITIVE:
+        {
+            objprim *prim = (objprim*)obj;
+            switch (prim->ptype) {
+                case PRIM_DOUBLE:
+                    printf("%f", PRIM_AS_DOUBLE(prim));
+                    break;
+                case PRIM_STRING:
+                    printf("%s", PRIM_AS_RAWSTRING(prim));
+                    break;
+                case PRIM_BOOL:
+                    printf("%s", PRIM_AS_BOOL(prim) ? "true" : "false");
+                    break;
+                case PRIM_NULL:
+                    printf("null");
+                    break;
+                default:
+                    break;
+            }
+            break;
         case OBJ_CODE:
         {
             objcode *codeobj = (objcode*)obj;
@@ -72,8 +72,8 @@ void print_object(object *obj)
             printf("<builtin>");
             break;
         }
-		default:
-			break;
-		}
-	}
+        default:
+            break;
+        }
+    }
 }

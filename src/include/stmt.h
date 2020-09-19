@@ -71,7 +71,7 @@ typedef struct stmt_function_t
 {
     stmt header;
     token *name;
-	int num_parameters;
+    int num_parameters;
     token **parameters;
     stmt *block;
 } stmt_function;
@@ -80,7 +80,7 @@ typedef struct stmt_method_t
 {
     stmt header;
     token *name;
-	int num_parameters;
+    int num_parameters;
     token **parameters;
     stmt *block;
 } stmt_method;

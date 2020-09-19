@@ -17,7 +17,7 @@
     reallocate(pointer, sizeof(type), 0)
 
 #define FREE_OBJECT(pointer) \
-	free_object(pointer, pointer->type)
+    free_object(pointer, pointer->type)
 
 #define FREE_ARRAY(type, pointer, oldcount) \
     reallocate(pointer, sizeof(type) * (oldcount), 0)

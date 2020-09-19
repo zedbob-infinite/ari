@@ -83,24 +83,24 @@ object *builtin_type(VM *vm, int argcount, object **args)
     switch (obj->type) {
         case OBJ_PRIMITIVE:
         {
-			objprim *primobj = (objprim*)obj;
-			switch (primobj->ptype) {
-				case PRIM_DOUBLE:
-					msg = "<double>";
-					break;
-				case PRIM_STRING:
-					msg = "<string>";
-					break;
-				case PRIM_BOOL:
-					msg = "<bool>";
-					break;
-				case PRIM_NULL:
-					msg = "<null>";
-					break;
+            objprim *primobj = (objprim*)obj;
+            switch (primobj->ptype) {
+                case PRIM_DOUBLE:
+                    msg = "<double>";
+                    break;
+                case PRIM_STRING:
+                    msg = "<string>";
+                    break;
+                case PRIM_BOOL:
+                    msg = "<bool>";
+                    break;
+                case PRIM_NULL:
+                    msg = "<null>";
+                    break;
                 default:
                     msg = "<unknown primitive type>";
                     break;
-			}
+            }
             break;
         }
         case OBJ_CLASS:

@@ -17,17 +17,17 @@ typedef struct object_t *(*slot)(struct object_t *this_, struct object_t *other)
 
 typedef enum
 {
-	OBJ_PRIMITIVE,
-	OBJ_CLASS,
-	OBJ_INSTANCE,
+    OBJ_PRIMITIVE,
+    OBJ_CLASS,
+    OBJ_INSTANCE,
     OBJ_MODULE,
-	OBJ_CODE,
+    OBJ_CODE,
     OBJ_BUILTIN,
 } objtype;
 
 typedef struct object_t
 {
-	objtype type;
+    objtype type;
     struct object_t* next;
     objhash *__attrs__;
     slot __add__;

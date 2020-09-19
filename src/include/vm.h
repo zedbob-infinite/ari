@@ -19,7 +19,7 @@ typedef enum
 typedef struct VM_t
 {
     parser analyzer;
-	objstack evalstack;
+    objstack evalstack;
     module global;
     frame *top;
     object *objs;

@@ -9,7 +9,7 @@ void interpret(char *source)
 {
     VM *vm = init_vm();
     init_instruct(&vm->global.instructs);
-	vm->global.instructs = compile(&vm->analyzer, source);
+    vm->global.instructs = compile(&vm->analyzer, source);
     if (!vm->global.instructs.count) {
         reset_instruct(&vm->global.instructs);
         return;
@@ -22,7 +22,7 @@ void interpret(char *source)
 
 void interpret_line(VM *vm, char *source)
 {
-	vm->global.instructs = compile(&vm->analyzer, source);
+    vm->global.instructs = compile(&vm->analyzer, source);
     if (!vm->global.instructs.count) {
         reset_instruct(&vm->global.instructs);
         return;

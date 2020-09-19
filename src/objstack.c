@@ -24,7 +24,7 @@ void push_objstack(objstack *stack, object *obj)
     node->obj = obj;
     node->next = stack->top;
     stack->top = node;
-	stack->count++;
+    stack->count++;
 }
 
 object *pop_objstack(objstack *stack)

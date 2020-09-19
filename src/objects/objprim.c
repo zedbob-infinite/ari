@@ -29,30 +29,30 @@ int hashkey(char *key, int length)
 
 static void inline init_double(objprim *obj)
 {
-	obj->header.type = OBJ_PRIMITIVE;
-	obj->ptype = PRIM_DOUBLE;
-	obj->val_double = 0;
+    obj->header.type = OBJ_PRIMITIVE;
+    obj->ptype = PRIM_DOUBLE;
+    obj->val_double = 0;
 }
 
 static void inline init_bool(objprim *obj)
 {
-	obj->header.type = OBJ_PRIMITIVE;
-	obj->ptype = PRIM_BOOL;
-	obj->val_int = 0;
+    obj->header.type = OBJ_PRIMITIVE;
+    obj->ptype = PRIM_BOOL;
+    obj->val_int = 0;
 }
 
 static void inline init_null(objprim *obj)
 {
-	obj->header.type = OBJ_PRIMITIVE;
-	obj->ptype = PRIM_NULL;
-	obj->val_int = 0;
+    obj->header.type = OBJ_PRIMITIVE;
+    obj->ptype = PRIM_NULL;
+    obj->val_int = 0;
 }
 
 static void inline init_string(objprim *obj)
 {
-	obj->header.type = OBJ_PRIMITIVE;
-	obj->ptype = PRIM_STRING;
-	obj->val_string = NULL;
+    obj->header.type = OBJ_PRIMITIVE;
+    obj->ptype = PRIM_STRING;
+    obj->val_string = NULL;
 }
 
 primstring *init_primstring(int length, uint32_t hash, char *takenstring)
@@ -83,28 +83,28 @@ primstring *create_primstring(char *_string_)
 
 objprim *create_new_primitive(primtype ptype)
 {
-	objprim *obj = ALLOCATE(objprim, 1);
+    objprim *obj = ALLOCATE(objprim, 1);
     init_object(obj, OBJ_PRIMITIVE);
 
-	switch (ptype) {
-		case PRIM_DOUBLE:
-			init_double(obj);
-			break;
-		case PRIM_BOOL:
-			init_bool(obj);
-			break;
-		case PRIM_NULL:
-			init_null(obj);
-			break;
-		case PRIM_STRING:
-			init_string(obj);
-			break;
-	}
+    switch (ptype) {
+        case PRIM_DOUBLE:
+            init_double(obj);
+            break;
+        case PRIM_BOOL:
+            init_bool(obj);
+            break;
+        case PRIM_NULL:
+            init_null(obj);
+            break;
+        case PRIM_STRING:
+            init_string(obj);
+            break;
+    }
     obj->header.__add__ = prim_binary_add;
     obj->header.__sub__ = prim_binary_sub;
     obj->header.__mul__ = prim_binary_mul;
     obj->header.__div__ = prim_binary_div;
-	return obj;
+    return obj;
 }
 
 void convert_prim(objprim *prim, primtype type)

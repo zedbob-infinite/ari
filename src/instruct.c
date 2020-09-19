@@ -8,7 +8,7 @@ void init_instruct(instruct* instructs)
 {
     instructs->count = 0;
     instructs->capacity = 0;
-	instructs->current = 0;
+    instructs->current = 0;
     instructs->code = NULL;
 }
 
@@ -24,5 +24,5 @@ void reset_instruct(instruct *instructs)
         }
     }
     FREE(code8**, instructs->code);
-	init_instruct(instructs);
+    init_instruct(instructs);
 }
