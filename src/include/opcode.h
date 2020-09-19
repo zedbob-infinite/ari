@@ -19,6 +19,7 @@ typedef enum
     OP_MAKE_CLASS,
     OP_SET_PROPERTY,
     OP_GET_PROPERTY,
+    OP_GET_SOURCE,
     OP_STORE_NAME,
     OP_COMPARE,
     OP_BINARY_ADD,

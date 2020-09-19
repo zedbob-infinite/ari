@@ -239,6 +239,14 @@ static expr_set *init_expr_setprop(void)
     return new_expr;
 }
 
+static expr_source *init_expr_source(void)
+{
+    expr_source *new_expr = ALLOCATE(expr_source, 1);
+    new_expr->header.type = EXPR_SOURCE;
+    new_expr->name = NULL;
+    return new_expr;
+}
+
 static void *init_expr(exprtype type)
 {
     switch (type) {
@@ -265,6 +273,8 @@ static void *init_expr(exprtype type)
             return init_expr_setprop();
         case EXPR_METHOD:
             return init_expr_method();
+        case EXPR_SOURCE:
+            return init_expr_source();
     }
     // Not reachable.
     return NULL;
@@ -348,6 +358,12 @@ static void delete_expression(expr *pexpr)
             {
                 expr_set *del = (expr_set*)pexpr;
                 FREE(expr_set, del);
+                break;
+            }
+            case EXPR_SOURCE:
+            {
+                expr_source *del = (expr_source*)pexpr;
+                FREE(expr_source, del);
                 break;
             }
         }
@@ -592,7 +608,7 @@ static stmt *get_function_statement(token *name, int num_parameters,
 {
     stmt_function *new_stmt = init_stmt(STMT_FUNCTION, line);
     new_stmt->name = name;
-	new_stmt->num_parameters = num_parameters;
+    new_stmt->num_parameters = num_parameters;
     new_stmt->parameters = parameters;
     new_stmt->block = body;
     return (stmt*)new_stmt;
@@ -603,7 +619,7 @@ static stmt *get_method_statement(token *name, int num_parameters,
 {
     stmt_method *new_stmt = init_stmt(STMT_METHOD, line);
     new_stmt->name = name;
-	new_stmt->num_parameters = num_parameters;
+    new_stmt->num_parameters = num_parameters;
     new_stmt->parameters = parameters;
     new_stmt->block = body;
     return (stmt*)new_stmt;
@@ -679,13 +695,13 @@ static expr *get_variable_expr(token *name)
 static expr *get_call_expression(expr *callee, expr **arguments, 
         int num_arguments, int capacity, bool is_method)
 {
-	expr_call *new_expr = init_expr(EXPR_CALL);
-	new_expr->expression = callee;
-	new_expr->arguments = arguments;
+    expr_call *new_expr = init_expr(EXPR_CALL);
+    new_expr->expression = callee;
+    new_expr->arguments = arguments;
     new_expr->count = num_arguments;
     new_expr->capacity = capacity;
     new_expr->is_method = is_method;
-	return (expr*)new_expr;
+    return (expr*)new_expr;
 }
 
 static expr *get_method_expr(parser *analyzer, expr *refobj, expr *call)
@@ -713,6 +729,13 @@ static expr *get_setproperty_expr(parser *analyzer, token *name,
     new_expr->name = name;
     new_expr->refobj = refobj;
     new_expr->value = value;
+    return (expr*)new_expr;
+}
+
+static expr *get_source_expr(parser *analyzer, token *source_name)
+{
+    expr_source *new_expr = init_expr(EXPR_SOURCE);
+    new_expr->name = source_name;
     return (expr*)new_expr;
 }
 
@@ -750,6 +773,11 @@ static expr *primary(parser *analyzer)
             return get_variable_expr(previous(analyzer));
         error(analyzer, "'this' only valid inside a class.");
         return NULL;
+    }
+    if (match(analyzer, TOKEN_SOURCE)) {
+        token *source_name = consume(analyzer, TOKEN_IDENTIFIER,
+                "Error: invalid syntax.");
+        return get_source_expr(analyzer, source_name);
     }
     if (match(analyzer, TOKEN_IDENTIFIER))
         return get_variable_expr(previous(analyzer));
@@ -813,8 +841,8 @@ static expr *finish_call(parser *analyzer, expr *callee, bool is_method)
     printf("finish_call()\n");
 #endif
     /* Initialize arguments array */
-	int i = 0;
-	int oldcapacity = 0;
+    int i = 0;
+    int oldcapacity = 0;
     int capacity = 0;
     capacity = GROW_CAPACITY(capacity);
     expr **arguments = ALLOCATE(expr*, capacity);
@@ -835,7 +863,7 @@ static expr *finish_call(parser *analyzer, expr *callee, bool is_method)
         } while (match(analyzer, TOKEN_COMMA));
     }
     consume(analyzer, TOKEN_RIGHT_PAREN, "Expect ')' after arguments.");
-	return get_call_expression(callee, arguments, i, capacity, is_method);
+    return get_call_expression(callee, arguments, i, capacity, is_method);
 }
 
 static expr *call(parser *analyzer)

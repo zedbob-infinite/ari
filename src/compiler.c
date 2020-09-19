@@ -258,6 +258,16 @@ static void compile_expression(instruct *instructs, expr *expression,
             
             break;
         }
+        case EXPR_SOURCE:
+        {
+            byte = OP_GET_SOURCE;
+            operand->type = VAL_STRING;
+            expr_source *source_expr = (expr_source*)expression;
+            token *name = source_expr->name;
+
+            VAL_AS_STRING(operand) = take_string(name);
+            break;
+        }
     }
     emit_instruction(instructs, byte, *operand, line);
 }

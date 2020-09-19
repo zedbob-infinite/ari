@@ -128,7 +128,19 @@ static inline void identifier(scanner *scan)
         case 'n': type = check_keyword(scan, 1, 3, "ull", TOKEN_NULL); break;
         case 'o': type = check_keyword(scan, 1, 2, "r", TOKEN_OR); break;
         case 'r': type = check_keyword(scan, 1, 5, "eturn", TOKEN_RETURN); break;
-        case 's': type = check_keyword(scan, 1, 4, "uper", TOKEN_SUPER); break;
+        case 's': 
+                  if (scan->current - scan->start > 1)
+                      switch(scan->start[1]) {
+                          case 'o': 
+                              type = check_keyword(scan, 2, 4, "urce", 
+                                      TOKEN_SOURCE);
+                              break;
+                          case 'u':
+                              type = check_keyword(scan, 2, 3, "per", 
+                                      TOKEN_SUPER);
+                              break;
+                      }
+                  break;
         case 't':
                   if (scan->current - scan->start > 1)
                       switch (scan->start[1]) {

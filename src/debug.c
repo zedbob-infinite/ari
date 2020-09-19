@@ -53,6 +53,9 @@ void print_bytecode(uint8_t bytecode)
         case OP_SET_PROPERTY:
             msg = "SET_PROPERTY";
             break;
+        case OP_GET_SOURCE:
+            msg = "GET_SOURCE";
+            break;
         case OP_GET_PROPERTY:
             msg = "GET_PROPERTY";
             break;

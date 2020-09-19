@@ -18,6 +18,7 @@ typedef enum exprtype_t
     EXPR_SET_PROP,
     EXPR_GET_PROP,
     EXPR_METHOD,
+    EXPR_SOURCE
 } exprtype;
 
 typedef struct expr_t
@@ -98,5 +99,11 @@ typedef struct expr_method_t
     expr *refobj;
     expr *call;
 } expr_method;
+
+typedef struct expr_source_t
+{
+    expr header;
+    token *name;
+} expr_source;
 
 #endif

@@ -382,6 +382,13 @@ static inline intrpstate op_set_property(VM *vm, int line, char *setname)
     return INTERPRET_OK;
 }
 
+static inline intrpstate op_get_source(VM *vm, int line, char *name)
+{
+    primstring *modname = create_primstring(name);
+    /* Code to create module here */
+    advance(vm->top);
+    return INTERPRET_OK;
+}
 static inline void op_store_name(VM *vm, char *name)
 {
     object *obj = pop_objstack(&vm->evalstack);
@@ -753,6 +760,14 @@ intrpstate execute(VM *vm, instruct *instructs)
             {
                 char *name = VAL_AS_STRING(operand);
                 intrpstate errcode = op_set_property(vm, line, name);
+                if (errcode != INTERPRET_OK)
+                    return errcode;
+                break;
+            }
+            case OP_GET_SOURCE:
+            {
+                char *name = VAL_AS_STRING(operand);
+                intrpstate errcode = op_get_source(vm, line, name);
                 if (errcode != INTERPRET_OK)
                     return errcode;
                 break;
