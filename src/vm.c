@@ -595,28 +595,44 @@ intrpstate execute(VM *vm, instruct *instructs)
         printf("\n");
 #endif
         switch (code->bytecode) {
+            /* PUSH_FRAME: Pushes an adhoc frame onto the frame stack. 
+             * Adhoc frames are used to create new scopes outside of a 
+             * new function or class.
+             */
             case OP_PUSH_FRAME:
             {
                 op_push_frame(vm);
                 break;
             }
+            /* POP_FRAME: Pops an adhoc frame from the frame stack.
+             */
             case OP_POP_FRAME:
             {
                 op_pop_frame(vm);
                 break;
             }
+            /* JMP_LOC: Directly jumps to a new location in 
+             * the instructions.
+             */
             case OP_JMP_LOC:
             {
                 int jump = VAL_AS_INT(operand);
                 op_jmp_loc(vm, jump);
                 break;
             }
+            /* JMP_AFTER: Uses an offset to make a jump in
+             * the instructions.
+             */
             case OP_JMP_AFTER:
             {
                 int jump = VAL_AS_INT(operand);
                 op_jmp_after(vm, jump);
                 break;
             }
+            /* JMP_FALSE: Only jump if condition is true. Note
+             * the other jump operations do not directly evalute
+             * whether to jump based on conditions.
+             */
             case OP_JMP_FALSE:
             {
                 objprim *condition = (objprim*)pop_objstack(stack);
@@ -627,6 +643,10 @@ intrpstate execute(VM *vm, instruct *instructs)
                 op_jmp_false(vm, jump, condition);
                 break;
             }
+            /* LOAD_CONSTANT: Takes a value from the compiler
+             * and creates a new objprim object and pushes it
+             * onto the object stack.
+             */
             case OP_LOAD_CONSTANT:
             {
                 intrpstate errcode = op_load_constant(vm, line, type, 
@@ -635,6 +655,10 @@ intrpstate execute(VM *vm, instruct *instructs)
                     return errcode;
                 break;
             }
+            /* LOAD_NAME: searches through the linked object
+             * hashtables to find an entry. If found, it places
+             * that object onto the stack.
+             */
             case OP_LOAD_NAME:
             {
                 char *name =VAL_AS_STRING(operand);
@@ -643,11 +667,17 @@ intrpstate execute(VM *vm, instruct *instructs)
                     return errcode;
                 break;
             }
+            /* LOAD_METHOD: This operation only advances the 
+             * program counter at this point. May be removed later on.
+             */
             case OP_LOAD_METHOD:
             {
                 op_load_method(vm);
                 break;
             }
+            /* CALL_FUNCTION: Call operation used to call functions
+             * and create objects.
+             */ 
             case OP_CALL_FUNCTION:
             {
                 int argcount = VAL_AS_INT(operand);
@@ -656,27 +686,54 @@ intrpstate execute(VM *vm, instruct *instructs)
                     return errcode;
                 break;
             }
+            /* MAKE_FUNCTION: Takes a function passed from the
+             * compiler and places it on object stack.
+             */
             case OP_MAKE_FUNCTION:
             {
                 op_make_function(vm, operand);
                 break;
             }
+            /* MAKE_CLASS: Takes a class passed from the
+             * compiler and passes the class body to execute()
+             * to transform class definition into a new class.
+             * Afterwards, class is placed on the object stack.
+             */
             case OP_MAKE_CLASS:
             {
                 op_make_class(vm, operand);
                 break;
             }
+            /* CALL_METHOD: Similar to CALL_FUNCTION, this
+             * operation calls a method instead of a function. The 
+             * biggest difference between the two are that 
+             * OP_CALL_METHOD places the object the method is called 
+             * against in the object register.
+             *
+             * This allows the method to use 'this' in the method body,
+             * and get attributes directly from the instance.
+             */
             case OP_CALL_METHOD:
             {
                 int argcount = VAL_AS_INT(operand) + 1;
                 op_call_method(vm, argcount);
                 break;
             }
+            /* MAKE_METHOD: Takes a method constructed in the compiler
+             * and places it on the object stack.
+             */
             case OP_MAKE_METHOD:
             {
                 op_make_method(vm, operand);
                 break;
             }
+            /* GET_PROPERTY: Similar to LOAD_NAME, this operation
+             * attempts to retrieve an attribute from an object.
+             *
+             * This is done differently than LOAD_NAME, however, as
+             * it looks only at the hashtable of the object, and doesn't
+             * search the frame stack at all.  
+             */
             case OP_GET_PROPERTY:
             {
                 char *name = VAL_AS_STRING(operand);
@@ -685,6 +742,12 @@ intrpstate execute(VM *vm, instruct *instructs)
                     return errcode;
                 break;
             }
+            /* SET_PROPERTY: Pops an object from the object stack
+             * and stores it in the hashtable of the object that this
+             * operation was called against.
+             *
+             * e.g.: foo.bar = "Hello!"; 
+             */
             case OP_SET_PROPERTY:
             {
                 char *name = VAL_AS_STRING(operand);
@@ -693,12 +756,30 @@ intrpstate execute(VM *vm, instruct *instructs)
                     return errcode;
                 break;
             }
+            /* STORE_NAME: Pops an object from the object stack
+             * and stores it in the hashtable of top frame on the
+             * frame stack.
+             *
+             * e.g.:
+             *          // Stored at global hashtable
+             *          foo = "happy!";
+             *          {
+             *              // Stored at hashtable created by new scope
+             *              bar = "sad!";
+             *          }
+             */
             case OP_STORE_NAME:
             {
                 char *name = VAL_AS_STRING(operand);
                 op_store_name(vm, name);
                 break;
             }
+            /* COMPARE: takes two objprims, compares them and returns
+             * objprim bool object of either true or false.
+             *
+             * Right now this is limited to objprims, but will
+             * be working to expand this to all objects soon.
+             */
             case OP_COMPARE:
             {
                 int cmptype = VAL_AS_INT(operand);
@@ -707,6 +788,12 @@ intrpstate execute(VM *vm, instruct *instructs)
                     return errcode;
                 break;
             }
+            /* BINARY_ADD: takes two obprims, adds them together
+             * and places the result on the object stack.
+             *
+             * Will be adding functionality to allow user-defined 
+             * binary_add operations for any non built-in object.
+             */
             case OP_BINARY_ADD:
             {
                 intrpstate errcode = op_binary_add(vm, line);
@@ -714,6 +801,11 @@ intrpstate execute(VM *vm, instruct *instructs)
                     return errcode;
                 break;
             }
+            /* BINARY_SUB: takes two objprims, subtracts them from
+             * each other, and places the result on the object stack.
+             *
+             * Like BINARY_ADD, more functionality coming soon.
+             */
             case OP_BINARY_SUB:
             {
                 intrpstate errcode = op_binary_sub(vm, line);
@@ -721,6 +813,11 @@ intrpstate execute(VM *vm, instruct *instructs)
                     return errcode;
                 break;
             }
+            /* BINARY_MULT: takes two objprims, multiplies them together, 
+             * and places the result on the object stack.
+             *
+             * Like BINARY_ADD, more functionality coming soon.
+             */
             case OP_BINARY_MULT:
             {
                 intrpstate errcode = op_binary_mult(vm, line);
@@ -728,6 +825,11 @@ intrpstate execute(VM *vm, instruct *instructs)
                     return errcode;
                 break;
             }
+            /* BINARY_DIVIDE: takes two objprims, divides them, 
+             * and places the result on the object stack.
+             *
+             * Like BINARY_ADD, more functionality coming soon.
+             */
             case OP_BINARY_DIVIDE:
             {
                 intrpstate errcode = op_binary_div(vm, line);
@@ -735,6 +837,10 @@ intrpstate execute(VM *vm, instruct *instructs)
                     return errcode;
                 break;
             }
+            /* NEGATE: takes an objprim, negates it
+             * and places the result on the object stack.
+             *
+             */
             case OP_NEGATE:
             {
                 intrpstate errcode = op_negate(vm, line);
@@ -742,11 +848,18 @@ intrpstate execute(VM *vm, instruct *instructs)
                     return errcode;
                 break;
             }
+            /* POP: pops the object stack.
+             *
+             * Note: this discards the object on the stack.
+             */
             case OP_POP:
             {
                 op_pop(vm);
                 break;
             }
+            /* RETURN: Ends an ari function or method and returns
+             * to original caller.
+             */
             case OP_RETURN:
             {
                 return op_return(vm);
