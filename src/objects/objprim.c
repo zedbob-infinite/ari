@@ -444,6 +444,9 @@ bool check_zero_div(object *a, object *b)
 
 object *binary_comp(objprim *a, objprim *b, tokentype optype)
 {
+    if ((!a) || (!b))
+        return NULL;
+
     objprim *c = create_new_primitive(PRIM_BOOL);
 
     switch (optype) {

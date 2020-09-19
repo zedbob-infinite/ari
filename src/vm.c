@@ -245,7 +245,11 @@ static inline intrpstate op_call_function(VM *vm, int line, int argcount)
         arguments[i] = pop_objstack(stack);
     
     object *popped = pop_objstack(stack);
-        
+
+    if (!popped)
+        return runtime_error(vm, &vm->evalstack, line,
+                "CallError: object is not callable");
+
     if (OBJ_IS_CLASS(popped))
         create_new_instance(vm, popped, argcount, arguments);
     else if (OBJ_IS_CODE(popped))
@@ -386,15 +390,21 @@ static inline void op_store_name(VM *vm, char *name)
     advance(vm->top);
 }
 
-static inline void op_compare(VM *vm, int cmptype)
+static inline intrpstate op_compare(VM *vm, int line, int cmptype)
 {
     objprim *b = (objprim*)pop_objstack(&vm->evalstack);
     objprim *a = (objprim*)pop_objstack(&vm->evalstack);
+    
+    if ((!a) || (!b))
+        return runtime_error(vm, &vm->evalstack, line,
+                "ComparisonError: object not found");
+
     object *obj = binary_comp(a, b, cmptype);
     
     vm_add_object(vm, obj);
     push_objstack(&vm->evalstack, obj);
     advance(vm->top);
+    return INTERPRET_OK;
 }
 
 static inline intrpstate op_binary_add(VM *vm, int line)
@@ -545,10 +555,8 @@ static inline intrpstate op_return(VM *vm)
         vm_pop_frame(vm);
         advance(vm->top);
     }
-    else {
-        vm->callstackpos--;
+    else
         vm->top->pc = 0;
-    }
 #ifdef DEBUG_ARI
     printf("\n");
 #endif
@@ -557,7 +565,9 @@ static inline intrpstate op_return(VM *vm)
 
 intrpstate execute(VM *vm, instruct *instructs)
 {
-    vm->callstackpos++;
+    if (vm->framestackpos == 0)
+        if (vm->haderror)
+            vm->haderror = false;
     objstack *stack = &vm->evalstack;
 #ifdef DEBUG_ARI
     uint64_t count = instructs->count;
@@ -567,6 +577,9 @@ intrpstate execute(VM *vm, instruct *instructs)
     printf("-----\t--------   ----------\t\t--------\n");
 #endif
     while (vm->top->pc < instructs->count) {
+        if (vm->haderror) {
+            return INTERPRET_RUNTIME_ERROR;
+        }
         uint64_t current = vm->top->pc;
         code8 *code = instructs->code[current];
         value *operand = &code->operand;
@@ -607,6 +620,9 @@ intrpstate execute(VM *vm, instruct *instructs)
             case OP_JMP_FALSE:
             {
                 objprim *condition = (objprim*)pop_objstack(stack);
+                if (!condition)
+                    return runtime_error(vm, stack, line,
+                            "ConditionError: No condition found.");
                 int jump = VAL_AS_INT(operand);
                 op_jmp_false(vm, jump, condition);
                 break;
@@ -686,7 +702,9 @@ intrpstate execute(VM *vm, instruct *instructs)
             case OP_COMPARE:
             {
                 int cmptype = VAL_AS_INT(operand);
-                op_compare(vm, cmptype);
+                intrpstate errcode = op_compare(vm, line, cmptype);
+                if (errcode != INTERPRET_OK)
+                    return errcode;
                 break;
             }
             case OP_BINARY_ADD:
@@ -770,8 +788,8 @@ VM *init_vm(void)
     vm->objs = NULL;
     vm->objregister = NULL;
     vm->num_objects = 0;
-    vm->callstackpos = 0;
     vm->framestackpos = 0;
+    vm->haderror = false;
 
     builtin funcs[] = {builtin_println, builtin_input, builtin_type, 
                        builtin_clock};

@@ -27,6 +27,7 @@ typedef struct VM_t
     int num_objects;
     int callstackpos;
     int framestackpos; 
+    bool haderror;
 } VM;
 
 void interpret(char *source);

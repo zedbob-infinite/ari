@@ -1,0 +1,19 @@
+fun layer1()
+{
+	fun layer2()
+	{
+		fun layer3()
+		{
+			return 3/0;
+		}
+		if (i < 10) {
+			layer3();
+		}
+		i = i + 1;
+	}
+
+	layer2();
+}
+
+i = 0;
+layer1();

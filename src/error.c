@@ -15,6 +15,7 @@ intrpstate runtime_error(VM *vm, objstack *stack, size_t line,
 
     reset_objstack(stack);
     reset_vm(vm);
+    vm->haderror = true;
     while (vm->framestackpos > 0)
         vm_pop_frame(vm);
     return INTERPRET_RUNTIME_ERROR;
