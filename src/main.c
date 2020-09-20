@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "compiler.h"
+#include "io.h"
 #include "interpret.h"
 #include "memory.h"
 #include "object.h"
@@ -28,32 +29,12 @@ void arimain(int argc, char** argv)
         repl();
 }
 
-static char* read_file(const char* path) 
-{                        
-  FILE* file = fopen(path, "rb");
-  
-  if (!file)
-      return NULL;
-
-  fseek(file, 0L, SEEK_END);                                     
-  size_t size = ftell(file);                                 
-  rewind(file);                                                  
-
-  char *buffer = NULL;
-  buffer = ALLOCATE(char, size + 1);
-  size_t bytes_read = fread(buffer, sizeof(char), size, file);
-  buffer[bytes_read] = '\0';                                      
-
-  fclose(file);                                                  
-  return buffer;                                                 
-}   
-
 void run_file(const char* path)
 {
-    char* source = read_file(path);
-    if (source) {
-        interpret(source);
-        FREE(char, source);
+    AriFile *newfile = get_file(path);
+    if (newfile->source) {
+        interpret(newfile);
+        //FREE(char, source);
     }
     else {
         printf("Could not read file %s\n", path);

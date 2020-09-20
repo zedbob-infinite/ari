@@ -1,0 +1,28 @@
+class Employee
+{
+	fun __init__(name, age, position, yearHired)
+	{
+		this.name = name;
+		this.age = age;
+		this.position = position;
+		this.yearHired = yearHired;
+	}
+
+	fun printEmployee()
+	{
+		print("Name: ", this.name);
+		print("Age: ", this.age);
+		print("Position: ", this.position);
+		print("Year Hired: ", this.yearHired);
+	}
+}
+
+empName = input("Input name of Employee: ");
+empAge = input("Input age of Employee: ");
+empJob = input("Input job of Employee: ");
+empDateHired = input("Input date of hire: ");
+
+emp = Employee(empName, empAge, empJob, empDateHired);
+print();
+emp.printEmployee();
+print(type(emp));

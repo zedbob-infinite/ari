@@ -30,9 +30,6 @@ typedef struct VM_t
     bool haderror;
 } VM;
 
-void interpret(char *source);
-void interpret_line(VM *vm, char *source);
-/*void run_vm_from_file(FILE* file);*/
 VM *init_vm(void);
 void free_vm(VM *vm);
 void reset_vm(VM *vm);

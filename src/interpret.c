@@ -1,12 +1,13 @@
 #include <stdio.h>
 
 #include "compiler.h"
+#include "interpret.h"
 #include "instruct.h"
 #include "memory.h"
-#include "vm.h"
 
-void interpret(char *source)
+void interpret(AriFile *file)
 {
+    const char *source = file->source;
     VM *vm = init_vm();
     init_instruct(&vm->global.instructs);
     vm->global.instructs = compile(&vm->analyzer, source);

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "interpret.h"
 #include "repl.h"
 #include "vm.h"
 

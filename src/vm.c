@@ -136,7 +136,7 @@ static void create_new_instance(VM *vm, object *obj, int argcount, object **argu
     objinstance *new_instance = init_objinstance(classobj);
     
     vm->objregister = (object*)new_instance;
-    /* Future code for init method will go here */
+
     primstring *name = create_primstring("__init__");
     object *prop = objhash_get(classobj->header.__attrs__, name);
     arguments[argcount] = vm->objregister;
@@ -669,7 +669,7 @@ intrpstate execute(VM *vm, instruct *instructs)
              */
             case OP_LOAD_NAME:
             {
-                char *name =VAL_AS_STRING(operand);
+                char *name = VAL_AS_STRING(operand);
                 intrpstate errcode = op_load_name(vm, line, name);
                 if (errcode != INTERPRET_OK)
                     return errcode;

@@ -3,8 +3,11 @@ CC = gcc
 CFLAGS = -g -Wall -Wshadow -O3
 LDFLAGS = -g
 
-vmmake: main.c error.o debug.o object.o objclass.o objstack.o objprim.o objhash.o objcode.o builtin.o frame.o module.o interpret.o instruct.o repl.o vm.o compiler.o tokenizer.o parser.o memory.o
-	$(CC) $(LDFLAGS) $(INC) instruct.o error.o debug.o objclass.o objprim.o builtin.o frame.o objcode.o interpret.o module.o tokenizer.o objhash.o objstack.o compiler.o repl.o object.o vm.o parser.o memory.o main.c -o ../bin/ari -lm
+vmmake: main.c error.o io.o debug.o object.o objclass.o objstack.o objprim.o objhash.o objcode.o builtin.o frame.o module.o interpret.o instruct.o repl.o vm.o compiler.o tokenizer.o parser.o memory.o
+	$(CC) $(LDFLAGS) $(INC) instruct.o io.o error.o debug.o objclass.o objprim.o builtin.o frame.o objcode.o interpret.o module.o tokenizer.o objhash.o objstack.o compiler.o repl.o object.o vm.o parser.o memory.o main.c -o ../bin/ari -lm
+
+io.o: io.c
+	$(CC) $(CFLAGS) $(INC) -c io.c
 
 error.o: error.c
 	$(CC) $(CFLAGS) $(INC) -c error.c
