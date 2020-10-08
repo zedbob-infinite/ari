@@ -11,7 +11,7 @@ intrpstate runtime_error(VM *vm, objstack *stack, size_t line,
     va_end(args);
     fputs("\n", stderr);
 
-    fprintf(stderr, "[line %ld] in script\n", line);
+    //fprintf(stderr, "[line %ld] in script\n", line);
 
     reset_objstack(stack);
     reset_vm(vm);

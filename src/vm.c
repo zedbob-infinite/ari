@@ -183,14 +183,17 @@ static inline void op_jmp_false(VM *vm, int jump, objprim *condition)
         vm->top->pc = jump;
 }
 
-static inline intrpstate op_load_constant(VM *vm, int line, int type, value *constant)
+static inline void op_load_constant(VM *vm, int line, int type, value *constant)
 {
     objstack *stack = &vm->evalstack;
 
     objprim *prim = NULL;
     switch (type) {
-        case VAL_EMPTY:
-            return runtime_error(vm, stack, line, "No object found.");
+        case VAL_EMPTY: 
+        {
+            runtime_error(vm, stack, line, "No object found.");
+            return;
+        }
         case VAL_BOOL:
             prim = create_new_primitive(PRIM_BOOL);
             PRIM_AS_BOOL(prim) = VAL_AS_BOOL(constant);
@@ -208,25 +211,28 @@ static inline intrpstate op_load_constant(VM *vm, int line, int type, value *con
             PRIM_AS_NULL(prim) = VAL_AS_NULL(constant);
             break;
         default:
-            return runtime_error(vm, stack, line,
+        {
+            runtime_error(vm, stack, line,
                     "Cannot load non-constant value.");
+            return;
+        }
     }
     object *obj = (object*)prim;
     vm_add_object(vm, obj);
     push_objstack(stack, obj);
     advance(vm->top);
-    return INTERPRET_OK;
 }
 
-static inline intrpstate op_load_name(VM *vm, int line, char *name)
+static inline void op_load_name(VM *vm, int line, char *name)
 {
     object *obj = get_name(vm->top, name);
     if (obj)
         push_objstack(&vm->evalstack, obj);
-    else
-        return runtime_error_loadname(vm, name, line);
+    else {
+        runtime_error_loadname(vm, name, line);
+        return;
+    }
     advance(vm->top);
-    return INTERPRET_OK;
 }
 
 static inline void op_load_method(VM *vm)
@@ -234,7 +240,7 @@ static inline void op_load_method(VM *vm)
     advance(vm->top);
 }
 
-static inline intrpstate op_call_function(VM *vm, int line, int argcount)
+static inline void op_call_function(VM *vm, int line, int argcount)
 {
     objstack *stack = &vm->evalstack; 
     object **arguments = ALLOCATE(object*, argcount + 1);
@@ -246,9 +252,11 @@ static inline intrpstate op_call_function(VM *vm, int line, int argcount)
     
     object *popped = pop_objstack(stack);
 
-    if (!popped)
-        return runtime_error(vm, &vm->evalstack, line,
+    if (!popped) {
+        runtime_error(vm, &vm->evalstack, line,
                 "CallError: object is not callable");
+        return;
+    }
 
     if (OBJ_IS_CLASS(popped))
         create_new_instance(vm, popped, argcount, arguments);
@@ -260,11 +268,12 @@ static inline intrpstate op_call_function(VM *vm, int line, int argcount)
         if (obj)
             push_objstack(stack, obj);
     }
-    else
-        return runtime_error(vm, &vm->evalstack, line,
+    else {
+        runtime_error(vm, &vm->evalstack, line,
                 "CallError: object is not callable");
+        return;
+    }
     FREE(object*, arguments);
-    return INTERPRET_OK;
 }
 
 static inline void op_make_function(VM *vm, value *operand)
@@ -302,7 +311,7 @@ static inline void op_make_method(VM *vm, value *operand)
     advance(vm->top);
 }
 
-static inline intrpstate op_get_property(VM *vm, int line, char *getname)
+static inline void op_get_property(VM *vm, int line, char *getname)
 {
     objstack *stack = &vm->evalstack;
     
@@ -319,9 +328,11 @@ static inline intrpstate op_get_property(VM *vm, int line, char *getname)
                     name);
             if (prop)
                 push_objstack(stack, prop);
-            else
-                return runtime_error_loadname(vm, 
+            else {
+                runtime_error_loadname(vm, 
                         PRIMSTRING_AS_RAWSTRING(name), line);
+                return;
+            }
             break;
         }
         case OBJ_INSTANCE:
@@ -334,23 +345,25 @@ static inline intrpstate op_get_property(VM *vm, int line, char *getname)
                 prop = objhash_get(classobj->header.__attrs__,
                         name);
             }
-            if (!prop)
-                return runtime_error_loadname(vm, 
+            if (!prop) {
+                runtime_error_loadname(vm, 
                         PRIMSTRING_AS_RAWSTRING(name), line);
+                return;
+            }
             push_objstack(stack, prop);
             break;
         }
         default:
         {
-            return runtime_error(vm, stack, line,
+            runtime_error(vm, stack, line,
                 "Invalid Operation: object has no attributes.");
+            return;
         }
     }
     advance(vm->top);
-    return INTERPRET_OK;
 }
 
-static inline intrpstate op_set_property(VM *vm, int line, char *setname)
+static inline void op_set_property(VM *vm, int line, char *setname)
 {
     objstack *stack = &vm->evalstack;
 
@@ -375,19 +388,18 @@ static inline intrpstate op_set_property(VM *vm, int line, char *setname)
             char msg[100];
             sprintf(msg, "Error: object has no attribute %s.",
                     PRIMSTRING_AS_RAWSTRING(name));
-            return runtime_error(vm, stack, line, msg);
+            runtime_error(vm, stack, line, msg);
+            return;
         }
     }
     advance(vm->top);
-    return INTERPRET_OK;
 }
 
-static inline intrpstate op_get_source(VM *vm, int line, char *name)
+static inline void op_get_source(VM *vm, int line, char *name)
 {
     primstring *modname = create_primstring(name);
     /* Code to create module here */
     advance(vm->top);
-    return INTERPRET_OK;
 }
 static inline void op_store_name(VM *vm, char *name)
 {
@@ -397,24 +409,25 @@ static inline void op_store_name(VM *vm, char *name)
     advance(vm->top);
 }
 
-static inline intrpstate op_compare(VM *vm, int line, int cmptype)
+static inline void op_compare(VM *vm, int line, int cmptype)
 {
     objprim *b = (objprim*)pop_objstack(&vm->evalstack);
     objprim *a = (objprim*)pop_objstack(&vm->evalstack);
     
-    if ((!a) || (!b))
-        return runtime_error(vm, &vm->evalstack, line,
+    if ((!a) || (!b)) {
+        runtime_error(vm, &vm->evalstack, line,
                 "ComparisonError: object not found");
+        return;
+    }
 
     object *obj = binary_comp(a, b, cmptype);
     
     vm_add_object(vm, obj);
     push_objstack(&vm->evalstack, obj);
     advance(vm->top);
-    return INTERPRET_OK;
 }
 
-static inline intrpstate op_binary_add(VM *vm, int line)
+static inline void op_binary_add(VM *vm, int line)
 {
     objstack *stack = &vm->evalstack;
 
@@ -423,25 +436,28 @@ static inline intrpstate op_binary_add(VM *vm, int line)
     object *c = NULL;
 
     if (!a->__add__)
-        if (!b->__add__)
-            return runtime_error_unsupported_operation(vm, line,
+        if (!b->__add__) {
+            runtime_error_unsupported_operation(vm, line,
                     '+');
+            return;
+        }
         else
             c = b->__add__(a, b);
     else
         c = a->__add__(a, b);
 
-    if (!c)
-        return runtime_error_unsupported_operation(vm,
+    if (!c) {
+        runtime_error_unsupported_operation(vm,
                 line, '+');
+        return;
+    }
 
     vm_add_object(vm, c);
     push_objstack(stack, c);
     advance(vm->top);
-    return INTERPRET_OK;
 }
 
-static inline intrpstate op_binary_sub(VM *vm, int line)
+static inline void op_binary_sub(VM *vm, int line)
 {
     objstack *stack = &vm->evalstack;
 
@@ -450,25 +466,28 @@ static inline intrpstate op_binary_sub(VM *vm, int line)
     object *c = NULL;
 
     if (!a->__sub__)
-        if (!b->__sub__)
-            return runtime_error_unsupported_operation(vm, line,
+        if (!b->__sub__) {
+            runtime_error_unsupported_operation(vm, line,
                     '-');
+            return;
+        }
         else
             c = b->__sub__(a, b);
     else
         c = a->__sub__(a, b);
 
-    if (!c)
-        return runtime_error_unsupported_operation(vm, line,
+    if (!c) {
+        runtime_error_unsupported_operation(vm, line,
                 '-');
+        return;
+    }
 
     vm_add_object(vm, c);
     push_objstack(stack, c);
     advance(vm->top);
-    return INTERPRET_OK;
 }
 
-static inline intrpstate op_binary_mult(VM *vm, int line)
+static inline void op_binary_mult(VM *vm, int line)
 {
     objstack *stack = &vm->evalstack;
     
@@ -477,50 +496,58 @@ static inline intrpstate op_binary_mult(VM *vm, int line)
     object *c = NULL;
 
     if (!a->__mul__)
-        if (!b->__mul__)
-            return runtime_error_unsupported_operation(vm, line, '*');
+        if (!b->__mul__) {
+            runtime_error_unsupported_operation(vm, line, '*');
+            return;
+        }
         else
             c = b->__mul__(a, b);
     else
         c = a->__mul__(a, b);
 
-    if (!c)
-        return runtime_error_unsupported_operation(vm, line, '*');
+    if (!c) {
+        runtime_error_unsupported_operation(vm, line, '*');
+        return;
+    }
 
     vm_add_object(vm, c);
     push_objstack(stack, c);
     advance(vm->top);
-    return INTERPRET_OK;
 }
 
-static inline intrpstate op_binary_div(VM *vm, int line)
+static inline void op_binary_div(VM *vm, int line)
 {
     objstack *stack = &vm->evalstack;
     
     object *b = pop_objstack(stack);
     object *a = pop_objstack(stack);
     object *c = NULL;
-    if (check_zero_div(a, b))
-        return runtime_error_zero_div(vm, line);
+    if (check_zero_div(a, b)) {
+        runtime_error_zero_div(vm, line);
+        return;
+    }
 
     if (!a->__div__)
-        if (!b->__div__)
-            return runtime_error_unsupported_operation(vm, line, '/');
+        if (!b->__div__) {
+            runtime_error_unsupported_operation(vm, line, '/');
+            return;
+        }
         else
             c = b->__div__(a, b);
     else
         c = a->__div__(a, b);
 
-    if (!c)
-        return runtime_error_unsupported_operation(vm, line, '/');
+    if (!c) {
+        runtime_error_unsupported_operation(vm, line, '/');
+        return;
+    }
 
     vm_add_object(vm, c);
     push_objstack(stack, c);
     advance(vm->top);
-    return INTERPRET_OK;
 }
 
-static inline intrpstate op_negate(VM *vm, int line)
+static inline void op_negate(VM *vm, int line)
 {
     objstack *stack = &vm->evalstack;
 
@@ -535,19 +562,22 @@ static inline intrpstate op_negate(VM *vm, int line)
     object *c = NULL;
 
     if (!a->__mul__)
-        if (!b->__mul__)
-            return runtime_error_unsupported_operation(vm,
+        if (!b->__mul__) {
+            runtime_error_unsupported_operation(vm,
                     line, '*');
+            return;
+        }
         else
             c = b->__mul__(a, b);
     else
         c = a->__mul__(a, b);
 
-    if (!c)
-        return runtime_error_unsupported_operation(vm, line,
+    if (!c) {
+        runtime_error_unsupported_operation(vm, line,
                 '*');
+        return;
+    }
     advance(vm->top);
-    return INTERPRET_OK;
 }
 
 static inline void op_pop(VM *vm)
@@ -556,7 +586,7 @@ static inline void op_pop(VM *vm)
     advance(vm->top);
 }
 
-static inline intrpstate op_return(VM *vm)
+static inline void op_return(VM *vm)
 {
     if (vm->top->next) {
         vm_pop_frame(vm);
@@ -567,7 +597,6 @@ static inline intrpstate op_return(VM *vm)
 #ifdef DEBUG_ARI
     printf("\n");
 #endif
-    return INTERPRET_OK;
 }
 
 intrpstate execute(VM *vm, instruct *instructs)
@@ -644,9 +673,11 @@ intrpstate execute(VM *vm, instruct *instructs)
             case OP_JMP_FALSE:
             {
                 objprim *condition = (objprim*)pop_objstack(stack);
-                if (!condition)
-                    return runtime_error(vm, stack, line,
+                if (!condition) { 
+                    runtime_error(vm, stack, line,
                             "ConditionError: No condition found.");
+                    continue;
+                }
                 int jump = VAL_AS_INT(operand);
                 op_jmp_false(vm, jump, condition);
                 break;
@@ -657,10 +688,7 @@ intrpstate execute(VM *vm, instruct *instructs)
              */
             case OP_LOAD_CONSTANT:
             {
-                intrpstate errcode = op_load_constant(vm, line, type, 
-                        operand);
-                if (errcode != INTERPRET_OK)
-                    return errcode;
+                op_load_constant(vm, line, type, operand);
                 break;
             }
             /* LOAD_NAME: searches through the linked object
@@ -670,9 +698,7 @@ intrpstate execute(VM *vm, instruct *instructs)
             case OP_LOAD_NAME:
             {
                 char *name = VAL_AS_STRING(operand);
-                intrpstate errcode = op_load_name(vm, line, name);
-                if (errcode != INTERPRET_OK)
-                    return errcode;
+                op_load_name(vm, line, name);
                 break;
             }
             /* LOAD_METHOD: This operation only advances the 
@@ -689,9 +715,7 @@ intrpstate execute(VM *vm, instruct *instructs)
             case OP_CALL_FUNCTION:
             {
                 int argcount = VAL_AS_INT(operand);
-                intrpstate errcode = op_call_function(vm, line, argcount);
-                if (errcode != INTERPRET_OK)
-                    return errcode;
+                op_call_function(vm, line, argcount);
                 break;
             }
             /* MAKE_FUNCTION: Takes a function passed from the
@@ -745,9 +769,7 @@ intrpstate execute(VM *vm, instruct *instructs)
             case OP_GET_PROPERTY:
             {
                 char *name = VAL_AS_STRING(operand);
-                intrpstate errcode = op_get_property(vm, line, name);
-                if (errcode != INTERPRET_OK)
-                    return errcode;
+                op_get_property(vm, line, name);
                 break;
             }
             /* SET_PROPERTY: Pops an object from the object stack
@@ -759,17 +781,13 @@ intrpstate execute(VM *vm, instruct *instructs)
             case OP_SET_PROPERTY:
             {
                 char *name = VAL_AS_STRING(operand);
-                intrpstate errcode = op_set_property(vm, line, name);
-                if (errcode != INTERPRET_OK)
-                    return errcode;
+                op_set_property(vm, line, name);
                 break;
             }
             case OP_GET_SOURCE:
             {
                 char *name = VAL_AS_STRING(operand);
-                intrpstate errcode = op_get_source(vm, line, name);
-                if (errcode != INTERPRET_OK)
-                    return errcode;
+                op_get_source(vm, line, name);
                 break;
             }
             /* STORE_NAME: Pops an object from the object stack
@@ -799,9 +817,7 @@ intrpstate execute(VM *vm, instruct *instructs)
             case OP_COMPARE:
             {
                 int cmptype = VAL_AS_INT(operand);
-                intrpstate errcode = op_compare(vm, line, cmptype);
-                if (errcode != INTERPRET_OK)
-                    return errcode;
+                op_compare(vm, line, cmptype);
                 break;
             }
             /* BINARY_ADD: takes two obprims, adds them together
@@ -812,9 +828,7 @@ intrpstate execute(VM *vm, instruct *instructs)
              */
             case OP_BINARY_ADD:
             {
-                intrpstate errcode = op_binary_add(vm, line);
-                if (errcode != INTERPRET_OK)
-                    return errcode;
+                op_binary_add(vm, line);
                 break;
             }
             /* BINARY_SUB: takes two objprims, subtracts them from
@@ -824,9 +838,7 @@ intrpstate execute(VM *vm, instruct *instructs)
              */
             case OP_BINARY_SUB:
             {
-                intrpstate errcode = op_binary_sub(vm, line);
-                if (errcode != INTERPRET_OK)
-                    return errcode;
+                op_binary_sub(vm, line);
                 break;
             }
             /* BINARY_MULT: takes two objprims, multiplies them together, 
@@ -836,9 +848,7 @@ intrpstate execute(VM *vm, instruct *instructs)
              */
             case OP_BINARY_MULT:
             {
-                intrpstate errcode = op_binary_mult(vm, line);
-                if (errcode != INTERPRET_OK)
-                    return errcode;
+                op_binary_mult(vm, line);
                 break;
             }
             /* BINARY_DIVIDE: takes two objprims, divides them, 
@@ -848,9 +858,7 @@ intrpstate execute(VM *vm, instruct *instructs)
              */
             case OP_BINARY_DIVIDE:
             {
-                intrpstate errcode = op_binary_div(vm, line);
-                if (errcode != INTERPRET_OK)
-                    return errcode;
+                op_binary_div(vm, line);
                 break;
             }
             /* NEGATE: takes an objprim, negates it
@@ -859,9 +867,7 @@ intrpstate execute(VM *vm, instruct *instructs)
              */
             case OP_NEGATE:
             {
-                intrpstate errcode = op_negate(vm, line);
-                if (errcode != INTERPRET_OK)
-                    return errcode;
+                op_negate(vm, line);
                 break;
             }
             /* POP: pops the object stack.
@@ -878,7 +884,8 @@ intrpstate execute(VM *vm, instruct *instructs)
              */
             case OP_RETURN:
             {
-                return op_return(vm);
+                op_return(vm);
+                return INTERPRET_OK;
             }
         }
     }
